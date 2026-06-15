@@ -4,7 +4,7 @@ Clean-room rebuild of the **VanMoof S5 / A5** firmware (internal codename
 `XS5`) from decompilations, producing buildable source trees that re-emit
 binary-equivalent (or behaviour-equivalent) images.
 
-Sibling project to [`https://github.com/Knight1/vanmoof-s5-decomp`](vanmoof-s3-decomp). The S5 is a
+Sibling project to [`vanmoof-s3-decomp`](https://github.com/Knight1/vanmoof-s5-decomp). The S5 is a
 generation newer and architecturally very different: instead of a handful of
 small MCUs on a serial bus, it runs a **Linux application processor** (i.MX8
 class), a **cellular modem** (nRF9160), a **BLE SoC** (nRF5x, Zephyr), and a
