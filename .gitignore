@@ -1,0 +1,48 @@
+# Build output
+build/
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Pre-decomp backups kept locally during incremental rewrites
+*.bak
+
+# Ghidra exports may be regenerated; keep small JSON, ignore large dumps.
+**/ghidra/exports/*.bndb
+**/ghidra/exports/*.gar
+**/ghidra/exports/*.txt
+
+# OEM firmware images — never commit, even by accident
+*.pak
+*.rom
+*.swu
+*_FOTA
+v1.*-main
+*_DECRYPTED.bin
+
+# Extracted / unpacked OEM filesystems
+squashfs-root/
+rootfs/
+
+# Logs / snapshots
+logs/*
+*.log
+
+# Large bundled assets
+*.png
+*.pdf
+*.zip
