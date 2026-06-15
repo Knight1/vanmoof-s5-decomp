@@ -15,6 +15,7 @@
 
 #include "i2c.h"
 #include "crc8.h"
+#include "util.h"   /* vmem_set */
 
 /*
  * IOM context pointers in RAM. Each builder loads its pointer cell and
@@ -34,12 +35,6 @@ extern int *g_iom_ctx_stream; /* @0x200007f4 */
 extern int *g_iom_ctx_ctrl;   /* @0x200007f8 */
 
 /*
- * vendor: byte fill helper (memset-style) - provided upstream, not reconstructed.
- * FUN_00009866(dst, value, count).
- */
-extern void vmemset_00009866(void *dst, uint8_t value, int count);
-
-/*
  * vendor: RTOS millisecond delay / yield (FUN_00001bdc) - provided upstream,
  * not reconstructed. Used to wait between TX and RX of a status read.
  */
@@ -51,7 +46,7 @@ void i2c_reg_write_53(uint32_t addr, uint32_t reg, uint32_t value)
     int *ctx = g_iom_ctx_regio;            /* *DAT_00001a6c */
     i2c_xfer_desc_t desc;
 
-    vmemset_00009866(&desc, 0, 0x1c);
+    vmem_set(&desc, 0, 0x1c);
     desc.word[0] = 0;                      /* flags          */
     desc.word[2] = 0x53;                   /* opcode (u16)   */
     desc.word[3] = addr;                   /* peer I2C addr  */
@@ -85,7 +80,7 @@ int i2c_tx_frame(uint8_t *frame, int len)
     i2c_xfer_desc_t desc;
     int16_t status;
 
-    vmemset_00009866(&desc, 0, 0x1c);
+    vmem_set(&desc, 0, 0x1c);
     desc.word[2] = 0x59;                   /* opcode (u16)   */
     desc.word[4] = 1;
     desc.word[5] = (uint32_t)(uintptr_t)(frame + 1);
@@ -139,7 +134,7 @@ int i2c_control_write(uint32_t value)
     int *ctx = g_iom_ctx_ctrl;             /* *DAT_0000739c */
     i2c_xfer_desc_t desc;
 
-    vmemset_00009866(&desc, 0, 0x1c);
+    vmem_set(&desc, 0, 0x1c);
     desc.word[0] = 0;
     desc.word[1] = 0;
     desc.word[2] = 0x44;                   /* opcode (u16)   */
