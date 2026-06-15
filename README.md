@@ -1,0 +1,125 @@
+# vanmoof-s5-decomp
+
+Clean-room rebuild of the **VanMoof S5 / A5** firmware (internal codename
+`XS5`) from decompilations, producing buildable source trees that re-emit
+binary-equivalent (or behaviour-equivalent) images.
+
+Sibling project to [`https://github.com/Knight1/vanmoof-s5-decomp`](vanmoof-s3-decomp). The S5 is a
+generation newer and architecturally very different: instead of a handful of
+small MCUs on a serial bus, it runs a **Linux application processor** (i.MX8
+class), a **cellular modem** (nRF9160), a **BLE SoC** (nRF5x, Zephyr), and a
+fleet of **Cortex-M sub-ECUs** on a CAN bus. This repo decomposes that stack
+target by target.
+
+> Status: **first target active.** The repo documents the firmware layout and
+> each target's container format / MCU. **[`user_ecu/`](user_ecu/)** is the
+> first target under analysis (Ghidra auto-analyzed, scaffolded, mapping in
+> progress); no functions are translated to C yet. The remaining per-target
+> subdirectories are created as work on each begins.
+
+## Firmware source
+
+The reference image is the **`v1.5.0-main`** FOTA bundle (build `20240129`,
+version `1.5.0`), located at:
+
+```
+../VanMooof-Firmware/SA5/
+├── v1.5.0-main/
+│   └── v1.5.0-main                ← gzip → tar → SquashFS rootfs (the i.MX8 Linux system, ~57 MB)
+└── v1.5.0-main_device_files/      ← the individual per-ECU images + manifest.txt
+```
+
+`manifest.txt` is the authoritative list of components shipped in this release
+(`Filename,Device,Date,Time,Major,Minor,Patch,Type,AllowSkip,DontRollback`).
+
+## Targets
+
+Container formats and sizes below are confirmed from the image headers; MCU
+part numbers marked *(tbc)* are inferred from the vector layout / SDK and are
+to be confirmed in Ghidra.
+
+### Application processor (Linux)
+
+| Component | Image | Format | Size | Status |
+| --- | --- | --- | --- | --- |
+| `main` (i.MX8 system) | `v1.5.0-main` → `VM-XS5_FOTA` | gzip → tar → **SquashFS** (zlib) | ~57 MB | pending — unpack rootfs, enumerate services |
+
+### Wireless SoCs (Zephyr + MCUboot, magic `0x96f3b83d`)
+
+| Component | Image | MCU | Size | Status |
+| --- | --- | --- | --- | --- |
+| `ble` | `ble.*.bin` | Nordic nRF5x *(tbc)*, Zephyr | ~273 KB | pending |
+| `modem` | `modem.*.bin` | Nordic **nRF9160** (LTE-M/NB-IoT + GNSS), Zephyr | ~302 KB | pending |
+
+Both carry an MCUboot image header (`0x96f3b83d`); the payload is a Zephyr/nRF
+Connect SDK application. `modem` also ships a vendor modem firmware
+(`mfw_nrf9160_1.3.1.zip`) in the device-files directory.
+
+### Sub-ECUs (ARM Cortex-M, raw vector table)
+
+All start with a Cortex-M vector table (initial SP `0x2000_8000`, except
+`user_ecu` at `0x2001_0000`). Part numbers *(tbc)* via Ghidra.
+
+| Component | Image | Role | Size | Status |
+| --- | --- | --- | --- | --- |
+| [`user_ecu`](user_ecu/) | `user_ecu.*.bin` | main controller (the S5's "muco") — **Cortex-M4F**, **FreeRTOS**; LED-ring/sensor/dmic tasks; I²C+CRC-8 inter-ECU bus | ~106 KB | **active** — 160 fns analyzed, **44 named**, boot+comms+control mapped |
+| `imx8_bridge` | `imx8_bridge.*.bin` | gateway between the i.MX8 and the ECU/CAN bus | ~24 KB | pending |
+| `motor_control` | `motor_control.*.bin` | motor controller (non-standard header `0x000008aa`) | ~25 KB | pending |
+| `motor_sensor` | `motor_sensor.*.bin` | motor position/torque sensing | ~25 KB | pending |
+| `power_control` | `power_control.*.bin` | power management | ~29 KB | pending |
+| `power_pedal` | `power_pedal.*.bin` | pedal-assist sensing | ~28 KB | pending |
+| `elock` | `elock.*.bin` | electronic frame lock | ~27 KB | pending |
+| `eshifter` | `eshifter.*.bin` | e-shifter (auto gearbox) | ~29 KB | pending |
+| `frontlight` | `frontlight.*.bin` | front light | ~28 KB | pending |
+| `rearlight` | `rearlight.*.bin` | rear light | ~27 KB | pending |
+
+### Peripheral / vendor firmware
+
+| Component | Image | Vendor | Size | Status |
+| --- | --- | --- | --- | --- |
+| `battery_primary_panasonic` | `battery_primary_panasonic.0.0.1.4.256.*.bin` | Panasonic BMS — encrypted (a `_DECRYPTED.bin` is present); header `"(C) 2021 Energy Company of Panasonic Group"` | ~98 KB | pending |
+| `charger_liteon_normal` | `charger_liteon_normal.0.0.1.8.0.*.bin` | LiteON charger (normal) | ~23 KB | pending |
+| `charger_liteon_speed` | `charger_liteon_speed.0.0.1.2.0.*.bin` | LiteON charger (speed) | ~23 KB | pending |
+
+## Planned repository layout
+
+Mirrors `vanmoof-s3-decomp`: one self-contained subdirectory per target, each
+created as work begins.
+
+```
+vanmoof-s5-decomp/
+├── README.md
+├── .gitignore
+├── Makefile                ← top-level dispatcher (added with the first buildable target)
+├── main/                   ← i.MX8 Linux rootfs analysis (SquashFS unpack, service map)
+├── ble/                    ← nRF5x BLE app (Zephyr/MCUboot)
+├── modem/                  ← nRF9160 cellular app (Zephyr/MCUboot)
+├── user_ecu/               ← main vehicle controller
+├── imx8_bridge/            ← i.MX8 ↔ ECU bus gateway
+├── motor_control/          ├ motor_sensor/
+├── power_control/          ├ power_pedal/
+├── elock/  eshifter/  frontlight/  rearlight/
+├── battery/                ← Panasonic BMS (encrypted)
+├── charger/                ← LiteON chargers
+├── tools/                  ← cross-target tooling (FOTA unpack, MCUboot/CAN helpers)
+└── reference/              ← shared datasheets, CAN/protocol notes, pin maps
+```
+
+Each target subdirectory follows the S3 convention: `src/`, `include/`,
+`docs/` (`progress.md`, `hardware.md`, `protocol.md`), `ghidra/exports/`, and a
+linker script + `Makefile`.
+
+## Legal
+
+This is a clean-room interoperability project. OEM firmware images are **not**
+redistributed in this repository — extract them from a FOTA bundle or flash
+dump of a bike you own.
+
+Reverse engineering for interoperability is permitted under EU Software
+Directive 2009/24/EC Art. 6 and US DMCA §1201(f). The reconstructed source in
+this repository is original work derived from analysis of the OEM image and
+publicly available documentation.
+
+No warranty. Flashing reconstructed firmware to a bike will **brick or damage
+hardware** if it is wrong. Do not flash to a bike you depend on. Use a spare
+PCB or hardware-in-the-loop simulator.
