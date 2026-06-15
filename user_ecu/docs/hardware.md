@@ -130,6 +130,48 @@ At `0x6210..0x6248` in `main_SystemInit`: `SHPR3 |= 0xFFFF0000`; CSR=0; CVR=0;
 | `0x20000860` | `g_ctrl_struct_B` | Q16.16 easing state, channel B (right ring) |
 | `0x200016a0`/`0x200016c4` | gpio_irq arg/handler tables | GPIO IRQ dispatch parallel tables |
 
+## Peripherals configured by `main_SystemInit` (`0x44c0`)
+
+From the decompiled bring-up (`src/main.c`). All MMIO verbatim.
+
+- **PORT pin-mux** — base `DAT_00004840`; mux fields at `+0xc0..+0xd0`, then a long
+  PCR read-modify-write run (`base-0x4fd8..-0x4f6c`) masking `0xfffffef0`/`0xfffffaf0`
+  and OR-ing mux values `0x100/0x101/0x105/0x109`.
+- **Clock-gate controller (PCC-like)** @`0x40004000` (gates `+0x08`/`+0x0c`/`+0x14`/
+  `+0x1c`/`+0x20`); strobe reg `0x40000220` (`0x4000`→`0x40000`→`0x400000`).
+- **ADC clock-select** @`0x400002a0`: `1`→1 MHz LPO, `2`→32 kHz, `0`→`SystemCoreClock /
+  ((0x4000030c & 0xff)+1)`.
+- **LED-PWM = FlexTimer (FTM)-class** (handle `piVar13[0x58]`): enable `+0x18 |1`, wait,
+  `|2`, mode `|0xa0/0x80/0x20`; modulus → `+0x1c` (clamp `0x1ff`); prescale → `+0xc`
+  (clamp `0x1f`); dead-time → `+0x48` (clamp `0x7f00`); DMA/IRQ `+0x5c|1`, `+0x58` mask,
+  `+0x54 |0x3800000`; duty bytes at `DAT_00004c30+0x32b/0x32c = 0x40`.
+- **SAI / DMIC** — source-clock select on `0x400002d0` (core/PLL/SPLL/FIRC/ADC/32 k) and
+  bit-clock divider on `0x400002c0`; decimator best-fit OSR → `base+0x824`, decimation →
+  `base+0x814`/`+0x810`; DMA descriptors; `nvic_irq_enable(0xf)`.
+- **FlexCAN** comm port — CTRL1-style timing assembled into `+0xc00`, plus `+0xc04`/
+  `+0xc1c`/`+0xe00`/`+0xe08`.
+- **Charger/PMIC** — status regs via `DAT_00005650`; two `Adc_ReadCh_LPO1MHz` samples
+  scaled `×5.75` / `×1.5` (VFP); a **PRIMASK critical section** writes status + scaled
+  values + a `0xaa`→`0x55` unlock double-write.
+- **SysTick** — `RVR = SystemCoreClock/1000 - 1` (1 ms), `CSR = 7`; SHPR3 sets PendSV +
+  SysTick to lowest priority.
+
+### FreeRTOS tasks created (8)
+| Entry | Stack | Prio | Role (proposed) |
+|---|---|---|---|
+| `PTR_LAB_00003c90` | `0x168` | 2 | control / IOM task |
+| `0x00004101` | `0x10e` | 3 | LED-PWM task |
+| `l_led_ring_task` (`0x473c`) | `0x186` | 3 | left LED ring |
+| `r_led_ring_task` (`0x4768`) | `0x186` | 3 | right LED ring |
+| `0x0001b325` *(off-image)* | `0xb4` | 1 | audio / sensors |
+| `dmic_task` (`0x4be8`) | `0x5a` | 4 | digital mic |
+| `0x000078dd` | `0x5a` | 0 | comm / IOM |
+| `0x00007c89` (conditional) | `0x10e` | 4 | control task |
+
+> Several task entry/name pointers resolve into the off-image `0x1b2ff..0x1b341`
+> region (>`0x1a88b`); the enumerated entries above vs those high addresses need the
+> upper ROM bank to reconcile (see `progress.md`).
+
 ## Open hardware items (TBC)
 - Exact NXP SKU (base map refutes S32K144; family is S32K-like). Reconcile vs the
   Ambiq-IOM comms read.
