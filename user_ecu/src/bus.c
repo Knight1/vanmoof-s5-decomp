@@ -16,6 +16,7 @@
  *   bus_page_write_verify@ 0x00008b12  (splice + write-back + read-back verify)
  *   bus_transfer_token   @ 0x0000664c  (variant-dispatched 0x200 op + token)
  *   bus_page_program     @ 0x00006610  (variant-dispatched 0x200-byte page write)
+ *   bus_page_read        @ 0x000029b4  (variant-dispatched page read into a buffer)
  *
  * Every transfer primitive dispatches through the global driver manager
  * (g_bus_mgr, fixed at 0x1301fe00): manager+0x10 is the driver vtable and the
@@ -43,6 +44,14 @@ extern int bus_xfer_token_handler_a(void *a, uint32_t b, uint32_t len, uint32_t 
  * DAT_00006644) in the off-image 0x13xxxxxx region; declared extern (as above).
  */
 extern int bus_page_program_handler_a(void *sess, uint32_t addr, void *buf, uint32_t len);
+
+/*
+ * Page-read handlers for bus_page_read — fixed off-image code addresses
+ * (0x130043a2 / 0x13007538 / 0x1300ade4, DAT_000029ec/f0/f4). Declared extern.
+ */
+extern int bus_page_read_handler_a(void *a, uint32_t addr, void *buf, uint32_t len);
+extern int bus_page_read_handler_b0(void *a, uint32_t addr, void *buf, uint32_t len);
+extern int bus_page_read_handler_b1(void *a, uint32_t addr, void *buf, uint32_t len);
 
 /* Fixed token forwarded by bus_transfer_token (DAT_00006684). */
 #define BUS_XFER_TOKEN  0x6b65666cu
@@ -315,4 +324,24 @@ int bus_page_program(void *sess, uint32_t addr, void *buf)
         return bus_page_program_handler_a(sess, addr, buf, 0x200);  /* DAT_00006644 */
     }
     return g_bus_mgr->driver->page_program(sess, addr, buf, 0x200); /* driver vtable +0x0c */
+}
+
+/*
+ * bus_page_read — variant-dispatched page read into `buf`. // 0x000029b4
+ *
+ * Pure tail-call dispatcher forwarding (a, addr, buf, len) and the result.
+ * bus_variant_b() (0x288c) only clobbers r0/r3, so addr (r1) and buf (r2) are
+ * forwarded exactly as received (the OEM spills/reloads only len). Variant A
+ * uses the fixed handler at 0x130043a2; variant B picks between two handlers by
+ * the low nibble of the MMIO selector at 0x40000ffc.
+ */
+int bus_page_read(void *a, uint32_t addr, void *buf, uint32_t len)
+{
+    if (bus_variant_b() == 0) {
+        return bus_page_read_handler_a(a, addr, buf, len);       /* DAT_000029ec */
+    }
+    if ((*(volatile uint32_t *)0x40000ffcu & 0xfu) != 0) {       /* ldr [0x40000ffc] ; tst #0xf */
+        return bus_page_read_handler_b0(a, addr, buf, len);      /* DAT_000029f0 (nibble != 0) */
+    }
+    return bus_page_read_handler_b1(a, addr, buf, len);          /* DAT_000029f4 (nibble == 0) */
 }

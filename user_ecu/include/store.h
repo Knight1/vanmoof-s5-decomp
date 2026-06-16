@@ -47,4 +47,45 @@ int store_flush(struct store *st);
 int store_load(struct store_ctrl *ctrl, uint32_t arg2,
                const store_range_t *range, uint32_t arg4);
 
+/*
+ * store_descriptor_read — read the 8-byte storage descriptor at byte 0x37400.
+ * Fetches it via the token path; if the descriptor page is not yet provisioned
+ * it falls back to a raw page read (zeroing `out` when nothing is stored, else
+ * extracting the 8 bytes). On a 0 return `out` holds the 8-byte descriptor.
+ * Returns 0 on success, -2 on a NULL session, -1 on an extract/log failure, or
+ * the underlying read status otherwise. // 0x00006708
+ */
+int store_descriptor_read(void *sess, void *out);
+
+/*
+ * event_report — post a `word_count`-word event/error record (ctx + 16-bit code
+ * + payload words) to the device manager's FreeRTOS event queue, when one is
+ * registered. Variadic: each payload word is a uint32_t. // 0x00003eac
+ */
+void event_report(uint32_t ctx, uint16_t code, int word_count, ...);
+
+/*
+ * fota_image_verify — stream `length` bytes of the staged image (from byte
+ * `offset` within the data region) through the hardware checksum engine and
+ * publish the accumulated result to *out_crc. Returns 0 on success, 1 on a
+ * store/flush/read failure, 2 on bad arguments (NULL out_crc or a span past the
+ * 0x1b400-byte region). // 0x00002acc
+ */
+int fota_image_verify(struct store *st, uint32_t offset, uint32_t length,
+                      uint32_t *out_crc);
+
+/*
+ * store_descriptor_write — write the 8-byte `descriptor` to its flash page.
+ * Returns 0 on success, -1 on a prep/program/commit failure, -2 on a NULL
+ * session. // 0x00006794
+ */
+int store_descriptor_write(void *sess, const void *descriptor);
+
+/*
+ * log_append_event — append an 8-byte event record (tagged with `flag`) to the
+ * log store via store_descriptor_write, when a store handle is registered.
+ * // 0x0000681c
+ */
+void log_append_event(uint8_t flag);
+
 #endif /* USER_ECU_STORE_H */

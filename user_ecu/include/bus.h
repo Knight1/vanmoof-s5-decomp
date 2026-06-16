@@ -33,8 +33,9 @@ typedef struct bus_driver {
     int (*init)(struct bus_session *sess);                                   /* +0x04 */
     int (*xfer_token)(void *a, uint32_t b, uint32_t len, uint32_t token);    /* +0x08 (bus_transfer_token, variant B) */
     int (*page_program)(void *sess, uint32_t addr, void *buf, uint32_t len); /* +0x0c (bus_page_program, variant B) */
-    void *_w10;                                                              /* +0x10 */
-    void *_w14;                                                              /* +0x14 */
+    int (*page_load)(void *sess, uint32_t addr, uint32_t len);               /* +0x10 (raw page load/probe; flash_page_commit, store_descriptor_read) */
+    int (*page_verify)(void *sess, uint32_t addr, uint32_t len, void *buf,
+                       int *out_b, int *out_a);                              /* +0x14 (read-back verify; flash_page_write, variant B) */
     void *_w18;                                                              /* +0x18 */
     int (*open_a)(struct bus_session *sess);                                 /* +0x1c */
     void *_w20;                                                              /* +0x20 */
@@ -141,5 +142,15 @@ int bus_transfer_token(void *a, uint32_t b);
  * by the storage page-cache write-back. // 0x00006610
  */
 int bus_page_program(void *sess, uint32_t addr, void *buf);
+
+/*
+ * bus_page_read — variant-dispatched page READ. Reads `len` bytes from flash
+ * byte address `addr` into `buf`. Variant A tail-calls a fixed off-image handler
+ * (0x130043a2); variant B selects between two more (0x13007538 / 0x1300ade4) by
+ * the low nibble of the MMIO selector at 0x40000ffc. Forwards (a, addr, buf, len)
+ * and the result. The explicit-buffer counterpart of the driver's page_load
+ * (vtable +0x10). // 0x000029b4
+ */
+int bus_page_read(void *a, uint32_t addr, void *buf, uint32_t len);
 
 #endif /* USER_ECU_BUS_H */
