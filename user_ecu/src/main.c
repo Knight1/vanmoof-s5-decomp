@@ -47,9 +47,9 @@ extern int   registry_add(uint32_t busbase, void *cfg);     /* 0x00008594 */
 extern int   FUN_000015e0(uint32_t a, int b, int c, int d, uint32_t e); /* 0x000015e0 */
 extern int   FUN_00009178(uint32_t a, void *b);             /* 0x00009178 */
 extern void  FUN_00003eac(uint32_t dst, int tag, int n, ...); /* 0x00003eac (frame builder, variadic) */
-extern void *FUN_000082f2(uint32_t busbase, void *cfg);     /* 0x000082f2 */
-extern int   FUN_00008d54(uint32_t a, int b);               /* 0x00008d54 */
-extern int   FUN_0000830a(int a, uint32_t b);               /* 0x0000830a */
+extern void *registry_lookup(uint32_t busbase, void *cfg);     /* 0x000082f2 */
+extern int   xQueueSemaphoreTake(uint32_t a, int b);               /* 0x00008d54 */
+extern int   registry_lookup_value(int a, uint32_t b);               /* 0x0000830a */
 extern void  FUN_000097f4(uint32_t a);                      /* 0x000097f4 */
 extern int   FUN_0000289c(int p);                           /* 0x0000289c */
 extern void  FUN_0000664c(int a, uint32_t b);               /* 0x0000664c */
@@ -312,7 +312,7 @@ void main_SystemInit(void)
 
     /*
      * Config descriptor stack block (matches the OEM local_3c..uStack_14, one
-     * contiguous on-stack descriptor handed to registry_add / FUN_000082f2 etc.
+     * contiguous on-stack descriptor handed to registry_add / registry_lookup etc.
      * as &local_3c). Modeled as one array so the address-of genuinely covers
      * every field, exactly as the OEM stack frame does.
      */
@@ -708,9 +708,9 @@ LAB_00004c00:
         FUN_00003eac(DAT_00004f18, 0x18, 4, 0x35, (int)uVar4,
                      (int)(uVar17 >> 0x10), (int)(uVar17 & 0xffff));
         local_3c = (local_3c & 0xff000000) | 0x80c0; /* low halfword 0x80c0 */
-        puVar18v = FUN_000082f2(DAT_00004f00, &local_3c);
+        puVar18v = registry_lookup(DAT_00004f00, &local_3c);
         if (puVar18v == NULL) goto LAB_00004c06;
-        iVar15 = FUN_00008d54(((uint32_t *)puVar18v)[1], 100);
+        iVar15 = xQueueSemaphoreTake(((uint32_t *)puVar18v)[1], 100);
         if (iVar15 != 0) goto LAB_00004c06;
         {
             uint8_t *puVar25 = (uint8_t *)*(uint32_t *)puVar18v;
@@ -720,7 +720,7 @@ LAB_00004c00:
             *(int16_t *)(puVar25 + 5) = (int16_t)uVar17;
         }
         local_3c = (local_3c & 0xff000000) | 0x80c0;
-        iVar15 = (int)(intptr_t)FUN_000082f2(DAT_00004f00, &local_3c);
+        iVar15 = (int)(intptr_t)registry_lookup(DAT_00004f00, &local_3c);
         if (iVar15 == 0) goto LAB_00004c06;
         FUN_000097f4(*(uint32_t *)(iVar15 + 4));
         if (iVar14 != 0) goto LAB_00004c06;
@@ -782,9 +782,9 @@ LAB_00004e98:
                     *(uint16_t *)((int)piVar6 + 0x36) = 0;
                     piVar6[0x10] = 0;
                     *(uint16_t *)(piVar6 + 0x11) = 0;
-                    p = (void *)(intptr_t)FUN_0000830a(piVar6[0xc], local_3c);
+                    p = (void *)(intptr_t)registry_lookup_value(piVar6[0xc], local_3c);
                     if (p != NULL) {
-                        iVar24 = FUN_00008d54(((uint32_t *)p)[1], 100);
+                        iVar24 = xQueueSemaphoreTake(((uint32_t *)p)[1], 100);
                         iVar15 = (int)local_3c;
                         if (iVar24 == 0) {
                             uint16_t *puVar26 = (uint16_t *)*(uint32_t *)p;
@@ -796,7 +796,7 @@ LAB_00004e98:
                                        | (uint16_t)((0x81u << 8) | (uint8_t)piVar6[0xd]);
                             local_3c = (local_3c & 0x00ffffff)
                                        | (((uint32_t)iVar15 >> 24) << 24);
-                            iVar15 = FUN_0000830a(piVar6[0xc], local_3c);
+                            iVar15 = registry_lookup_value(piVar6[0xc], local_3c);
                             if (iVar15 != 0) {
                                 FUN_000097f4(*(uint32_t *)(iVar15 + 4));
                                 goto LAB_00004fbc;
@@ -1045,7 +1045,7 @@ LAB_00004c06:
     }
     piVar13 = (int *)piRam00005660;
     if ((uVar28 & 4) != 0) {
-        FUN_00008d54(*(uint32_t *)(*piRam00005660 + 4), 100);
+        xQueueSemaphoreTake(*(uint32_t *)(*piRam00005660 + 4), 100);
         iVar16 = *piVar13;
         MMIO32(iVar16 + 0x10) |= 1;                 /* device wake */
         MMIO32(iVar16 + 0x18) |= 1;

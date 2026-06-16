@@ -52,4 +52,19 @@ uint32_t registry_find(registry_t *reg, const void *key);
  */
 uint32_t registry_add(registry_t *reg, const void *entry);
 
+/*
+ * Look up the entry matching `key` and return a pointer to its 0x2c-byte slot,
+ * or NULL if not present. Thin wrapper over registry_find.
+ * // 0x000082f2
+ */
+void *registry_lookup(registry_t *reg, const void *key);
+
+/*
+ * Look up an entry by an inline two-word key. Builds {key0, key1} on the stack
+ * and forwards to registry_lookup; returns the slot pointer or NULL (also NULL
+ * when reg is NULL). This is the common "get device by id" accessor.
+ * // 0x0000830a
+ */
+void *registry_lookup_value(registry_t *reg, uint32_t key0, uint32_t key1);
+
 #endif /* USER_ECU_REGISTRY_H */
