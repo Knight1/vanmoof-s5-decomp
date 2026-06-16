@@ -2,11 +2,13 @@
 #define USER_ECU_UTIL_H
 
 /*
- * util.h — VanMoof firmware byte-fill utility.
+ * util.h — VanMoof firmware low-level utilities.
  *
- * The firmware ships its own hand-written byte-fill (memset-equivalent) rather
- * than relying on a libc/libgcc memset. It is used widely across the image
- * (e.g. the I2C descriptor zero-fill, xTaskCreate buffer init, SystemInit).
+ * The firmware ships its own hand-written byte-fill / byte-copy
+ * (memset/memcpy-equivalents) and a counted busy-wait, rather than relying on
+ * libc/libgcc. They are used widely across the image (e.g. the I2C descriptor
+ * zero-fill, xTaskCreate buffer init, the registry entry copy, SystemInit, and
+ * clock-stabilisation delays).
  */
 
 #include <stddef.h>
@@ -22,5 +24,25 @@
  * path, and does not return dst.
  */
 void vmem_set(void *dst, uint8_t value, size_t count);
+
+/*
+ * vmem_copy — copy `count` bytes from `src` to `dst`, forward. // 0x0000984c
+ *
+ * OEM ABI: (dst, src, count). The hand-written sibling of vmem_set: it
+ * precomputes end = src + count, then copies one byte at a time (ldrb/strb
+ * post/pre-increment) terminating on src == end. Byte-granular forward copy
+ * with no overlap handling and no word/alignment fast path; returns void.
+ * Used by registry_add to stamp a 0x2c-byte entry into a slot.
+ */
+void vmem_copy(void *dst, const void *src, size_t count);
+
+/*
+ * busy_wait — spin for `count` decrements. // 0x000084b2
+ *
+ * OEM ABI: (count); returns void. A bare `do { count--; } while (count != 0);`
+ * delay loop (subs/cmp/bne). Note count == 0 on entry underflows and spins
+ * 2^32 iterations — reproduced verbatim. Used for clock-stabilisation delays.
+ */
+void busy_wait(uint32_t count);
 
 #endif /* USER_ECU_UTIL_H */

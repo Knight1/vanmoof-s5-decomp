@@ -36,6 +36,19 @@ uint32_t GetSystemCoreClockSource(void);
 uint32_t Adc_ReadCh_LPO1MHz(void);
 
 /*
+ * Program up to two packed clock-divider descriptors.
+ *
+ * `packed` holds two 12-bit fields ({selector[7:0], value[11:8]}, low field
+ * first); the programmed divider is value-1. Selector 0x3f writes bit 0 of the
+ * divider-config word at 0x40020098, selector 0x3e writes bits 5:4 of
+ * 0x4002009c, and any other selector writes the byte to the divider-register
+ * array word at 0x40000260 + selector*4. A zero field is skipped; processing
+ * stops once the remaining bits are zero.
+ * // 0x0000110c
+ */
+void clock_div_program(uint32_t packed);
+
+/*
  * Enable a peripheral: ungate its clock (clock-gate controller @ 0x40004000,
  * gate index == param_1), then clear-pending and enable the associated NVIC
  * interrupt. The IRQ number is looked up from an OEM rodata table indexed by

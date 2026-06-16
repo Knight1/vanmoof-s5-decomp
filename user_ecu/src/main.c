@@ -43,7 +43,7 @@ extern void  FUN_00008c8a(void *p);                         /* 0x00008c8a */
 extern void  FUN_000079c0(void *p);                         /* 0x000079c0 */
 extern int   thunk_FUN_0000974e(void);                      /* 0x000087a4 -> 0x0000974e */
 extern int   FUN_0000974e(void);                            /* 0x0000974e */
-extern int   FUN_00008594(uint32_t busbase, void *cfg);     /* 0x00008594 */
+extern int   registry_add(uint32_t busbase, void *cfg);     /* 0x00008594 */
 extern int   FUN_000015e0(uint32_t a, int b, int c, int d, uint32_t e); /* 0x000015e0 */
 extern int   FUN_00009178(uint32_t a, void *b);             /* 0x00009178 */
 extern void  FUN_00003eac(uint32_t dst, int tag, int n, ...); /* 0x00003eac (frame builder, variadic) */
@@ -55,8 +55,8 @@ extern int   FUN_0000289c(int p);                           /* 0x0000289c */
 extern void  FUN_0000664c(int a, uint32_t b);               /* 0x0000664c */
 extern int   FUN_00008e76(uint32_t a, int b);               /* 0x00008e76 */
 extern uint32_t FUN_00008fd6(uint32_t a, int b);            /* 0x00008fd6 */
-extern void  FUN_000084b2(uint32_t a);                      /* 0x000084b2 */
-extern void  FUN_0000159c(int bank, int pin, int idx, int seq); /* 0x0000159c */
+extern void  busy_wait(uint32_t a);                      /* 0x000084b2 */
+extern void  gpio_irq_register(int bank, int pin, int idx, int seq); /* 0x0000159c */
 extern int   FUN_000022b0(uint32_t base, int mode);         /* 0x000022b0 */
 extern int   func_0x00002754(uint32_t a, void *b, uint32_t c); /* 0x00002754 */
 extern int   FUN_000078f0(uint32_t a, uint32_t b, uint32_t c); /* 0x000078f0 */
@@ -65,7 +65,7 @@ extern int   func_0x00006708(int a, void *b);               /* 0x00006708 (raw i
 extern int   func_0x00009876(uint32_t a, void *b, int c);   /* 0x00009876 */
 extern void  func_0x00001884(int a, int b, void *c, int d); /* 0x00001884 */
 extern void  FUN_00003338(int p);                           /* 0x00003338 */
-extern void  FUN_0000110c(int a);                           /* 0x0000110c */
+/* clock_div_program (0x0000110c) is declared by clock.h (already included). */
 extern void  FUN_00006b44(void);                            /* 0x00006b44 */
 
 /* NOTE: the OEM's PRIMASK critical section (mrs/cpsid/msr) and its VFP int<->float
@@ -312,7 +312,7 @@ void main_SystemInit(void)
 
     /*
      * Config descriptor stack block (matches the OEM local_3c..uStack_14, one
-     * contiguous on-stack descriptor handed to FUN_00008594 / FUN_000082f2 etc.
+     * contiguous on-stack descriptor handed to registry_add / FUN_000082f2 etc.
      * as &local_3c). Modeled as one array so the address-of genuinely covers
      * every field, exactly as the OEM stack frame does.
      */
@@ -641,7 +641,7 @@ LAB_00004826:
 
 LAB_00004c00:
     /* -------------------------------------------------------------------
-     * 0x4c00 — I2C/IOM bus + sensor device bring-up (FUN_00008594 sweep)
+     * 0x4c00 — I2C/IOM bus + sensor device bring-up (registry_add sweep)
      * ----------------------------------------------------------------- */
     piVar6 = DAT_00004ef8;
     piVar13 = DAT_00004c40;
@@ -658,7 +658,7 @@ LAB_00004c00:
     if ((local_38 == 0) || (local_3c == 0)) goto LAB_00004c06;
     local_28 = iVar14; local_24 = iVar14; local_20 = iVar14;
     local_1c = iVar14; local_18 = iVar14; uStack_14 = iVar14;
-    iVar14 = FUN_00008594(DAT_00004f00, &local_3c);
+    iVar14 = registry_add(DAT_00004f00, &local_3c);
     piVar13 = DAT_00004f04;
     if (iVar14 != 0) goto LAB_00004c06;
     iVar15 = piVar6[10];
@@ -681,7 +681,7 @@ LAB_00004c00:
     if ((local_38 == 0) || (local_3c == 0)) goto LAB_00004c06;
     local_28 = iVar14; local_24 = iVar14; local_20 = iVar14;
     local_1c = iVar14; local_18 = iVar14; uStack_14 = iVar14;
-    iVar14 = FUN_00008594(DAT_00004f00, &local_3c);
+    iVar14 = registry_add(DAT_00004f00, &local_3c);
     if (iVar14 != 0) goto LAB_00004c06;
     iVar14 = FUN_000015e0(*(uint32_t *)(*piVar13 + 8), iVar15, 0, 0, DAT_00004f08);
     if (iVar14 != 0) goto LAB_00004c06;
@@ -700,7 +700,7 @@ LAB_00004c00:
     if ((local_38 == 0) || (local_3c == 0)) {
         iVar14 = -1;
     } else {
-        iVar14 = FUN_00008594(DAT_00004f00, &local_3c);
+        iVar14 = registry_add(DAT_00004f00, &local_3c);
     }
     {
         uint16_t uVar4 = uRam00000bde;
@@ -771,7 +771,7 @@ LAB_00004eb0:
 LAB_00004e98:
             iVar14 = -1;
         } else {
-            iVar14 = FUN_00008594(iVar15, &local_3c);
+            iVar14 = registry_add(iVar15, &local_3c);
             if (iVar14 == 0) {
                 if ((piVar6[0x12] != 0) && (*(char *)(piVar6[0x12] + 0x3c) != '\0')) {
                     void *p;
@@ -822,7 +822,7 @@ LAB_00004fbc:
     if ((local_38 == 0) || (local_3c == 0)) {
         iVar16 = -1;
     } else {
-        iVar16 = FUN_00008594(DAT_000052e0, &local_3c);
+        iVar16 = registry_add(DAT_000052e0, &local_3c);
     }
     local_3c = (uint32_t)FUN_00006a10(8);
     local_38 = (uint32_t)thunk_FUN_0000974e();
@@ -836,7 +836,7 @@ LAB_00004fbc:
     if ((local_38 == 0) || (local_3c == 0)) {
         iVar14 = -1;
     } else {
-        iVar14 = FUN_00008594(DAT_000052e0, &local_3c);
+        iVar14 = registry_add(DAT_000052e0, &local_3c);
     }
     local_3c = (uint32_t)FUN_00006a10(4);
     local_38 = (uint32_t)thunk_FUN_0000974e();
@@ -853,7 +853,7 @@ LAB_00004fbc:
     if ((local_38 == 0) || (local_3c == 0) || (local_1c == 0)) {
         iVar16 = -1;
     } else {
-        iVar16 = FUN_00008594(DAT_000052e0, &local_3c);
+        iVar16 = registry_add(DAT_000052e0, &local_3c);
     }
     local_3c = (uint32_t)FUN_00006a10(1);
     local_38 = (uint32_t)thunk_FUN_0000974e();
@@ -870,7 +870,7 @@ LAB_00004fbc:
     if ((local_38 == 0) || (local_3c == 0) || (local_1c == 0)) {
         iVar14 = -1;
     } else {
-        iVar14 = FUN_00008594(DAT_000052e0, &local_3c);
+        iVar14 = registry_add(DAT_000052e0, &local_3c);
     }
     local_3c = 0;
     local_38 = (uint32_t)thunk_FUN_0000974e();
@@ -884,7 +884,7 @@ LAB_00004fbc:
     if (local_38 == 0) {
         bVar10 = 0xff;
     } else {
-        bVar10 = (uint8_t)FUN_00008594(DAT_000052e0, &local_3c);
+        bVar10 = (uint8_t)registry_add(DAT_000052e0, &local_3c);
     }
     puVar7 = DAT_00005304;
     iVar16 = (int)(char)((uint8_t)iVar14 | bVar10);
@@ -907,7 +907,7 @@ LAB_00004c06:
     if (local_38 == 0) {
         iVar14 = -1;
     } else {
-        iVar14 = FUN_00008594(uVar17, &local_3c);
+        iVar14 = registry_add(uVar17, &local_3c);
     }
     local_3c = (uint32_t)FUN_00006a10(0xd);
     local_38 = (uint32_t)thunk_FUN_0000974e();
@@ -919,7 +919,7 @@ LAB_00004c06:
     if ((local_38 == 0) || (local_3c == 0)) {
         iVar16 = -1;
     } else {
-        iVar16 = FUN_00008594(DAT_000052e0, &local_3c);
+        iVar16 = registry_add(DAT_000052e0, &local_3c);
     }
     if (iVar14 != 0) iVar16 = iVar14;
     local_3c = 0;
@@ -934,7 +934,7 @@ LAB_00004c06:
     if (local_38 == 0) {
         iVar14 = -1;
     } else {
-        iVar14 = FUN_00008594(DAT_000052e0, &local_3c);
+        iVar14 = registry_add(DAT_000052e0, &local_3c);
     }
     local_3c = (uint32_t)FUN_00006a10(0x10);
     local_38 = (uint32_t)thunk_FUN_0000974e();
@@ -947,7 +947,7 @@ LAB_00004c06:
     if ((local_38 == 0) || (local_3c == 0)) {
         iVar16 = -1;
     } else {
-        iVar16 = FUN_00008594(DAT_000052e0, &local_3c);
+        iVar16 = registry_add(DAT_000052e0, &local_3c);
     }
     if (iVar14 != 0) iVar16 = iVar14;
     local_3c = 0;
@@ -962,7 +962,7 @@ LAB_00004c06:
     if (local_38 == 0) {
         iVar14 = -1;
     } else {
-        iVar14 = FUN_00008594(DAT_000052e0, &local_3c);
+        iVar14 = registry_add(DAT_000052e0, &local_3c);
     }
     iVar15 = FUN_00008e76((uint32_t)(intptr_t)DAT_00005304, 0);
     if (iVar16 != 0) iVar14 = iVar16;
@@ -1030,7 +1030,7 @@ LAB_00004c06:
         local_3c = uVar9;
         local_38 = local_44;
         if (bVar35 && ((uVar21 = (*DAT_00005650 << 0x1b), -1 < (int)uVar21))) {
-            FUN_000084b2(((uRam00005654 / local_2c) * 100 + 100) >> 2);   /* 0x5466..0x5476 */
+            busy_wait(((uRam00005654 / local_2c) * 100 + 100) >> 2);   /* 0x5466..0x5476 */
             *(volatile uint32_t *)DAT_00005650 |= 0x10; /* 0x547a..0x5480 ldr/orr #0x10/str (verify: was dropped) */
         }
     }
@@ -1060,15 +1060,15 @@ LAB_00004c06:
     local_1c = 0; local_18 = 0; uStack_14 = 0;
     local_2c = (local_2c & 0xffffff00) | 2;
     if ((local_38 == 0) || (local_3c == 0) ||
-        (iVar16 = FUN_00008594(uRam0000566c, &local_3c), iVar16 != 0)) {
+        (iVar16 = registry_add(uRam0000566c, &local_3c), iVar16 != 0)) {
         FUN_00003eac(DAT_000062b0, 0x45, 0);
     } else {
         vmem_set(&uRam00005670, 0, 0x30);
         *puRam00005674 = uVar17;
-        FUN_0000159c(0, 0x16, 1, 0);                /* GPIO-IRQ registrations */
-        FUN_0000159c(0, 0x15, 2, 1);
-        FUN_0000159c(1, 0x05, 3, 2);
-        FUN_0000159c(0, 0x0f, 4, 3);
+        gpio_irq_register(0, 0x16, 1, 0);                /* GPIO-IRQ registrations */
+        gpio_irq_register(0, 0x15, 2, 1);
+        gpio_irq_register(1, 0x05, 3, 2);
+        gpio_irq_register(0, 0x0f, 4, 3);
     }
     /* PWM channels x6 into iRam00005678 / iRam0000567c */
     *(uint32_t *)(DAT_00005678 + 8)     = (uint32_t)(intptr_t)FUN_000095be(1, 0);
@@ -1165,7 +1165,7 @@ LAB_00005604:
                                   (void *)(intptr_t)DAT_00005968, 3, NULL), iVar16 != 1)) { /* r_led_ring_task */
             goto switchD_caseD_5;
         }
-        /* FUN_00008594 device sweep, probe, frames */
+        /* registry_add device sweep, probe, frames */
         local_3c = uVar19;
         local_38 = (uint32_t)thunk_FUN_0000974e();
         local_34 = 0x2c;
@@ -1176,7 +1176,7 @@ LAB_00005604:
         local_20 = uVar19; local_1c = uVar19; local_18 = uVar19;
         uStack_14 = (uint32_t)FUN_0000879c();
         if ((local_38 == 0) || (uStack_14 == 0) ||
-            (uVar19 = FUN_00008594(DAT_00005968, &local_3c), uVar19 != 0)) goto switchD_caseD_5;
+            (uVar19 = registry_add(DAT_00005968, &local_3c), uVar19 != 0)) goto switchD_caseD_5;
         local_3c = uVar19;
         local_38 = (uint32_t)thunk_FUN_0000974e();
         local_34 = 0xe;
@@ -1188,7 +1188,7 @@ LAB_00005604:
         uStack_14 = (uint32_t)FUN_0000879c();
         uVar19 = DAT_00005968;
         if ((local_38 == 0) || (uStack_14 == 0)) goto switchD_caseD_5;
-        uVar28 = FUN_00008594(DAT_00005968, &local_3c);
+        uVar28 = registry_add(DAT_00005968, &local_3c);
         if (uVar28 != 0) goto switchD_caseD_5;
         local_3c = uVar28;
         local_38 = (uint32_t)thunk_FUN_0000974e();
@@ -1200,7 +1200,7 @@ LAB_00005604:
         local_20 = uVar28; local_1c = uVar28; local_18 = uVar28;
         uStack_14 = (uint32_t)FUN_0000879c();
         if ((local_38 == 0) || (uStack_14 == 0) ||
-            (uVar28 = FUN_00008594(uVar19, &local_3c), uVar28 != 0)) goto switchD_caseD_5;
+            (uVar28 = registry_add(uVar19, &local_3c), uVar28 != 0)) goto switchD_caseD_5;
         local_3c = uVar28;
         local_38 = (uint32_t)thunk_FUN_0000974e();
         local_30 = DAT_00005994;
@@ -1209,7 +1209,7 @@ LAB_00005604:
         local_24 = uVar19;
         local_2c = (local_2c & 0xffffff00) | 1;
         local_20 = uVar28; local_1c = uVar28; local_18 = uVar28; uStack_14 = uVar28;
-        if ((local_38 == 0) || (uVar28 = FUN_00008594(uVar19, &local_3c), uVar28 != 0))
+        if ((local_38 == 0) || (uVar28 = registry_add(uVar19, &local_3c), uVar28 != 0))
             goto switchD_caseD_5;
         local_3c = uVar28;
         local_38 = (uint32_t)thunk_FUN_0000974e();
@@ -1221,7 +1221,7 @@ LAB_00005604:
         local_20 = uVar28; local_1c = uVar28; local_18 = uVar28;
         uStack_14 = (uint32_t)FUN_0000879c();
         if ((local_38 == 0) || (uStack_14 == 0) ||
-            (iVar16 = FUN_00008594(uVar19, &local_3c), iVar16 != 0)) goto switchD_caseD_5;
+            (iVar16 = registry_add(uVar19, &local_3c), iVar16 != 0)) goto switchD_caseD_5;
         iVar16 = (int)FUN_00006a10(0x3c);
         piVar13 = DAT_000059ac;
         {
@@ -1396,7 +1396,7 @@ LAB_00005c7a:
         local_20 = 0; local_1c = 0; local_18 = 0; uStack_14 = 0;
         local_2c = (local_2c & 0xffffff00) | 2;
         if ((local_38 == 0) || (local_3c == 0) ||
-            (uVar28 = FUN_00008594(DAT_00005ffc, &local_3c), uVar28 != 0)) goto LAB_00005c7a;
+            (uVar28 = registry_add(DAT_00005ffc, &local_3c), uVar28 != 0)) goto LAB_00005c7a;
         local_3c = (uint32_t)FUN_00006a10(2);
         local_38 = (uint32_t)thunk_FUN_0000974e();
         local_34 = 2;
@@ -1405,7 +1405,7 @@ LAB_00005c7a:
         local_28 = uVar28; local_24 = uVar28; local_20 = uVar28;
         local_1c = uVar28; local_18 = uVar28; uStack_14 = uVar28;
         if ((local_38 == 0) || (local_3c == 0) ||
-            (uVar28 = FUN_00008594(DAT_00005ffc, &local_3c), uVar28 != 0)) goto LAB_00005c7a;
+            (uVar28 = registry_add(DAT_00005ffc, &local_3c), uVar28 != 0)) goto LAB_00005c7a;
         local_3c = uVar28;
         local_38 = (uint32_t)thunk_FUN_0000974e();
         local_30 = DAT_0000600c;
@@ -1415,13 +1415,13 @@ LAB_00005c7a:
         local_34 = uVar19;
         local_20 = uVar28; local_1c = uVar28; local_18 = uVar28; uStack_14 = uVar28;
         if ((local_38 == 0) ||
-            (iVar16 = FUN_00008594(DAT_00005ffc, &local_3c), iVar16 != 0)) goto LAB_00005c7a;
+            (iVar16 = registry_add(DAT_00005ffc, &local_3c), iVar16 != 0)) goto LAB_00005c7a;
     }
 
     /* -------------------------------------------------------------------
      * 0x5fba — FlexCAN/comm port + dmic_task + comm interface bring-up
      * ----------------------------------------------------------------- */
-    FUN_0000110c(0x120);
+    clock_div_program(0x120);
     iVar16 = DAT_00006070;
     piVar18 = DAT_00006014;
     MMIO32(0x400003ac) = 0;
@@ -1499,7 +1499,7 @@ LAB_00005c7a:
         local_2c = (local_2c & 0xffffff00) | 1;
         local_34 = uVar19;
         if ((local_38 == 0) ||
-            (uVar19 = FUN_00008594(DAT_00005ffc, &local_3c), uVar19 != 0)) goto LAB_00005fba;
+            (uVar19 = registry_add(DAT_00005ffc, &local_3c), uVar19 != 0)) goto LAB_00005fba;
         local_3c = (uint32_t)FUN_00006a10(8);
         local_38 = (uint32_t)thunk_FUN_0000974e();
         local_34 = 8;
@@ -1508,7 +1508,7 @@ LAB_00005c7a:
         local_28 = uVar19; local_24 = uVar19; local_20 = uVar19;
         local_1c = uVar19; local_18 = uVar19; uStack_14 = uVar19;
         if ((local_38 == 0) || (local_3c == 0) ||
-            (iVar16 = FUN_00008594(DAT_00005ffc, &local_3c), iVar16 != 0)) goto LAB_00005fba;
+            (iVar16 = registry_add(DAT_00005ffc, &local_3c), iVar16 != 0)) goto LAB_00005fba;
     } else {
 LAB_00005fba:
         FUN_00003eac(DAT_00006064, 0x54, 0);
@@ -1525,7 +1525,7 @@ LAB_00005fba:
     if ((local_38 != 0) && (local_3c != 0) &&
         (local_20 = (uint32_t)FUN_00006a10(0xc), local_20 != 0) &&
         (iVar16 = FUN_000015e0(local_20, 1000, 0, DAT_00006284, DAT_00006280), iVar16 == 0) &&
-        (iVar16 = FUN_00008594(DAT_00006284, &local_3c), iVar16 == 0)) {
+        (iVar16 = registry_add(DAT_00006284, &local_3c), iVar16 == 0)) {
         local_3c = iVar16;
         local_38 = (uint32_t)thunk_FUN_0000974e();
         local_34 = 1;
@@ -1536,7 +1536,7 @@ LAB_00005fba:
         local_20 = iVar16; local_1c = iVar16; local_18 = iVar16;
         uStack_14 = (uint32_t)FUN_0000879c();
         if ((local_38 != 0) && (uStack_14 != 0) &&
-            (iVar14 = FUN_00008594(DAT_00006284, &local_3c), iVar16 = DAT_00006290, iVar14 == 0)) {
+            (iVar14 = registry_add(DAT_00006284, &local_3c), iVar16 = DAT_00006290, iVar14 == 0)) {
             MMIO8(DAT_00006290 + 4) = 0;
             MMIO8(iVar16 + 0x17) = 0;
             goto LAB_000060f4;
@@ -1567,7 +1567,7 @@ LAB_000060f4:
     if ((local_38 == 0) || (local_3c == 0)) {
         cVar11 = -1;
     } else {
-        cVar11 = (char)FUN_00008594(DAT_00006284, &local_3c);
+        cVar11 = (char)registry_add(DAT_00006284, &local_3c);
     }
     uVar17 = *puVar7;
     local_3c = (uint32_t)FUN_00006a10(1);
@@ -1579,7 +1579,7 @@ LAB_000060f4:
     local_24 = (uint32_t)(intptr_t)puVar7;
     local_20 = 0; local_1c = 0; local_18 = 0; uStack_14 = 0;
     if ((local_38 == 0) || (local_3c == 0) ||
-        (cVar12 = (char)FUN_00008594(uVar17, &local_3c), cVar12 != '\0') || cVar11 != '\0') {
+        (cVar12 = (char)registry_add(uVar17, &local_3c), cVar12 != '\0') || cVar11 != '\0') {
         FUN_00003eac(DAT_000062b0, 0x65, 0);
     }
     FUN_00003eac(DAT_000062b0, 0x69, 0);

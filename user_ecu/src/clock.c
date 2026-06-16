@@ -51,8 +51,63 @@
  */
 #define PERIPH_IRQ_TABLE  ((const int8_t *)0x0001b34du)
 
+/* ---- Clock-divider programming ----------------------------------------- */
+/*
+ * Divider-config block base (DAT_0000116c == 0x40020000). The two special
+ * selectors 0x3f / 0x3e address single fields inside this block; every other
+ * selector addresses a word in the divider-register array below.
+ */
+#define CLKDIV_CFG_BASE     0x40020000u
+#define CLKDIV_CFG_0x98     (*(volatile uint32_t *)(CLKDIV_CFG_BASE + 0x98u))
+#define CLKDIV_CFG_0x9C     (*(volatile uint32_t *)(CLKDIV_CFG_BASE + 0x9Cu))
+
+/* Per-source clock-divider register array; word `sel` lives at base + sel*4. */
+#define CLKDIV_REG_ARRAY    0x40000260u
+
 /* ---- cross-module externs ---------------------------------------------- */
 /* pcc_gate_set (0x8aca) and nvic_irq_enable (0x78d4) come from pcc.h. */
+
+/* 0x0000110c */
+void clock_div_program(uint32_t packed)
+{
+    /*
+     * `packed` carries up to two 12-bit divider descriptors (low field first,
+     * then bits 23:12). Each descriptor is {selector[7:0], value[11:8]} where
+     * the programmed divider is value-1 (the OEM stores `(v>>8)-1`, byte-wide).
+     *
+     * The loop runs at most twice: pass 1 handles the low descriptor, then the
+     * word is shifted right 12 and pass 2 handles the next; it stops early when
+     * the remaining bits are zero.
+     */
+    int pass = 2;                                 /* movs r4,#0x2 */
+
+    while (1) {
+        if ((packed & 0xfff) != 0) {
+            uint32_t sel = packed & 0xff;         /* uxtb r2,r3 */
+            uint8_t  val = (uint8_t)(((packed & 0xfff) >> 8) - 1);
+
+            if (sel == 0x3f) {
+                /* divider field: bit 0 of cfg+0x98 */
+                CLKDIV_CFG_0x98 = (CLKDIV_CFG_0x98 & ~0x1u) | (val & 0x1u);
+            } else if (sel == 0x3e) {
+                /* divider field: bits 5:4 of cfg+0x9c */
+                CLKDIV_CFG_0x9C = (CLKDIV_CFG_0x9C & ~0x30u) | ((val & 0x3u) << 4);
+            } else {
+                /* divider register array word: base + sel*4 */
+                *(volatile uint32_t *)(CLKDIV_REG_ARRAY + sel * 4u) = val & 0xffu;
+            }
+        }
+
+        if (pass == 1) {
+            break;                                /* second descriptor done */
+        }
+        packed = packed >> 0xc;                   /* advance to next field */
+        pass = 1;
+        if (packed == 0) {
+            return;                               /* nothing left */
+        }
+    }
+}
 
 /* 0x00001170 */
 uint32_t Adc_ReadCh_LPO1MHz(void)
