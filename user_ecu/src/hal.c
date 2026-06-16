@@ -106,3 +106,61 @@ uint32_t GetClock_32k(void)
 
     return 0U;
 }
+
+/*
+ * Hardware checksum/CRC accelerator. The OEM literal pool at 0x00006534 holds
+ * 0x40095000; data is streamed into the input register at base + 8. (Used by the
+ * FOTA storage-verify path at 0x00002acc, which feeds the staged image through
+ * this engine and reads back the result.) Both byte- and word-wide stores are
+ * meaningful to the engine, so each is reproduced verbatim.
+ */
+#define CSUM_BASE     0x40095000U
+#define CSUM_DATA8    (*(volatile uint8_t  *)(CSUM_BASE + 8)) /* 0x40095008 */
+#define CSUM_DATA32   (*(volatile uint32_t *)(CSUM_BASE + 8)) /* 0x40095008 */
+
+/*
+ * checksum_feed // 0x000064f0
+ *
+ *   000064f0: ldr  r3,[CSUM_BASE]
+ *   000064f4: cbz  r1,0x00006518        ; len == 0 -> done
+ *   000064f6: lsls r2,r0,#0x1e          ; test ptr bits[1:0]
+ *   000064f8: bne  0x0000651a           ; unaligned -> byte-feed the head
+ *   ... aligned: word-feed (len & ~3) bytes, then byte-feed (len & 3) tail ...
+ *   0000651a: ldrb r2,[r0],#0x1 ; strb r2,[r3,#0x8] ; subs r1,#1 ; b 0x000064f4
+ *   00006524: ldr  r5,[r0],#0x4 ; str  r5,[r4,#0x8]                 (word body)
+ *   0000652c: ldrb r0,[r3],#0x1 ; strb r0,[r2,#0x8]                 (byte tail)
+ *
+ * Streams `len` bytes from `data` into the accelerator's data register: a
+ * byte-wide head until `data` is word-aligned, then word-wide stores for the
+ * aligned body, then byte-wide stores for the trailing 0..3 bytes.
+ */
+void checksum_feed(const void *data, uint32_t len)
+{
+    const uint8_t *p = (const uint8_t *)data;
+    const uint8_t *word_end;
+    const uint8_t *tail_end;
+
+    /* byte-feed the unaligned head until p is word-aligned (or len exhausted) */
+    while (len != 0 && ((uintptr_t)p & 3U) != 0) {     /* lsls #0x1e ; bne */
+        CSUM_DATA8 = *p;                               /* strb [base+8] */
+        p++;
+        len--;
+    }
+    if (len == 0) {                                    /* cbz r1 */
+        return;
+    }
+
+    /* word-feed the aligned body */
+    word_end = p + (len & ~3U);                        /* bic r3,r1,#3 ; add r0 */
+    while (p != word_end) {                            /* cmp ; bne */
+        CSUM_DATA32 = *(const uint32_t *)p;            /* str [base+8] */
+        p += 4;
+    }
+
+    /* byte-feed the trailing 0..3 bytes */
+    tail_end = word_end + (len & 3U);
+    while (word_end != tail_end) {                     /* cmp ; bne */
+        CSUM_DATA8 = *word_end;                        /* strb [base+8] */
+        word_end++;
+    }
+}

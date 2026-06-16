@@ -32,4 +32,12 @@ int irqn_to_gpio_index(int irqn);
  */
 uint32_t GetClock_32k(void);
 
+/*
+ * Stream `len` bytes of `data` into the hardware checksum/CRC accelerator
+ * (base 0x40095000, data register at +8): byte-wide for the unaligned head and
+ * trailing remainder, word-wide for the aligned body. Used by the FOTA
+ * storage-verify path (0x00002acc) to hash the staged image. // 0x000064f0
+ */
+void checksum_feed(const void *data, uint32_t len);
+
 #endif /* USER_ECU_HAL_H */
