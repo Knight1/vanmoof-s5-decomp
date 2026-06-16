@@ -18,8 +18,13 @@
  *
  * This module holds the carved, self-contained pieces of that driver: instance
  * index mapping, the eDMA TCD builder + channel-IRQ enable, the LPUART line
- * config, the peripheral clock-mux select, the payload-queue receive/copy-out,
- * and teardown. The TX engine, IRQ dispatch and FIFO ISR body are follow-ups.
+ * config, the peripheral clock-mux select, teardown, and ISR install. The TX
+ * engine, IRQ dispatch, RX callback and FIFO ISR body live in comm_txisr.c.
+ *
+ * NOTE: the comm port's "payload queue" is a FreeRTOS stream/message buffer
+ * (stream_buffer.c) — vendor, not modeled here. The byte-ring helpers and the
+ * receive path were reclassified vendor and removed (satisfied by upstream
+ * FreeRTOS at link time).
  */
 
 /* eDMA Transfer Control Descriptor — the four 32-bit words edma_tcd_build writes. */
@@ -53,21 +58,6 @@ typedef struct commport_handle {
     uint8_t           _pad164[4];     /* +0x164                                 */
     uint8_t           reset_pending;  /* +0x168 reset/enable flag               */
 } commport_handle_t;
-
-/*
- * Length-prefixed byte-ring payload queue (partial). queue_ring_copyout treats
- * read/size/storage as the ring read cursor / capacity / storage base.
- */
-typedef struct commq {
-    uint32_t read;          /* +0x00 ring read cursor (byte offset)            */
-    uint32_t write;         /* +0x04 ring write cursor                         */
-    uint32_t size;          /* +0x08 ring capacity (bytes)                     */
-    uint8_t  _pad0c[0x10 - 0x0c];
-    void    *rx_block;      /* +0x10 receiver-wait token (TCB)                 */
-    void    *waiting_send;  /* +0x14 queued waiting-sender record              */
-    uint8_t *storage;       /* +0x18 ring storage base                         */
-    uint8_t  flags;         /* +0x1c bit0: records carry a 4-byte len prefix   */
-} commq_t;
 
 /* LPUART-variant line config descriptor (partial; byte offsets per the OEM). */
 typedef struct commport_uart_cfg {
@@ -108,16 +98,6 @@ uint32_t commport_uart_config(uint32_t comm_base, const commport_uart_cfg_t *cfg
 
 /* gate + select a peripheral's functional clock source (PCC +0xff8). // 0x000022b0 */
 int peripheral_clock_mux_select(uint32_t periph_base, uint32_t source);
-
-/* wrap-aware fill level (bytes held) of a length-prefixed byte ring. // 0x0000925a */
-uint32_t commq_bytes_used(const commq_t *q);
-
-/* length-prefixed payload-queue receive (blocking optional). // 0x00007550 */
-int commport_queue_receive(commq_t *q, void *dst, uint32_t block_ms);
-
-/* ring copy-out of min(count,avail) bytes; advances read cursor. // 0x000091ec */
-unsigned int queue_ring_copyout(commq_t *ring, void *dst,
-                                unsigned int count, unsigned int avail);
 
 /* disable/teardown the comm-port instance at base 0x4009d000. // 0x000079c0 */
 void commport_teardown(commport_handle_t *handle);

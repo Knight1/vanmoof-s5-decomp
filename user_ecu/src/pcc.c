@@ -18,6 +18,10 @@
 /* NVIC Interrupt Set-Enable Register bank (ISER0). // literal @ 0x000078ec */
 #define NVIC_ISER_BASE 0xE000E100u
 
+/* Functional clock-gate controller block (distinct from PCC_BLOCK_BASE).
+ * // literal @ 0x00006808 */
+#define CLOCK_GATE_BLOCK 0x40004000u
+
 /* GPIO bank base addresses. // literal @ 0x00002014 */
 #define GPIO_BANK0_BASE 0x40082000u
 #define GPIO_BANK1_BASE (GPIO_BANK0_BASE + 0x25000u) /* 0x400A7000 */
@@ -83,6 +87,40 @@ void nvic_irq_enable(uint32_t irq)
             (volatile uint32_t *)(NVIC_ISER_BASE + (irq >> 5) * 4u); /* 0x78da/78e4/78e6 */
         *iser = 1u << (irq & 0x1fu); /* 0x000078dc/78e0/78e6 */
     }
+}
+
+/*
+ * nvic_clockgate_bringup — bring up a peripheral clock gate with its IRQ quiesced.
+ * // 0x000067f4
+ *
+ * OEM disassembly (0x67f4..0x6814):
+ *   push {r3,r4,r5,lr}
+ *   movs r5,#0x2             ; bit1 -> IRQ 33 (within NVIC group 1)
+ *   ldr  r4,[0x6818]         ; r4 = 0xE000E100 (NVIC base)
+ *   str.w r5,[r4,#0x84]      ; ICER1 (0xE000E184) = 2 -> disable IRQ 33
+ *   dsb  #0xf ; isb #0xf
+ *   movs r1,#0x5            ; gate bit 5
+ *   mov.w r0,#0x40004000    ; clock-gate block base
+ *   bl   pcc_gate_set
+ *   str.w r5,[r4,#0x184]     ; ICPR1 (0xE000E284) = 2 -> clear pending IRQ 33
+ *   pop  {r3,r4,r5,pc}
+ *
+ * Disables a peripheral's interrupt (IRQ 33), forces the disable to take effect
+ * (DSB/ISB), latches its functional clock gate (bit 5 of the 0x40004000 block,
+ * via pcc_gate_set), then clears any interrupt left pending by the clock-enable.
+ * Takes no arguments and returns nothing; reached via a function pointer (no
+ * static callers — the decompiler's param_1..4 are phantom, the real r0/r1 are
+ * set inline before the pcc_gate_set call).
+ */
+void nvic_clockgate_bringup(void)
+{
+    volatile uint8_t *nvic = (volatile uint8_t *)NVIC_ISER_BASE; /* 0x000067f8 */
+
+    *(volatile uint32_t *)(nvic + 0x84) = 2u;        /* ICER1: disable IRQ 33 // 0x67fa */
+    __asm volatile ("dsb 0xf" ::: "memory");         /* 0x000067fe */
+    __asm volatile ("isb 0xf" ::: "memory");         /* 0x00006802 */
+    pcc_gate_set((volatile uint32_t *)CLOCK_GATE_BLOCK, 5u); /* gate bit 5 // 0x680c */
+    *(volatile uint32_t *)(nvic + 0x184) = 2u;       /* ICPR1: clear pending IRQ 33 // 0x6810 */
 }
 
 /*

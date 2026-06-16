@@ -43,11 +43,12 @@
 #define CSUM_BASE               0x40095000u
 
 /*
- * FreeRTOS xQueueGenericSend (vendor, deferred) — event_report posts records to
- * the device manager's event queue through it. // 0x0000926c
+ * FreeRTOS xStreamBufferSend (stream_buffer.c, vendor, deferred) — event_report
+ * posts records to the device manager's event message buffer through it. The
+ * decompiler renders it 5-arg; kept ABI-compatible. // 0x0000926c
  */
-extern int FUN_0000926c(void *queue, uint32_t pos, uint32_t ticks,
-                        const void *item, uint32_t len);
+extern int xStreamBufferSend(void *buffer, uint32_t pos, uint32_t ticks,
+                             const void *item, uint32_t len);
 
 /*
  * Read-back verify op for flash_page_write, variant A: a fixed off-image
@@ -76,17 +77,19 @@ extern volatile log_event_src_t g_log_event_src; /* 0x0001b31f (DAT_00006850) */
 #define g_xfer_state_flag  (*(volatile uint8_t *)0x200070e9u) /* DAT_00001910 */
 
 /*
- * FUN_000087fa — reset a waiter object's queue and release its blocked task.
- * Recomputes the embedded queue's write/read cursors, clears the message count,
- * sets the lock sentinels and signals one waiter (FreeRTOS xQueueGenericReset-
- * shaped). Classification pending; left extern. // 0x000087fa
+ * xfer_waiter_reset — reset a waiter object's embedded queue and release its
+ * blocked task. Recomputes the embedded queue's (waiter+0xc) write/read cursors,
+ * clears the message count, sets the lock sentinels and unblocks a waiter, then
+ * signals the semaphore at waiter+8. The queue-reset core is FreeRTOS
+ * `xQueueGenericReset`-shaped but the wrapper (queue@+0xc, sem@+8) is
+ * VanMoof-vs-vendor ambiguous — left extern, classification pending. // 0x000087fa
  */
-extern void FUN_000087fa(void *waiter);
+extern void xfer_waiter_reset(void *waiter);
 
 /*
  * rtos_sem_give — FreeRTOS queue/semaphore send (vendor, deferred). Distinct from
- * the event-queue send FUN_0000926c above; used to hand a completed record to a
- * blocked task. // 0x00006ec0
+ * the event-buffer send xStreamBufferSend above; used to hand a completed record
+ * to a blocked task. // 0x00006ec0
  */
 extern int rtos_sem_give(void *q, const void *item, int pos);
 
@@ -224,7 +227,7 @@ int store_load(struct store_ctrl *ctrl, uint32_t arg2,
  *
  * If the device-manager handle slot (*0x2000171c) is populated, build a 30-byte
  * record { ctx@+0, code@+4, payload[word_count]@+6 } and post it via the
- * FreeRTOS queue at (manager+0x590) using xQueueGenericSend (FUN_0000926c, with
+ * FreeRTOS stream/message buffer at (manager+0x590) using xStreamBufferSend (with
  * the fixed position constant 0x4801). Variadic by `word_count` 32-bit words
  * (the OEM caps it at 6 by the buffer size; no bounds check — verbatim).
  */
@@ -253,7 +256,7 @@ void event_report(uint32_t ctx, uint16_t code, int word_count, ...)
         *(uint32_t *)(record + 0) = ctx;              /* str  ctx  @+0 */
         *(uint16_t *)(record + 4) = code;             /* strh code @+4 */
 
-        FUN_0000926c(queue, 0x4801u, 0, record, 0x1e); /* xQueueGenericSend */
+        xStreamBufferSend(queue, 0x4801u, 0, record, 0x1e); /* stream-buffer send */
     }
 }
 
@@ -518,7 +521,7 @@ void log_append_event(uint8_t flag)
  *
  * Steps, in OEM order:
  *   1. If record[+9] bit1 set, reset waiter A; if record[+2] bit1 set, reset B
- *      (FUN_000087fa recomputes the waiter's queue + releases its task).
+ *      (xfer_waiter_reset recomputes the waiter's queue + releases its task).
  *   2. Toggle the connection/state flag: code (record[+0xa], u16) == 0x3fd marks
  *      "up" (flag 0->1), anything else marks "down" (flag 1->0); on an actual
  *      transition the new flag is stored and appended to the event log.
@@ -540,10 +543,10 @@ uint32_t xfer_state_log_notify(uint32_t a, uint32_t b, const void *record)
     (void)b;
 
     if ((rec[9] & 0x02u) != 0u) {                  /* (byte<<0x1e) < 0 -> bit1 */
-        FUN_000087fa((void *)g_xfer_waiter_a);
+        xfer_waiter_reset((void *)g_xfer_waiter_a);
     }
     if ((rec[2] & 0x02u) != 0u) {
-        FUN_000087fa((void *)g_xfer_waiter_b);
+        xfer_waiter_reset((void *)g_xfer_waiter_b);
     }
 
     if (*(const uint16_t *)(rec + 0xa) == 0x3fd) { /* "up" code */
@@ -561,14 +564,14 @@ uint32_t xfer_state_log_notify(uint32_t a, uint32_t b, const void *record)
     if (*(const uint16_t *)(rec + 0xc) != 0) {
         if (g_xfer_waiter_a[0] != 0 &&
             *(volatile uint16_t *)(g_xfer_waiter_a + 1) == 0) {
-            FUN_000087fa((void *)g_xfer_waiter_a);
+            xfer_waiter_reset((void *)g_xfer_waiter_a);
         }
         rtos_sem_give(*(void *volatile *)(g_xfer_waiter_a + 0xc), rec + 7, 1);
     }
     if (*(const uint16_t *)(rec + 5) != 0) {
         if (g_xfer_waiter_a[0] != 0 &&             /* OEM quirk: reads waiter A's byte */
             *(volatile uint16_t *)(g_xfer_waiter_b + 1) == 0) {
-            FUN_000087fa((void *)g_xfer_waiter_b);
+            xfer_waiter_reset((void *)g_xfer_waiter_b);
         }
         rtos_sem_give(*(void *volatile *)(g_xfer_waiter_b + 0xc), rec, 1);
     }

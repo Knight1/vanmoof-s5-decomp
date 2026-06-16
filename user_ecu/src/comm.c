@@ -11,20 +11,25 @@
  *   edma_chan_irq_enable        @ 0x00008c46  (eDMA channel IRQ enable)
  *   commport_uart_config        @ 0x00002754  (LPUART line/baud/FIFO config)
  *   peripheral_clock_mux_select @ 0x000022b0  (PCC clock gate + source mux)
- *   commport_queue_receive      @ 0x00007550  (payload-queue receive)
- *   queue_ring_copyout          @ 0x000091ec  (ring copy-out helper)
  *   commport_teardown           @ 0x000079c0  (instance disable/teardown)
+ *   commport_isr_install        @ 0x000078f0  (register per-instance ISR state)
+ *
+ * NOTE: the "payload queue" the comm port drains is a FreeRTOS **stream/message
+ * buffer** (stream_buffer.c, v10.0–10.2.x), NOT VanMoof code. The functions that
+ * once lived here as commq_bytes_used (0x925a = prvBytesInBuffer),
+ * queue_ring_copyout (0x91ec = prvReadBytesFromBuffer) and commport_queue_receive
+ * (0x7550 = xStreamBufferReceive) were reclassified vendor (deferred) and removed
+ * — they are satisfied by upstream FreeRTOS at link time. See docs/progress.md.
  *
  * See comm.h for the hardware model (4-instance serial IP, CAN-FD on instance 3,
- * eDMA+FIFO data path). The TX engine (0x7624), ring drain (0x2d34), IRQ
- * dispatch (0x2190), ISR install (0x78f0), RX callback (0x96ce) and the uncarved
- * FIFO ISR body (0x2510) are follow-ups.
+ * eDMA+FIFO data path). The TX engine, ring drain, IRQ dispatch, RX callback and
+ * FIFO ISR body live in comm_txisr.c.
  */
 
 #include <stdint.h>
 
 #include "comm.h"
-#include "util.h"       /* vmem_copy */
+#include "util.h"       /* vmem_set */
 #include "pcc.h"        /* pcc_gate_enable, port_clock_wait */
 #include "hal.h"        /* irqn_to_gpio_index */
 
@@ -40,24 +45,13 @@ extern void *g_commport_active;
 extern const uint16_t pcc_gate_arg_table[];   /* 0x0001b2e0 (off-image)  */
 extern const uint32_t port_clk_arg_table[];   /* 0x0000a534              */
 
-/* Current-task TCB pointer (FreeRTOS), at SRAM 0x20000900 (*DAT_00007620). */
-#define COMMQ_CUR_TCB   (*(void *volatile *)0x20000900u)
-
-/* --- not-yet-translated VanMoof helpers (left in decompiler FUN_ form) --- */
-extern void     FUN_00006dc4(uint32_t block_ms);     /* queue block/timeout setup (FreeRTOS notify-wait, vendor) */
-extern void     FUN_000074e0(void *waiting_send);    /* release a waiting sender (FreeRTOS notify-give, vendor) */
-extern void     FUN_00006c70(void *list_item, uint32_t flags); /* event-list remove (FreeRTOS, vendor) */
-
 /* --- FreeRTOS queue/list primitives (vendor, deferred) ------------------- */
 extern void vQueueDelete(void *xQueue);              /* 0x00003338 (unregister + vPortFree) */
-
-/* --- FreeRTOS / port primitives (vendor, deferred) ---------------------- */
+extern void xTaskRemoveFromUnorderedEventList(void *event_list_item, uint32_t value); /* 0x00006c70 */
 extern void vPortRaiseBASEPRI(void);                 /* 0x0000950a (configASSERT) */
-extern void vPortEnterCritical(void);                /* 0x00006454 */
-extern void vPortExitCritical(void);                 /* 0x00006470 */
 extern void vPortFree(void *pv);                     /* 0x00006b9c */
-extern void FUN_0000636c(void);                      /* vTaskSuspendAll */
-extern void FUN_0000694c(void);                      /* xTaskResumeAll  */
+extern void vTaskSuspendAll(void);                   /* 0x0000636c */
+extern void xTaskResumeAll(void);                    /* 0x0000694c */
 
 /*
  * commport_base_to_index — map a comm-port base to its instance index. // 0x00002c20
@@ -262,175 +256,6 @@ int peripheral_clock_mux_select(uint32_t periph_base, uint32_t source)
 }
 
 /*
- * commq_bytes_used — bytes currently held in a length-prefixed byte ring. // 0x0000925a
- *
- * OEM disassembly (0x925a..0x9268):
- *   ldr  r2,[r0,#0x8]   ; size  = q->size  (+0x08)
- *   ldr  r3,[r0,#0x4]   ; write = q->write (+0x04)
- *   ldr  r0,[r0,#0x0]   ; read  = q->read  (+0x00)
- *   add  r3,r2          ; write + size
- *   subs r0,r3,r0       ; used  = (write + size) - read
- *   cmp  r2,r0          ; size <= used ?  (it ls -> UNSIGNED)
- *   sub.ls r0,r0,r2     ; used -= size
- *   bx   lr             ; return used (uint)
- *
- * The wrap-aware fill level (write - read, modulo size) of the byte ring: a
- * single conditional subtract is enough because used < 2*size. Senders derive
- * free space from it; receivers (commport_queue_receive) use it directly as the
- * available-byte count. Pure leaf, no DAT references.
- */
-uint32_t commq_bytes_used(const commq_t *q)
-{
-    uint32_t size  = q->size;                    /* +0x08 */
-    uint32_t used  = (q->write + size) - q->read;/* (+0x04 + size) - +0x00 */
-
-    if (size <= used) {                          /* it ls (unsigned) */
-        used -= size;
-    }
-    return used;
-}
-
-/*
- * queue_ring_copyout — copy min(count,avail) bytes out of a byte ring. // 0x000091ec
- *
- * Copies from ring->storage[ring->read] into `dst`, handling wrap at
- * ring->size, then advances and writes back ring->read. Returns the clamped
- * length. The configASSERT consistency checks spin forever on violation.
- */
-unsigned int queue_ring_copyout(commq_t *ring, void *dst,
-                                unsigned int count, unsigned int avail)
-{
-    unsigned int n;
-    unsigned int rd;
-    unsigned int cap;
-    unsigned int first;
-
-    n = avail;                                   /* n = min(count, avail) */
-    if (count <= avail) {
-        n = count;
-    }
-
-    if (n != 0) {
-        rd  = ring->read;
-        cap = ring->size;
-
-        first = cap - rd;                        /* first = min(n, cap - rd) */
-        if (n <= cap - rd) {
-            first = n;
-        }
-
-        if (count < first) {                     /* configASSERT(count >= first) */
-            vPortRaiseBASEPRI();
-            for (;;) { }
-        }
-        if (cap < rd + first) {                  /* configASSERT(cap >= rd + first) */
-            vPortRaiseBASEPRI();
-            for (;;) { }
-        }
-
-        vmem_copy(dst, ring->storage + rd, first);
-
-        if (first < n) {                         /* wrap */
-            if (count < n) {                     /* configASSERT(count >= n) */
-                vPortRaiseBASEPRI();
-                for (;;) { }
-            }
-            vmem_copy((unsigned char *)dst + first, ring->storage, n - first);
-        }
-
-        rd += n;
-        if (ring->size <= rd) {
-            rd -= ring->size;
-        }
-        ring->read = rd;
-    }
-
-    return n;
-}
-
-/*
- * commport_queue_receive — receive one record from the payload queue. // 0x00007550
- *
- * Optionally blocks the calling task on the queue, then copies one record out of
- * the ring (via queue_ring_copyout) and wakes a waiting sender. Records carry an
- * optional 4-byte LE length prefix (when q->flags bit0 set), else a fixed 0x8c
- * payload. Returns the number of payload bytes copied (0 on empty/timeout/bad).
- */
-int commport_queue_receive(commq_t *q, void *dst, uint32_t block_ms)
-{
-    uint32_t prefix_sz;
-    uint32_t avail;
-    uint32_t len = 0;
-    uint32_t paylen;
-    uint32_t saved_read;
-    int      n;
-
-    if (q == 0) {                                /* configASSERT(pxQueue) */
-        vPortRaiseBASEPRI();
-        for (;;) { }
-    }
-
-    prefix_sz = (q->flags & 1) ? 4u : 0u;
-
-    if (block_ms != 0) {
-        vPortEnterCritical();
-        avail = commq_bytes_used(q);
-        if (avail <= prefix_sz) {
-            void *tcb = COMMQ_CUR_TCB;
-            vPortEnterCritical();
-            if (*((volatile uint8_t *)tcb + 0x68) == 2) {
-                *((volatile uint8_t *)tcb + 0x68) = 0;
-            }
-            vPortExitCritical();
-            if (q->rx_block != 0) {              /* configASSERT(rx_block == NULL) */
-                vPortRaiseBASEPRI();
-                for (;;) { }
-            }
-            q->rx_block = COMMQ_CUR_TCB;
-        }
-        vPortExitCritical();
-
-        if (prefix_sz < avail) {
-            goto have_data;
-        }
-        FUN_00006dc4(block_ms);                  /* block/timeout setup */
-        q->rx_block = 0;
-    }
-
-    avail = commq_bytes_used(q);
-    if (prefix_sz >= avail) {
-        return 0;
-    }
-
-have_data:
-    if (prefix_sz == 0) {
-        paylen = 0x8c;                           /* fixed-size record */
-    } else {
-        saved_read = q->read;
-        queue_ring_copyout(q, &len, prefix_sz, avail);   /* read length prefix */
-        avail -= prefix_sz;
-        paylen = len;
-        if (len > 0x8c) {                        /* bogus length -> roll back */
-            paylen = 0;
-            q->read = saved_read;
-        }
-    }
-
-    n = (int)queue_ring_copyout(q, dst, paylen, avail);
-    if (n == 0) {
-        return 0;
-    }
-
-    FUN_0000636c();                              /* vTaskSuspendAll */
-    if (q->waiting_send != 0) {
-        FUN_000074e0(q->waiting_send);
-        q->waiting_send = 0;
-    }
-    FUN_0000694c();                              /* xTaskResumeAll */
-    return n;
-}
-
-/*
  * commport_teardown — disable/teardown the comm-port instance. // 0x000079c0
  *
  * Acts only on the handle whose register base equals 0x4009d000 (DAT_00007a40,
@@ -452,17 +277,17 @@ void commport_teardown(commport_handle_t *handle)
     {
         uint32_t list = (uint32_t)(uintptr_t)handle->evt_list;
         if (list != 0) {
-            FUN_0000636c();                                   /* vTaskSuspendAll */
+            vTaskSuspendAll();                                /* 0x636c */
             while (*(volatile int *)(list + 4) != 0) {        /* uxNumberOfItems */
                 uint32_t item = *(volatile uint32_t *)(list + 0x10);
                 if (item == list + 0xc) {                     /* hit list end early */
                     vPortRaiseBASEPRI();                      /* configASSERT(0) */
                     for (;;) { }
                 }
-                FUN_00006c70((void *)(uintptr_t)item, 0x2000000u);
+                xTaskRemoveFromUnorderedEventList((void *)(uintptr_t)item, 0x2000000u);
             }
             vPortFree((void *)(uintptr_t)list);
-            FUN_0000694c();                                   /* xTaskResumeAll */
+            xTaskResumeAll();                                 /* 0x694c */
         }
     }
 

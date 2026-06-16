@@ -17,6 +17,8 @@
  *   commport_can_transmit       @ 0x00007624  (TX/enqueue engine)
  *   commport_dma_ring_read_frame@ 0x0000976e  (eDMA-ring frame read-out)
  *   commport_frame_enqueue      @ 0x000085f8  (packed-frame decode -> queue)
+ *   commport_frame_encode_dispatch @ 0x000084f6 (frame encode -> driver dispatch)
+ *   event_handler_dispatch      @ 0x00008852  (fire a registered handler)
  *
  * The FIFO data regs are at base+0xe20 (RX pop) / +0xe30 (TX push); FIFO status
  * at +0xe04/+0xe08, command +0xe14. The eDMA/DMAMUX engine is at 0x40082000.
@@ -55,6 +57,8 @@ extern void     vPortSetBASEPRI(uint32_t basepri);       /* 0x00009520 */
 extern uint32_t FUN_00006e20(void *ring, void *frame);   /* ring/descriptor push (reads r0 only) */
 extern int      xTaskRemoveFromEventList(void *list_item);/* 0x00006bfc (FreeRTOS, vendor) -> woken? */
 extern int      rtos_sem_give(void *q, const void *item, int pos); /* 0x00006ec0 queue send (FreeRTOS, vendor) */
+extern void     vPortEnterCritical(void);                /* 0x00006454 (FreeRTOS, vendor) */
+extern void     vPortExitCritical(void);                 /* 0x00006470 (FreeRTOS, vendor) */
 
 /* --- per-purpose partial state structs (distinct views of related objects) */
 
@@ -695,4 +699,80 @@ int commport_frame_enqueue(void *chan, const uint8_t *frame)
         return 0;
     }
     return -1;
+}
+
+/*
+ * commport_frame_encode_dispatch — encode a frame and dispatch it. // 0x000084f6
+ *
+ * TX counterpart to commport_frame_enqueue: reads the 32-bit identifier at
+ * frame+4 and re-splits it into 4 big-endian ID bytes (only the low byte is
+ * masked to 5 bits) into a 16-byte stack record {id[0..3], hdr=frame[0],
+ * driver@+8, d@+12}, copies frame[0] payload bytes from frame+8 into record+5,
+ * then dispatches the indirect call (*driver)(driver, &record) and returns
+ * (result == 0). The OEM pre-seeds record+8/+12 via the entry push of r2/r3.
+ * `a` is an unused ABI placeholder. Reached via a registered fn-ptr.
+ */
+typedef struct commport_driver commport_driver_t;
+typedef int (*commport_dispatch_fn)(commport_driver_t *driver, void *record);
+struct commport_driver {
+    commport_dispatch_fn dispatch;  /* +0x00 first word = dispatch fn ptr */
+};
+
+int commport_frame_encode_dispatch(uint32_t a, const uint8_t *frame,
+                                   commport_driver_t *driver, uint32_t d)
+{
+    union {                                          /* 16-byte stack record */
+        uint8_t  b[16];
+        uint32_t w[4];
+    } record;
+    uint32_t id = *(const uint32_t *)(frame + 4);
+
+    (void)a;                                         /* r0: pushed only, never read */
+
+    record.b[0] = (uint8_t)(id >> 21);               /* 29-bit ext id, big-endian */
+    record.b[1] = (uint8_t)(id >> 13);
+    record.b[2] = (uint8_t)(id >> 5);
+    record.b[3] = (uint8_t)(id & 0x1fu);             /* only this byte is masked */
+    record.b[4] = frame[0];                          /* header/DLC byte = payload len */
+    record.w[2] = (uint32_t)(uintptr_t)driver;       /* record+8  (push-seeded)  */
+    record.w[3] = d;                                 /* record+12 (push-seeded)  */
+
+    vmem_copy(&record.b[5], frame + 8, frame[0]);    /* payload: frame[0] bytes */
+
+    return driver->dispatch(driver, &record) == 0;   /* (*driver)(driver,&record) */
+}
+
+/*
+ * event_handler_dispatch — fire a registered handler. // 0x00008852
+ *
+ * Under a critical section, reads the control block at obj+0x1c; outside it,
+ * tail-calls the block's handler (block+4) with its argument (block+8) when the
+ * handler is non-NULL. A generic "invoke the registered callback(arg)" dispatch
+ * (configASSERT-spins on a NULL obj). Reached via a function pointer; grouped
+ * with the comm-port ISR/dispatch path. The handler is modeled as a typed
+ * function pointer (no void*->fn-ptr cast).
+ */
+typedef void (*event_handler_fn)(void *arg);
+typedef struct event_cb_block {
+    uint32_t          _r0;      /* +0x00 */
+    event_handler_fn  handler;  /* +0x04 */
+    void             *arg;      /* +0x08 */
+} event_cb_block_t;
+
+void event_handler_dispatch(void *obj)
+{
+    event_cb_block_t *block;
+
+    if (obj == 0) {                                  /* configASSERT(obj) */
+        vPortRaiseBASEPRI();
+        for (;;) { }
+    }
+
+    vPortEnterCritical();
+    block = *(event_cb_block_t *volatile *)((uint8_t *)obj + 0x1c);
+    vPortExitCritical();
+
+    if (block->handler != 0) {
+        block->handler(block->arg);                  /* tail call handler(arg) */
+    }
 }

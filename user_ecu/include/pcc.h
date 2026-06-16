@@ -58,6 +58,14 @@ void port_clock_wait(uint32_t packed_index);
 void nvic_irq_enable(uint32_t irq);
 
 /*
+ * nvic_clockgate_bringup — disable IRQ 33 (NVIC ICER1), DSB/ISB, enable clock-gate
+ * bit 5 of the 0x40004000 block (pcc_gate_set), then clear pending IRQ 33 (ICPR1).
+ * Brings a peripheral's clock up with its interrupt safely quiesced. No args/return.
+ * // 0x000067f4
+ */
+void nvic_clockgate_bringup(void);
+
+/*
  * gpio_base_to_bank — map a GPIO bank base address to a 0/1/2 index.
  * // 0x00001ffc
  *
