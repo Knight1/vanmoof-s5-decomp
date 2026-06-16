@@ -49,6 +49,15 @@ void vmem_copy(void *dst, const void *src, size_t count);
 int vmem_cmp(const void *a, const void *b, size_t count);
 
 /*
+ * mem_free — free `p` if non-NULL. // 0x000087f2
+ *
+ * OEM ABI: (p); returns void. NULL-guarded tail-call to the FreeRTOS heap_4
+ * vPortFree (0x6b9c, vendor). The firmware's generic allocation-release used
+ * across the I²C/bus session layer (session open/commit cleanup, etc.).
+ */
+void mem_free(void *p);
+
+/*
  * busy_wait — spin for `count` decrements. // 0x000084b2
  *
  * OEM ABI: (count); returns void. A bare `do { count--; } while (count != 0);`

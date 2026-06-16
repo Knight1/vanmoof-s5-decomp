@@ -11,18 +11,38 @@
  * Reconstructed from user_ecu.20240129.145222.1.5.0.main.v1.5.0-main.bin
  * (ARM Cortex-M4F, ARMv7-M, VFPv4 hard-float, FreeRTOS). Image base 0x0.
  *
- * A "device" is a fixed 0x2c-byte registry slot keyed by a 3-byte tag
- * {id, type, 0}. The slot's first word points at the device's cached record
- * buffer and its second word is the access semaphore guarding it (see
- * dev_record in device.c). These accessors open a transient I²C bus session
- * (FUN_000028c8), transfer a record to/from the part, and refresh the cached
- * copy under the semaphore.
+ * A "device" is a fixed 0x2c-byte registry slot (dev_record) keyed by a 3-byte
+ * tag {id, type, 0} at +0x0c. The slot caches the part's record buffer (+0x00),
+ * an access semaphore (+0x04), and the descriptor fields the apply hook
+ * transmits. These accessors open a transient I²C bus session (bus_session_open),
+ * transfer a record to/from the part, and refresh the cached copy under the
+ * semaphore.
  *
  * The 16-bit lookup tags seen here are device-class selectors:
  *   0x87  — 14-byte record (sub-address 0x30)   [device_read_record87]
  *   0x91  — 16-byte record (sub-address 0x40)   [device_read_record91]
  *   0x08c0 — 3-byte field write/apply           [device_store_field8c0]
  */
+
+/*
+ * dev_record — a device's 0x2c-byte registry slot. The reader accessors touch
+ * only data/sem; the apply hook (device_apply) also reads the descriptor
+ * (length, key, type, aux) to build the transmit frame.
+ */
+typedef struct dev_record {
+    uint8_t  *data;     /* +0x00 cached record buffer                          */
+    void     *sem;      /* +0x04 access semaphore (FreeRTOS)                    */
+    uint32_t  length;   /* +0x08 payload length (bytes to transmit)            */
+    uint32_t  key;      /* +0x0c lookup tag {id, type, 0} in the low 3 bytes   */
+    uint8_t   type;     /* +0x10 transmit mode: 0 single-shot, 1/2 chunked     */
+    uint8_t   _b11[3];  /* +0x11..+0x13                                        */
+    uint32_t  _w14;     /* +0x14                                               */
+    uint32_t  _w18;     /* +0x18                                               */
+    uint32_t  _w1c;     /* +0x1c                                               */
+    void     *aux;      /* +0x20 aux payload pointer (type 0)                  */
+    uint32_t  aux_len;  /* +0x24 aux payload length                            */
+    uint32_t  _w28;     /* +0x28  (slot is 0x2c bytes total)                   */
+} dev_record_t;
 
 /*
  * dev_handle — {registry, id} pair identifying one device + sub-id. The reader
@@ -52,10 +72,30 @@ int device_read_record91(dev_handle_t *dev, const void *expect);
 /*
  * device_store_field8c0 — write the 3-byte field `src` into device {0xc0,0x08}'s
  * cached record under its semaphore, then run the apply/notify hook
- * (FUN_00008656) and release the semaphore. `arg2` mirrors the OEM's unused 3rd
+ * (device_apply) and release the semaphore. `arg2` mirrors the OEM's unused 3rd
  * register argument. // 0x00008e0a
  */
 void device_store_field8c0(registry_t *reg, const void *src, uint32_t arg2);
+
+/*
+ * device_apply — build a command frame from `rec`'s descriptor and transmit it
+ * through the device manager's channel (`mgr`+0x594, send method at +0x5a4).
+ * The frame carries the record key (rec+0x0c); `rec->type` selects single-shot
+ * transmit (type 0, optionally appending the rec->aux payload) or chunked
+ * transmit (types 1/2, ≤8 bytes per frame with a wrapping sequence counter).
+ * Returns 0 on success, -1 for an unknown type, -2 for a NULL argument.
+ * // 0x00008656
+ */
+int device_apply(void *mgr, dev_record_t *rec);
+
+/*
+ * device_store_words8808 — write the 8-byte field `src` (two words) into device
+ * {0x08,0x88}'s cached record under its semaphore, then run device_apply and
+ * release the semaphore. Returns device_apply's status, or -1 if the device is
+ * absent/busy. `arg3` mirrors the OEM's unused key-word argument. The 8-byte
+ * sibling of device_store_field8c0 (which forwards no result). // 0x00009178
+ */
+int device_store_words8808(registry_t *reg, const void *src, uint32_t arg3);
 
 /*
  * device_cmd_read87 — open a session, write a 14-byte command frame
@@ -65,5 +105,14 @@ void device_store_field8c0(registry_t *reg, const void *src, uint32_t arg2);
  * session/write failure. // 0x00008f76
  */
 int device_cmd_read87(dev_handle_t *dev, uint32_t arg2, const void *payload);
+
+/*
+ * device_cmd_read91 — the 16-byte twin of device_cmd_read87: writes the 16-byte
+ * `payload` to device {dev->id, 0x91}'s 0x40 region (read-back verified),
+ * commits, then refreshes via device_read_record91 with `payload` as the
+ * expected value. `arg2` mirrors the OEM's unused 2nd register argument. Returns
+ * the read result, or -1 on any session/write failure. // 0x000090c0
+ */
+int device_cmd_read91(dev_handle_t *dev, uint32_t arg2, const void *payload);
 
 #endif /* USER_ECU_DEVICE_H */

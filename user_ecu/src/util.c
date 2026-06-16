@@ -9,9 +9,13 @@
  *   vmem_copy @ 0x0000984c  (hand-written forward byte copy / memcpy)
  *   vmem_cmp  @ 0x0000982c  (hand-written byte compare / memcmp)
  *   busy_wait @ 0x000084b2  (counted spin delay)
+ *   mem_free  @ 0x000087f2  (free-if-non-NULL wrapper over vPortFree)
  */
 
 #include "util.h"
+
+/* FreeRTOS heap_4 free (vendor, deferred) — 0x00006b9c. */
+extern void vPortFree(void *pv);
 
 /*
  * vmem_set — firmware byte-fill (memset). // 0x00009866
@@ -102,7 +106,7 @@ void vmem_copy(void *dst, const void *src, size_t count)
  * 0x9866): forward byte compare, end-pointer terminator via a-pointer equality,
  * returning 0 when equal or the signed difference of the first differing byte
  * pair. Byte-granular, no word/alignment fast path; NOT a toolchain/libgcc
- * memcmp. Used by the write-then-verify path (FUN_00008b12) and the
+ * memcmp. Used by the write-then-verify path (bus_page_write_verify) and the
  * device-record readback compare.
  */
 int vmem_cmp(const void *a, const void *b, size_t count)
@@ -139,4 +143,23 @@ void busy_wait(uint32_t count)
     do {
         count = count - 1;          // sub.w r0,r0,#0x1
     } while (count != 0);           // cmp r0,#0x0 ; bne
+}
+
+/*
+ * mem_free — free `p` if non-NULL. // 0x000087f2
+ *
+ * OEM disassembly (0x87f2..0x8800):
+ *   000087f2  cbz  r0,0x000087fc   ; p == NULL ? return
+ *   000087f4  ...  b.w 0x00006b9c  ; tail-call vPortFree(p)
+ *   000087fc  bx   lr
+ *
+ * Thin VanMoof wrapper that guards the firmware's free path with a NULL check
+ * before tail-calling the FreeRTOS heap_4 vPortFree (0x6b9c, vendor). Used as
+ * the generic "release this allocation" across the I²C/bus session layer.
+ */
+void mem_free(void *p)
+{
+    if (p != (void *)0) {           // cbz r0
+        vPortFree(p);               // b.w 0x6b9c
+    }
 }
