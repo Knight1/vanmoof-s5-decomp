@@ -109,6 +109,9 @@ uint32_t commport_uart_config(uint32_t comm_base, const commport_uart_cfg_t *cfg
 /* gate + select a peripheral's functional clock source (PCC +0xff8). // 0x000022b0 */
 int peripheral_clock_mux_select(uint32_t periph_base, uint32_t source);
 
+/* wrap-aware fill level (bytes held) of a length-prefixed byte ring. // 0x0000925a */
+uint32_t commq_bytes_used(const commq_t *q);
+
 /* length-prefixed payload-queue receive (blocking optional). // 0x00007550 */
 int commport_queue_receive(commq_t *q, void *dst, uint32_t block_ms);
 

@@ -38,7 +38,7 @@ extern void *FUN_00006a10(uint32_t size);                   /* 0x00006a10 (mallo
 extern void  mem_free(void *p);                         /* 0x000087f2 */
 extern void  vPortFree(void);                            /* 0x00006b9c (FreeRTOS heap_4 free, vendor; arg dropped by decompiler) */
 extern void *xQueueGenericCreate(uint32_t a, uint32_t b);          /* 0x000095be */
-extern void  FUN_00003cd0(int a, void *b);                  /* 0x00003cd0 */
+extern void  vQueueAddToRegistry(int a, void *b);           /* 0x00003cd0 (FreeRTOS, vendor) */
 extern void  vListInitialise(void *p);                         /* 0x00008c8a */
 extern void  commport_teardown(void *p);                         /* 0x000079c0 */
 extern int   thunk_xQueueCreateMutex(void);                      /* 0x000087a4 -> 0x0000974e */
@@ -62,9 +62,9 @@ extern int   commport_uart_config(uint32_t a, void *b, uint32_t c); /* 0x0000275
 extern int   commport_isr_install(uint32_t a, uint32_t b, uint32_t c); /* 0x000078f0 */
 extern int   xSemaphoreCreateBinary(void);                            /* 0x0000879c */
 extern int   func_0x00006708(int a, void *b);               /* 0x00006708 (raw indirect target; distinct from gpio_base_to_bank/pcc_gate/irqn labels) */
-extern int   func_0x00009876(uint32_t a, void *b, int c);   /* 0x00009876 */
-extern void  func_0x00001884(int a, int b, void *c, int d); /* 0x00001884 */
-extern void  FUN_00003338(int p);                           /* 0x00003338 */
+/* vmem_strncmp @0x00009876 — declared in util.h (included above). */
+extern void  xfer_state_log_notify(int a, int b, void *c, int d); /* 0x00001884 (decompiler-form; real ABI 3-arg, see store.h) */
+extern void  vQueueDelete(int p);                           /* 0x00003338 (FreeRTOS, vendor) */
 /* clock_div_program (0x0000110c) is declared by clock.h (already included). */
 extern void  FUN_00006b44(void);                            /* 0x00006b44 */
 
@@ -508,7 +508,7 @@ LAB_00004826:
     if (*DAT_00004934 == 0) {
         iVar14 = (int)xQueueGenericCreate(0x80, 0x10);
         *piVar13 = iVar14;
-        FUN_00003cd0(iVar14, DAT_00004938);
+        vQueueAddToRegistry(iVar14, DAT_00004938);
         piVar18 = (int *)FUN_00006a10(0x18);
         iVar14 = 0;
         if (piVar18 != NULL) {
@@ -1255,7 +1255,8 @@ LAB_000058c6:
                     *pcVar8 = '\0';
                     goto LAB_000058c6;
                 }
-                iVar16 = func_0x00009876(DAT_00005c9c, &local_3c, 6);
+                iVar16 = vmem_strncmp((const char *)(uintptr_t)DAT_00005c9c,
+                                      (const char *)&local_3c, 6);
                 if (iVar16 == 0) {
                     if (((local_38 >> 16) & 0xff) < 2) {
                         *pcVar8 = (char)((local_38 >> 24) & 0xff);
@@ -1281,7 +1282,7 @@ LAB_00005a62:
             }
         }
         local_3c = (local_3c & 0x0000ffff) | (((local_3c >> 16) & 0xffff) << 16) | 0x10000;
-        func_0x00001884(0, 0, &local_3c, 0xe);
+        xfer_state_log_notify(0, 0, &local_3c, 0xe);
     }
 
     /* -------------------------------------------------------------------
@@ -1311,7 +1312,7 @@ LAB_00005c7a:
         piVar13[0x13] = iVar14;
         iVar16 = DAT_00005cb4;
         if (iVar14 == 0) {
-            FUN_00003338(piVar13[0x12]);
+            vQueueDelete(piVar13[0x12]);
             goto LAB_00005b10;
         }
         *piVar13 = DAT_00005cb4;

@@ -15,6 +15,8 @@
  *   commport_rx_complete_cb     @ 0x000096ce  (RX-complete ring callback)
  *   commport_ring_drain         @ 0x00002d34  (TX/RX descriptor-ring drain)
  *   commport_can_transmit       @ 0x00007624  (TX/enqueue engine)
+ *   commport_dma_ring_read_frame@ 0x0000976e  (eDMA-ring frame read-out)
+ *   commport_frame_enqueue      @ 0x000085f8  (packed-frame decode -> queue)
  *
  * The FIFO data regs are at base+0xe20 (RX pop) / +0xe30 (TX push); FIFO status
  * at +0xe04/+0xe08, command +0xe14. The eDMA/DMAMUX engine is at 0x40082000.
@@ -23,7 +25,7 @@
 #include <stdint.h>
 
 #include "comm.h"       /* commport_base_to_index, commport_registry_index, edma_tcd_build, edma_chan_irq_enable, edma_chan_desc_t */
-#include "util.h"       /* vmem_set */
+#include "util.h"       /* vmem_set, vmem_copy */
 #include "pcc.h"        /* nvic_irq_enable, gpio_base_to_bank */
 #include "hal.h"        /* irqn_to_gpio_index */
 
@@ -51,7 +53,8 @@ extern const uint32_t      g_edma_tcd_base[];           /* 0x0000a508 {bank0..2}
 extern uint32_t vPortRaiseBASEPRI(void);                 /* 0x0000950a (returns prior BASEPRI) */
 extern void     vPortSetBASEPRI(uint32_t basepri);       /* 0x00009520 */
 extern uint32_t FUN_00006e20(void *ring, void *frame);   /* ring/descriptor push (reads r0 only) */
-extern int      FUN_00006bfc(void *notify_obj);          /* task signal/notify -> woken? */
+extern int      xTaskRemoveFromEventList(void *list_item);/* 0x00006bfc (FreeRTOS, vendor) -> woken? */
+extern int      rtos_sem_give(void *q, const void *item, int pos); /* 0x00006ec0 queue send (FreeRTOS, vendor) */
 
 /* --- per-purpose partial state structs (distinct views of related objects) */
 
@@ -274,7 +277,7 @@ void commport_irq_dispatch_inst3(void)
  *
  * Under a BASEPRI critical section: if the ring is non-empty (head < tail),
  * push the received frame (FUN_00006e20) and maintain a signed seq counter at
- * +0x45 — at the -1 sentinel it fires the bound task-notify (FUN_00006bfc) and
+ * +0x45 — at the -1 sentinel it fires the bound task-notify (xTaskRemoveFromEventList) and
  * reports a higher-priority wake via *signal_out; else increments (trap at 0x7f).
  * Returns 1 if a frame was consumed, 0 if empty.
  */
@@ -297,7 +300,7 @@ int commport_rx_complete_cb(commport_ring_t *ring, void *frame, int *signal_out)
         FUN_00006e20(ring, frame);
         if (seq == -1) {
             if (ring->notify_obj != 0 &&
-                FUN_00006bfc(&ring->notify_obj) != 0 &&
+                xTaskRemoveFromEventList(&ring->notify_obj) != 0 &&
                 signal_out != 0) {
                 *signal_out = 1;
             }
@@ -570,4 +573,126 @@ epilogue:
         unsigned grp = (unsigned)(ch >> 5);
         MMIO32(rec->edma_base + 0x48u + grp * 4u) |= 1u << (ch & 0x1f);
     }
+}
+
+/*
+ * commport_dma_ring_read_frame — read one frame out of the eDMA ring. // 0x0000976e
+ *
+ * Two TCD-like channel descriptors live in the driver object:
+ *   channel 0   -> saddr at +0xa0, control word at +0xa4, head store at +0xa8
+ *   channel !=0 -> saddr at +0xb0, control word at +0xb4, head store at +0xb8
+ * A shared mode/format word lives at +0xbc:
+ *   channel 0   uses  *(u32*)(obj+0xbc) & 0x7            (and r3,#0x7)
+ *   channel !=0 uses (*(u32*)(obj+0xbc) >> 4) & 0x7      (ubfx r3,#4,#3)
+ *
+ * The slot-count code is turned into a per-entry stride (in 32-bit words):
+ *   code <= 4 : stride = code + 4          (4,5,6,7,8 for codes 0..4)
+ *   code  > 4 : stride = (code << 2) - 10  (10,14,18,... for codes >=5)
+ *
+ * The ring base is *(obj+0x200). The read address is:
+ *   entry    = ((control >> 8) & 0x3f) * stride        (ubfx #8,#6 ; muls)
+ *   byte_off = (saddr & ~3) & 0xffff                   (bic #3 ; lsl#16 ; lsr#16)
+ *   src      = *(obj+0x200) + byte_off + entry*4        (add ; add.w r4,r4,r3,lsl#2)
+ * 8 bytes are copied to out_rec; out_rec[+8] receives src+8 (next/tail ptr);
+ * then the channel head field (+0xa8 / +0xb8) is updated with a freshly re-read
+ * ((control >> 8) & 0x3f) producer index.
+ *
+ * NOTE: 3-arg function (obj, channel, out_rec); the OEM call at 0x97b4 sets up
+ * only r0/r1/r2 for the 3-arg vmem_copy (verify-corrected from a phantom 5-arg
+ * decompiler rendering). Reached via a registered function pointer.
+ */
+void commport_dma_ring_read_frame(int obj, int channel, int out_rec)
+{
+    unsigned int code;     /* slot-count code from the +0xbc mode word   */
+    unsigned int stride;   /* per-entry stride in 32-bit words           */
+    unsigned int control;  /* +0xa4 / +0xb4 control word                 */
+    unsigned int saddr;    /* +0xa0 / +0xb0 source/base word             */
+    unsigned int entry;    /* entry index * stride                       */
+    unsigned int byte_off; /* base byte offset within the ring           */
+    int src;               /* computed source address                    */
+
+    if (channel == 0) {
+        code   = MMIO32(obj + 0xbc) & 0x7u;
+        saddr  = MMIO32(obj + 0xa0);
+        stride = code;
+        if (code > 4u) {
+            stride = code << 2;
+        }
+        control = MMIO32(obj + 0xa4);
+        if (code <= 4u) {
+            stride = stride + 4u;
+        } else {
+            stride = stride - 10u;
+        }
+    } else {
+        code   = (MMIO32(obj + 0xbc) >> 4) & 0x7u;
+        stride = code;
+        if (code > 4u) {
+            stride = code << 2;
+        }
+        saddr = MMIO32(obj + 0xb0);
+        if (code <= 4u) {
+            stride = stride + 4u;
+        }
+        control = MMIO32(obj + 0xb4);
+        if (code > 4u) {
+            stride = stride - 10u;
+        }
+    }
+
+    entry    = ((control >> 8) & 0x3fu) * stride;        /* ubfx r1,#8,#6 ; muls */
+    byte_off = (saddr & 0xfffcu) & 0xffffu;              /* bic #3 ; lsl#16 ; lsr#16 */
+    src      = (int)MMIO32(obj + 0x200) + (int)byte_off + (int)(entry * 4u);
+
+    vmem_copy((void *)(uintptr_t)out_rec, (const void *)(uintptr_t)src, 8);
+
+    *(int *)(uintptr_t)(out_rec + 8) = src + 8;
+
+    if (channel == 0) {
+        MMIO32(obj + 0xa8) = (MMIO32(obj + 0xa4) >> 8) & 0x3fu;
+    } else {
+        MMIO32(obj + 0xb8) = (MMIO32(obj + 0xb4) >> 8) & 0x3fu;
+    }
+}
+
+/*
+ * commport_frame_enqueue — decode a packed frame and post it to the channel's
+ * message queue. // 0x000085f8
+ *
+ * The raw frame is [b0 b1 b2 b3 dlc payload...]; the 29-bit extended identifier
+ * is reassembled big-endian as b0<<21 | b1<<13 | b2<<5 | (b3 & 0x1f), the DLC is
+ * clamped to 8, and a 16-byte message {dlc@0, id@4, payload@8} is built on the
+ * stack (first 16 bytes zero-filled) and sent to the queue at *(chan+0x14) via
+ * the FreeRTOS queue send (rtos_sem_give, position 0 = send-to-back). Returns 0
+ * if the send returned 1 (success), else -1 (NULL queue holder or failed send).
+ * Reached via a registered channel function pointer (no direct callers).
+ */
+int commport_frame_enqueue(void *chan, const uint8_t *frame)
+{
+    uint8_t  msg[20];                       /* sub sp,#0x14 (20-byte record slot) */
+    void   **queue_holder = *(void ***)((uint8_t *)chan + 0x14);
+    uint8_t  dlc = frame[4];
+
+    vmem_set(msg, 0, 0x10);                 /* zero the first 16 bytes */
+    msg[0] = dlc;
+    if (dlc > 7) {
+        msg[0] = 8;                         /* clamp DLC to 8 */
+    }
+
+    if (queue_holder == 0) {
+        return -1;
+    }
+
+    *(uint32_t *)(msg + 4) =                /* 29-bit extended identifier (big-endian) */
+          ((uint32_t)frame[0] << 21)
+        | ((uint32_t)frame[1] << 13)
+        | ((uint32_t)frame[2] << 5)
+        | ((uint32_t)frame[3] & 0x1fu);
+
+    vmem_copy(msg + 8, frame + 5, msg[0]);  /* payload: clamped-DLC bytes */
+
+    if (rtos_sem_give(queue_holder[0], msg, 0) == 1) {
+        return 0;
+    }
+    return -1;
 }

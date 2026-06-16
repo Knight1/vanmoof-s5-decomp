@@ -14,6 +14,7 @@
  *   store_descriptor_read   @ 0x00006708  (read the 8-byte descriptor @ 0x37400)
  *   store_descriptor_write  @ 0x00006794  (write the 8-byte descriptor)
  *   log_append_event        @ 0x0000681c  (append an event record via the writer)
+ *   xfer_state_log_notify   @ 0x00001884  (transfer-complete: state toggle + log + wake)
  *
  * Storage is addressed in 0x200-byte pages; page index N lives at byte address
  * (N + 0xe0) * 0x200, valid indices 0..0xd9. The page buffer is programmed back
@@ -63,6 +64,31 @@ typedef struct log_event_src {
 } log_event_src_t;
 extern void *g_log_store_handle;                 /* *0x2000069c (DAT_0000684c) */
 extern volatile log_event_src_t g_log_event_src; /* 0x0001b31f (DAT_00006850) */
+
+/*
+ * Transfer-completion waiter objects + the connection/state flag used by
+ * xfer_state_log_notify (runtime SRAM; the literals are object base addresses,
+ * not pointer cells). Each waiter object carries a presence byte at +0x00, a
+ * 16-bit field at +0x01, and a queue/sem handle at +0x0c.
+ */
+#define g_xfer_waiter_a    ((volatile uint8_t *)0x200006b4u)  /* DAT_00001908 */
+#define g_xfer_waiter_b    ((volatile uint8_t *)0x20000970u)  /* DAT_0000190c */
+#define g_xfer_state_flag  (*(volatile uint8_t *)0x200070e9u) /* DAT_00001910 */
+
+/*
+ * FUN_000087fa — reset a waiter object's queue and release its blocked task.
+ * Recomputes the embedded queue's write/read cursors, clears the message count,
+ * sets the lock sentinels and signals one waiter (FreeRTOS xQueueGenericReset-
+ * shaped). Classification pending; left extern. // 0x000087fa
+ */
+extern void FUN_000087fa(void *waiter);
+
+/*
+ * rtos_sem_give — FreeRTOS queue/semaphore send (vendor, deferred). Distinct from
+ * the event-queue send FUN_0000926c above; used to hand a completed record to a
+ * blocked task. // 0x00006ec0
+ */
+extern int rtos_sem_give(void *q, const void *item, int pos);
 
 /* Separate OEM functions defined below; forward-declared (kept un-inlined). */
 void event_report(uint32_t ctx, uint16_t code, int word_count, ...);
@@ -480,4 +506,72 @@ void log_append_event(uint8_t flag)
 
         store_descriptor_write(g_log_store_handle, &record);   /* 0x6794 */
     }
+}
+
+/*
+ * xfer_state_log_notify — transfer-completion handler. // 0x00001884
+ *
+ * Invoked (via a function pointer) when a transfer/operation `record` completes.
+ * It is grouped in this module because its defining VanMoof action is the
+ * connection-state log emission via log_append_event; the record itself is the
+ * comm/transfer descriptor whose waiter handles live in the SRAM objects above.
+ *
+ * Steps, in OEM order:
+ *   1. If record[+9] bit1 set, reset waiter A; if record[+2] bit1 set, reset B
+ *      (FUN_000087fa recomputes the waiter's queue + releases its task).
+ *   2. Toggle the connection/state flag: code (record[+0xa], u16) == 0x3fd marks
+ *      "up" (flag 0->1), anything else marks "down" (flag 1->0); on an actual
+ *      transition the new flag is stored and appended to the event log.
+ *   3. If record[+0xc] (u16) != 0, hand record+7 to waiter A's queue handle
+ *      (waiter_a+0xc) via rtos_sem_give; likewise if record[+5] (u16) != 0, hand
+ *      record (base) to waiter B's queue handle (waiter_b+0xc).
+ *
+ * OEM QUIRK reproduced verbatim: both pre-give "needs reset" tests read waiter
+ * A's presence byte (g_xfer_waiter_a[0]) — even the B branch — while the 16-bit
+ * field and the reset target are the respective waiter's.
+ *
+ * The first two args (r0/r1) are ABI placeholders the body never reads; the
+ * function returns 0.
+ */
+uint32_t xfer_state_log_notify(uint32_t a, uint32_t b, const void *record)
+{
+    const uint8_t *rec = (const uint8_t *)record;
+    (void)a;
+    (void)b;
+
+    if ((rec[9] & 0x02u) != 0u) {                  /* (byte<<0x1e) < 0 -> bit1 */
+        FUN_000087fa((void *)g_xfer_waiter_a);
+    }
+    if ((rec[2] & 0x02u) != 0u) {
+        FUN_000087fa((void *)g_xfer_waiter_b);
+    }
+
+    if (*(const uint16_t *)(rec + 0xa) == 0x3fd) { /* "up" code */
+        if (g_xfer_state_flag == 0) {
+            g_xfer_state_flag = 1;
+            log_append_event(1);
+        }
+    } else {                                       /* "down" */
+        if (g_xfer_state_flag != 0) {
+            g_xfer_state_flag = 0;
+            log_append_event(0);
+        }
+    }
+
+    if (*(const uint16_t *)(rec + 0xc) != 0) {
+        if (g_xfer_waiter_a[0] != 0 &&
+            *(volatile uint16_t *)(g_xfer_waiter_a + 1) == 0) {
+            FUN_000087fa((void *)g_xfer_waiter_a);
+        }
+        rtos_sem_give(*(void *volatile *)(g_xfer_waiter_a + 0xc), rec + 7, 1);
+    }
+    if (*(const uint16_t *)(rec + 5) != 0) {
+        if (g_xfer_waiter_a[0] != 0 &&             /* OEM quirk: reads waiter A's byte */
+            *(volatile uint16_t *)(g_xfer_waiter_b + 1) == 0) {
+            FUN_000087fa((void *)g_xfer_waiter_b);
+        }
+        rtos_sem_give(*(void *volatile *)(g_xfer_waiter_b + 0xc), rec, 1);
+    }
+
+    return 0;
 }

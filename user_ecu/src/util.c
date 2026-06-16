@@ -5,11 +5,12 @@
  *   user_ecu.20240129.145222.1.5.0.main.v1.5.0-main.bin
  *
  * Functions:
- *   vmem_set  @ 0x00009866  (hand-written byte fill / memset)
- *   vmem_copy @ 0x0000984c  (hand-written forward byte copy / memcpy)
- *   vmem_cmp  @ 0x0000982c  (hand-written byte compare / memcmp)
- *   busy_wait @ 0x000084b2  (counted spin delay)
- *   mem_free  @ 0x000087f2  (free-if-non-NULL wrapper over vPortFree)
+ *   vmem_set     @ 0x00009866  (hand-written byte fill / memset)
+ *   vmem_copy    @ 0x0000984c  (hand-written forward byte copy / memcpy)
+ *   vmem_cmp     @ 0x0000982c  (hand-written byte compare / memcmp)
+ *   vmem_strncmp @ 0x00009876  (hand-written bounded NUL-aware compare / strncmp)
+ *   busy_wait    @ 0x000084b2  (counted spin delay)
+ *   mem_free     @ 0x000087f2  (free-if-non-NULL wrapper over vPortFree)
  */
 
 #include "util.h"
@@ -123,6 +124,57 @@ int vmem_cmp(const void *a, const void *b, size_t count)
         pb = pb + 1;
     }
     return 0;                                   // movs r0,#0
+}
+
+/*
+ * vmem_strncmp — firmware bounded NUL-aware byte compare (strncmp). // 0x00009876
+ *
+ * OEM disassembly (0x9876..0x989a):
+ *   00009876  push {r4,lr}
+ *   00009878  cbz  r2,0x00009896      ; n == 0 -> return 0
+ *   0000987a  mov  r3,r0              ; p1 = s1
+ *   0000987c  subs r1,#0x1            ; p2 = s2 - 1 (pre-increment cursor)
+ *   0000987e  adds r4,r0,r2           ; end = s1 + n
+ *   00009880  ldrb.w r0,[r3],#0x1     ; c1 = *p1 ; p1++
+ *   00009884  ldrb.w r2,[r1,#0x1]!    ; p2++ ; c2 = *p2
+ *   00009888  cmp  r0,r2              ; mismatch ?
+ *   0000988a  bne  0x00009890
+ *   0000988c  cmp  r3,r4              ; reached s1 + n ?
+ *   0000988e  bne  0x00009898
+ *   00009890  subs r0,r0,r2           ; return c1 - c2
+ *   00009892  pop  {r4,pc}
+ *   00009896  movs r0,r2              ; (n == 0) r0 = 0
+ *   00009898  cmp  r0,#0x0            ; loop while c1 != 0 (stop at NUL)
+ *   0000989a  bne  0x00009880  /  beq 0x00009890
+ *
+ * Fourth member of the hand-written string/mem family (after the cmp/copy/set
+ * trio at 0x982c/0x984c/0x9866): a forward bounded compare that also stops at a
+ * shared NUL — i.e. strncmp semantics. Byte-granular with the house pre-increment
+ * idiom on the second operand (s2 - 1, advanced before each load); returns 0 when
+ * equal (or n == 0) and the signed difference of the first differing pair
+ * otherwise. NOT a toolchain/libc strncmp (same byte-granular, no fast path).
+ */
+int vmem_strncmp(const char *s1, const char *s2, size_t n)
+{
+    unsigned int c1;
+    const uint8_t *p1 = (const uint8_t *)s1;
+    const uint8_t *p2 = (const uint8_t *)s2 - 1;    /* subs r1,#1 */
+    const uint8_t *end = p1 + n;                    /* adds r4,r0,r2 */
+
+    if (n == 0) {
+        return 0;                                   /* movs r0,r2 (==0) */
+    }
+
+    do {
+        c1 = *p1;                                   /* ldrb.w r0,[r3],#1 */
+        p1 = p1 + 1;
+        p2 = p2 + 1;                                /* ldrb.w r2,[r1,#1]! */
+        if (c1 != *p2 || p1 == end) {               /* cmp/bne ; cmp r3,r4 */
+            break;
+        }
+    } while (c1 != 0);                              /* cmp r0,#0 ; bne */
+
+    return (int)c1 - (int)*p2;                      /* subs r0,r0,r2 */
 }
 
 /*

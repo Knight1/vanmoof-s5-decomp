@@ -49,6 +49,17 @@ void vmem_copy(void *dst, const void *src, size_t count);
 int vmem_cmp(const void *a, const void *b, size_t count);
 
 /*
+ * vmem_strncmp — bounded NUL-aware compare of `s1`/`s2`, up to `n` bytes. // 0x00009876
+ *
+ * OEM ABI: (s1, s2, n). The fourth hand-written sibling of the cmp/copy/set trio,
+ * with strncmp semantics: compares forward, stopping at `n` bytes OR a shared NUL,
+ * and returns 0 when equal (or n == 0) or the signed difference (int)s1[i] -
+ * (int)s2[i] of the first mismatch. Byte-granular with the house pre-increment
+ * idiom (s2 advanced before each load); not a toolchain strncmp.
+ */
+int vmem_strncmp(const char *s1, const char *s2, size_t n);
+
+/*
  * mem_free — free `p` if non-NULL. // 0x000087f2
  *
  * OEM ABI: (p); returns void. NULL-guarded tail-call to the FreeRTOS heap_4

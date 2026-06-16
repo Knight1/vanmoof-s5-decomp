@@ -44,11 +44,12 @@ extern const uint32_t port_clk_arg_table[];   /* 0x0000a534              */
 #define COMMQ_CUR_TCB   (*(void *volatile *)0x20000900u)
 
 /* --- not-yet-translated VanMoof helpers (left in decompiler FUN_ form) --- */
-extern uint32_t FUN_0000925a(commq_t *q);            /* bytes currently in ring */
-extern void     FUN_00006dc4(uint32_t block_ms);     /* queue block/timeout setup */
-extern void     FUN_000074e0(void *waiting_send);    /* release a waiting sender */
-extern void     FUN_00003338(void *queue);           /* queue delete + free */
-extern void     FUN_00006c70(void *list_item, uint32_t flags); /* event-list remove */
+extern void     FUN_00006dc4(uint32_t block_ms);     /* queue block/timeout setup (FreeRTOS notify-wait, vendor) */
+extern void     FUN_000074e0(void *waiting_send);    /* release a waiting sender (FreeRTOS notify-give, vendor) */
+extern void     FUN_00006c70(void *list_item, uint32_t flags); /* event-list remove (FreeRTOS, vendor) */
+
+/* --- FreeRTOS queue/list primitives (vendor, deferred) ------------------- */
+extern void vQueueDelete(void *xQueue);              /* 0x00003338 (unregister + vPortFree) */
 
 /* --- FreeRTOS / port primitives (vendor, deferred) ---------------------- */
 extern void vPortRaiseBASEPRI(void);                 /* 0x0000950a (configASSERT) */
@@ -261,6 +262,35 @@ int peripheral_clock_mux_select(uint32_t periph_base, uint32_t source)
 }
 
 /*
+ * commq_bytes_used — bytes currently held in a length-prefixed byte ring. // 0x0000925a
+ *
+ * OEM disassembly (0x925a..0x9268):
+ *   ldr  r2,[r0,#0x8]   ; size  = q->size  (+0x08)
+ *   ldr  r3,[r0,#0x4]   ; write = q->write (+0x04)
+ *   ldr  r0,[r0,#0x0]   ; read  = q->read  (+0x00)
+ *   add  r3,r2          ; write + size
+ *   subs r0,r3,r0       ; used  = (write + size) - read
+ *   cmp  r2,r0          ; size <= used ?  (it ls -> UNSIGNED)
+ *   sub.ls r0,r0,r2     ; used -= size
+ *   bx   lr             ; return used (uint)
+ *
+ * The wrap-aware fill level (write - read, modulo size) of the byte ring: a
+ * single conditional subtract is enough because used < 2*size. Senders derive
+ * free space from it; receivers (commport_queue_receive) use it directly as the
+ * available-byte count. Pure leaf, no DAT references.
+ */
+uint32_t commq_bytes_used(const commq_t *q)
+{
+    uint32_t size  = q->size;                    /* +0x08 */
+    uint32_t used  = (q->write + size) - q->read;/* (+0x04 + size) - +0x00 */
+
+    if (size <= used) {                          /* it ls (unsigned) */
+        used -= size;
+    }
+    return used;
+}
+
+/*
  * queue_ring_copyout — copy min(count,avail) bytes out of a byte ring. // 0x000091ec
  *
  * Copies from ring->storage[ring->read] into `dst`, handling wrap at
@@ -344,7 +374,7 @@ int commport_queue_receive(commq_t *q, void *dst, uint32_t block_ms)
 
     if (block_ms != 0) {
         vPortEnterCritical();
-        avail = FUN_0000925a(q);
+        avail = commq_bytes_used(q);
         if (avail <= prefix_sz) {
             void *tcb = COMMQ_CUR_TCB;
             vPortEnterCritical();
@@ -367,7 +397,7 @@ int commport_queue_receive(commq_t *q, void *dst, uint32_t block_ms)
         q->rx_block = 0;
     }
 
-    avail = FUN_0000925a(q);
+    avail = commq_bytes_used(q);
     if (prefix_sz >= avail) {
         return 0;
     }
@@ -416,7 +446,7 @@ void commport_teardown(commport_handle_t *handle)
     }
 
     if (handle->queue != 0) {
-        FUN_00003338(handle->queue);                          /* queue delete */
+        vQueueDelete(handle->queue);                          /* queue delete + free (0x3338) */
     }
 
     {

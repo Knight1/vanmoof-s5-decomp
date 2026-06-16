@@ -88,4 +88,13 @@ int store_descriptor_write(void *sess, const void *descriptor);
  */
 void log_append_event(uint8_t flag);
 
+/*
+ * xfer_state_log_notify — transfer-completion handler: reset/release the two
+ * waiter queues flagged in `record`, toggle the connection/state flag on the
+ * 0x3fd "up" code (logging the transition via log_append_event), and hand the
+ * completed record to any blocked tasks. `a`/`b` are unused ABI placeholders;
+ * returns 0. Reached via a function pointer. // 0x00001884
+ */
+uint32_t xfer_state_log_notify(uint32_t a, uint32_t b, const void *record);
+
 #endif /* USER_ECU_STORE_H */
