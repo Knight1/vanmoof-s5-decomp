@@ -50,11 +50,11 @@ extern void  FUN_00003eac(uint32_t dst, int tag, int n, ...); /* 0x00003eac (fra
 extern void *registry_lookup(uint32_t busbase, void *cfg);     /* 0x000082f2 */
 extern int   xQueueSemaphoreTake(uint32_t a, int b);               /* 0x00008d54 */
 extern int   registry_lookup_value(int a, uint32_t b);               /* 0x0000830a */
-extern void  FUN_000097f4(uint32_t a);                      /* 0x000097f4 */
+extern void  rtos_sem_give_dispatch(uint32_t a);            /* 0x000097f4 (FreeRTOS sem give, vendor) */
 extern int   FUN_0000289c(int p);                           /* 0x0000289c */
 extern void  FUN_0000664c(int a, uint32_t b);               /* 0x0000664c */
-extern int   FUN_00008e76(uint32_t a, int b);               /* 0x00008e76 */
-extern uint32_t FUN_00008fd6(uint32_t a, int b);            /* 0x00008fd6 */
+extern int   device_read_record87(uint32_t a, int b);       /* 0x00008e76 */
+extern uint32_t device_read_record91(uint32_t a, int b);    /* 0x00008fd6 */
 extern void  busy_wait(uint32_t a);                      /* 0x000084b2 */
 extern void  gpio_irq_register(int bank, int pin, int idx, int seq); /* 0x0000159c */
 extern int   FUN_000022b0(uint32_t base, int mode);         /* 0x000022b0 */
@@ -722,7 +722,7 @@ LAB_00004c00:
         local_3c = (local_3c & 0xff000000) | 0x80c0;
         iVar15 = (int)(intptr_t)registry_lookup(DAT_00004f00, &local_3c);
         if (iVar15 == 0) goto LAB_00004c06;
-        FUN_000097f4(*(uint32_t *)(iVar15 + 4));
+        rtos_sem_give_dispatch(*(uint32_t *)(iVar15 + 4));
         if (iVar14 != 0) goto LAB_00004c06;
     }
     vmem_set(&DAT_00004f1c, 0, 0x1c);
@@ -798,7 +798,7 @@ LAB_00004e98:
                                        | (((uint32_t)iVar15 >> 24) << 24);
                             iVar15 = registry_lookup_value(piVar6[0xc], local_3c);
                             if (iVar15 != 0) {
-                                FUN_000097f4(*(uint32_t *)(iVar15 + 4));
+                                rtos_sem_give_dispatch(*(uint32_t *)(iVar15 + 4));
                                 goto LAB_00004fbc;
                             }
                         }
@@ -964,10 +964,10 @@ LAB_00004c06:
     } else {
         iVar14 = registry_add(DAT_000052e0, &local_3c);
     }
-    iVar15 = FUN_00008e76((uint32_t)(intptr_t)DAT_00005304, 0);
+    iVar15 = device_read_record87((uint32_t)(intptr_t)DAT_00005304, 0);
     if (iVar16 != 0) iVar14 = iVar16;
     if (iVar14 == 0) iVar14 = iVar15;
-    uVar19 = FUN_00008fd6((uint32_t)(intptr_t)DAT_00005304, 0);
+    uVar19 = device_read_record91((uint32_t)(intptr_t)DAT_00005304, 0);
     puVar7 = DAT_00005650;
     if ((iVar14 != 0) || (uVar19 != 0)) goto LAB_00004c06;
 
@@ -1049,7 +1049,7 @@ LAB_00004c06:
         iVar16 = *piVar13;
         MMIO32(iVar16 + 0x10) |= 1;                 /* device wake */
         MMIO32(iVar16 + 0x18) |= 1;
-        FUN_000097f4(*(uint32_t *)(iVar16 + 4));
+        rtos_sem_give_dispatch(*(uint32_t *)(iVar16 + 4));
         FUN_00003eac(DAT_00005664, 0x41, 0);
     }
     local_3c = (uint32_t)FUN_00006a10(3);

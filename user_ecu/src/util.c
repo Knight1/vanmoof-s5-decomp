@@ -7,6 +7,7 @@
  * Functions:
  *   vmem_set  @ 0x00009866  (hand-written byte fill / memset)
  *   vmem_copy @ 0x0000984c  (hand-written forward byte copy / memcpy)
+ *   vmem_cmp  @ 0x0000982c  (hand-written byte compare / memcmp)
  *   busy_wait @ 0x000084b2  (counted spin delay)
  */
 
@@ -75,6 +76,49 @@ void vmem_copy(void *dst, const void *src, size_t count)
         out = out + 1;
         cursor = cursor + 1;
     }
+}
+
+/*
+ * vmem_cmp — firmware byte compare (memcmp). // 0x0000982c
+ *
+ * OEM disassembly (0x982c..0x984a):
+ *   0000982c  subs r1,#0x1          ; r1 = b - 1 (pre-increment cursor)
+ *   0000982e  add  r2,r0            ; r2 = end = a + count
+ *   00009830  push {r4,lr}
+ *   00009832  cmp  r0,r2            ; loop top: a == end ?
+ *   00009834  bne  0x0000983a
+ *   00009836  movs r0,#0x0          ; all bytes equal -> 0
+ *   00009838  b    0x00009846
+ *   0000983a  ldrb r3,[r0,#0x0]     ; r3 = *a
+ *   0000983c  ldrb.w r4,[r1,#0x1]!  ; r4 = *++b
+ *   00009840  cmp  r3,r4
+ *   00009842  beq  0x00009848
+ *   00009844  subs r0,r3,r4         ; first mismatch -> *a - *b
+ *   00009846  pop  {r4,pc}
+ *   00009848  adds r0,#0x1          ; a++ ; b advanced by the pre-increment ldrb
+ *   0000984a  b    0x00009832
+ *
+ * Third member of the hand-written libc trio (cmp/copy/set at 0x982c/0x984c/
+ * 0x9866): forward byte compare, end-pointer terminator via a-pointer equality,
+ * returning 0 when equal or the signed difference of the first differing byte
+ * pair. Byte-granular, no word/alignment fast path; NOT a toolchain/libgcc
+ * memcmp. Used by the write-then-verify path (FUN_00008b12) and the
+ * device-record readback compare.
+ */
+int vmem_cmp(const void *a, const void *b, size_t count)
+{
+    const uint8_t *pa = (const uint8_t *)a;
+    const uint8_t *pb = (const uint8_t *)b;     // b - 1, pre-incremented to b
+    const uint8_t *end = pa + count;            // add r2,r0
+
+    while (pa != end) {                         // cmp r0,r2 ; bne
+        if (*pa != *pb) {                       // ldrb ; ldrb ; cmp ; bne
+            return (int)*pa - (int)*pb;         // subs r0,r3,r4
+        }
+        pa = pa + 1;                            // adds r0,#1
+        pb = pb + 1;
+    }
+    return 0;                                   // movs r0,#0
 }
 
 /*

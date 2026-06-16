@@ -4,10 +4,11 @@
 /*
  * util.h — VanMoof firmware low-level utilities.
  *
- * The firmware ships its own hand-written byte-fill / byte-copy
- * (memset/memcpy-equivalents) and a counted busy-wait, rather than relying on
- * libc/libgcc. They are used widely across the image (e.g. the I2C descriptor
- * zero-fill, xTaskCreate buffer init, the registry entry copy, SystemInit, and
+ * The firmware ships its own hand-written byte-fill / byte-copy / byte-compare
+ * (memset/memcpy/memcmp-equivalents at 0x9866/0x984c/0x982c) and a counted
+ * busy-wait, rather than relying on libc/libgcc. They are used widely across the
+ * image (e.g. the I2C descriptor zero-fill, xTaskCreate buffer init, the
+ * registry entry copy, device-record readback verify, SystemInit, and
  * clock-stabilisation delays).
  */
 
@@ -35,6 +36,17 @@ void vmem_set(void *dst, uint8_t value, size_t count);
  * Used by registry_add to stamp a 0x2c-byte entry into a slot.
  */
 void vmem_copy(void *dst, const void *src, size_t count);
+
+/*
+ * vmem_cmp — compare `count` bytes of `a` and `b`, forward. // 0x0000982c
+ *
+ * OEM ABI: (a, b, count). The third hand-written libc-trio sibling: precomputes
+ * end = a + count, compares one byte at a time terminating on a == end, and
+ * returns 0 when all equal or the signed difference (int)a[i] - (int)b[i] of the
+ * first mismatch. Byte-granular, no word/alignment fast path; not a toolchain
+ * memcmp. Used by the I²C write-then-verify path and device-record readback.
+ */
+int vmem_cmp(const void *a, const void *b, size_t count);
 
 /*
  * busy_wait — spin for `count` decrements. // 0x000084b2
