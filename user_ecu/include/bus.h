@@ -31,8 +31,8 @@ struct bus_session;
 typedef struct bus_driver {
     void *_w00;                                                              /* +0x00 */
     int (*init)(struct bus_session *sess);                                   /* +0x04 */
-    void *_w08;                                                              /* +0x08 */
-    void *_w0c;                                                              /* +0x0c */
+    int (*xfer_token)(void *a, uint32_t b, uint32_t len, uint32_t token);    /* +0x08 (bus_transfer_token, variant B) */
+    int (*page_program)(void *sess, uint32_t addr, void *buf, uint32_t len); /* +0x0c (bus_page_program, variant B) */
     void *_w10;                                                              /* +0x10 */
     void *_w14;                                                              /* +0x14 */
     void *_w18;                                                              /* +0x18 */
@@ -123,5 +123,23 @@ int bus_session_commit(bus_session_t *sess, int set);
  * a read-back mismatch. // 0x00008b12
  */
 int bus_page_write_verify(bus_session_t *sess, const void *buf, uint32_t len, uint32_t off);
+
+/*
+ * bus_transfer_token — variant-dispatched 0x200-byte bus op carrying a fixed
+ * token. Variant A calls a fixed off-image handler (0x1300413a); variant B calls
+ * the driver vtable method at +0x08. Both receive (a, b, 0x200, 0x6b65666c) and
+ * the OEM tail-calls, forwarding the result. The precise operation is
+ * unconfirmed (the variant-A handler and the manager live in the off-image
+ * 0x13xxxxxx region); only the dispatch is reconstructed here. // 0x0000664c
+ */
+int bus_transfer_token(void *a, uint32_t b);
+
+/*
+ * bus_page_program — program a 0x200-byte page at byte address `addr` from
+ * `buf`. Variant A calls a fixed off-image handler (0x1300419c); variant B calls
+ * the driver vtable method at +0x0c. Both receive (sess, addr, buf, 0x200). Used
+ * by the storage page-cache write-back. // 0x00006610
+ */
+int bus_page_program(void *sess, uint32_t addr, void *buf);
 
 #endif /* USER_ECU_BUS_H */

@@ -14,6 +14,8 @@
  *   bus_session_open     @ 0x000028c8  (alloc + init + open + autodetect)
  *   bus_session_commit   @ 0x00002938  (0x200-page read-modify-write)
  *   bus_page_write_verify@ 0x00008b12  (splice + write-back + read-back verify)
+ *   bus_transfer_token   @ 0x0000664c  (variant-dispatched 0x200 op + token)
+ *   bus_page_program     @ 0x00006610  (variant-dispatched 0x200-byte page write)
  *
  * Every transfer primitive dispatches through the global driver manager
  * (g_bus_mgr, fixed at 0x1301fe00): manager+0x10 is the driver vtable and the
@@ -28,6 +30,22 @@
 
 /* FreeRTOS heap_4 allocator (vendor, deferred) — 0x00006a10. */
 extern void *pvPortMalloc(size_t xWantedSize);
+
+/*
+ * Variant-A handler for bus_transfer_token: a fixed code address (0x1300413a,
+ * DAT_00006680) in the off-image 0x13xxxxxx region. The OEM loads it from a
+ * constant-pool literal; declared extern here (runtime/off-image resolved).
+ */
+extern int bus_xfer_token_handler_a(void *a, uint32_t b, uint32_t len, uint32_t token);
+
+/*
+ * Variant-A handler for bus_page_program: a fixed code address (0x1300419c,
+ * DAT_00006644) in the off-image 0x13xxxxxx region; declared extern (as above).
+ */
+extern int bus_page_program_handler_a(void *sess, uint32_t addr, void *buf, uint32_t len);
+
+/* Fixed token forwarded by bus_transfer_token (DAT_00006684). */
+#define BUS_XFER_TOKEN  0x6b65666cu
 
 /* Config-page sentinel written by bus_session_commit (DAT_000029b0/000029ac). */
 #define BUS_PAGE_MARK_LO  0xff2000dfu
@@ -265,4 +283,36 @@ int bus_page_write_verify(bus_session_t *sess, const void *buf, uint32_t len, ui
 
     mem_free(page);
     return rc;
+}
+
+/*
+ * bus_transfer_token — variant-dispatched 0x200-byte bus op + fixed token. // 0x0000664c
+ *
+ * Variant A (selector clear) tail-calls the fixed off-image handler
+ * (0x1300413a); variant B tail-calls the driver vtable method at +0x08. Both
+ * receive (a, b, 0x200, 0x6b65666c) and the result is forwarded. The operation's
+ * precise meaning is unconfirmed — only the dispatch is reconstructed.
+ */
+int bus_transfer_token(void *a, uint32_t b)
+{
+    if (bus_variant_b() == 0) {
+        return bus_xfer_token_handler_a(a, b, 0x200, BUS_XFER_TOKEN);  /* DAT_00006680 */
+    }
+    return g_bus_mgr->driver->xfer_token(a, b, 0x200, BUS_XFER_TOKEN); /* driver vtable +0x08 */
+}
+
+/*
+ * bus_page_program — program a 0x200-byte page from `buf` at byte `addr`. // 0x00006610
+ *
+ * Variant A (selector clear) tail-calls the fixed off-image handler
+ * (0x1300419c); variant B tail-calls the driver vtable method at +0x0c. Both
+ * receive (sess, addr, buf, 0x200) and the result is forwarded. The write-back
+ * half of the storage page-cache.
+ */
+int bus_page_program(void *sess, uint32_t addr, void *buf)
+{
+    if (bus_variant_b() == 0) {
+        return bus_page_program_handler_a(sess, addr, buf, 0x200);  /* DAT_00006644 */
+    }
+    return g_bus_mgr->driver->page_program(sess, addr, buf, 0x200); /* driver vtable +0x0c */
 }

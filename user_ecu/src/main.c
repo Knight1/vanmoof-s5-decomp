@@ -52,7 +52,7 @@ extern int   xQueueSemaphoreTake(uint32_t a, int b);               /* 0x00008d54
 extern int   registry_lookup_value(int a, uint32_t b);               /* 0x0000830a */
 extern void  rtos_sem_give_dispatch(uint32_t a);            /* 0x000097f4 (FreeRTOS sem give, vendor) */
 extern int   bus_session_init(int p);                           /* 0x0000289c */
-extern void  FUN_0000664c(int a, uint32_t b);               /* 0x0000664c */
+extern void  bus_transfer_token(int a, uint32_t b);               /* 0x0000664c */
 extern int   device_read_record87(uint32_t a, int b);       /* 0x00008e76 */
 extern uint32_t device_read_record91(uint32_t a, int b);    /* 0x00008fd6 */
 extern void  busy_wait(uint32_t a);                      /* 0x000084b2 */
@@ -751,7 +751,7 @@ LAB_00004eb0:
                      (iVar16, DAT_00004f24, 0x200); /* indirect HAL read */
         if (iVar14 != 0) {
             FUN_00003eac(DAT_00004f28, 0x65, 0);
-            FUN_0000664c(iVar16, DAT_00004f24);
+            bus_transfer_token(iVar16, DAT_00004f24);
         }
         piVar6[0x12] = iVar16;
         iVar16 = 0;
