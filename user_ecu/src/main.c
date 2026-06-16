@@ -40,7 +40,7 @@ extern void  vPortFree(void);                            /* 0x00006b9c (FreeRTOS
 extern void *xQueueGenericCreate(uint32_t a, uint32_t b);          /* 0x000095be */
 extern void  FUN_00003cd0(int a, void *b);                  /* 0x00003cd0 */
 extern void  vListInitialise(void *p);                         /* 0x00008c8a */
-extern void  FUN_000079c0(void *p);                         /* 0x000079c0 */
+extern void  commport_teardown(void *p);                         /* 0x000079c0 */
 extern int   thunk_xQueueCreateMutex(void);                      /* 0x000087a4 -> 0x0000974e */
 extern int   xQueueCreateMutex(void);                            /* 0x0000974e */
 extern int   registry_add(uint32_t busbase, void *cfg);     /* 0x00008594 */
@@ -57,9 +57,9 @@ extern int   device_read_record87(uint32_t a, int b);       /* 0x00008e76 */
 extern uint32_t device_read_record91(uint32_t a, int b);    /* 0x00008fd6 */
 extern void  busy_wait(uint32_t a);                      /* 0x000084b2 */
 extern void  gpio_irq_register(int bank, int pin, int idx, int seq); /* 0x0000159c */
-extern int   FUN_000022b0(uint32_t base, int mode);         /* 0x000022b0 */
-extern int   func_0x00002754(uint32_t a, void *b, uint32_t c); /* 0x00002754 */
-extern int   FUN_000078f0(uint32_t a, uint32_t b, uint32_t c); /* 0x000078f0 */
+extern int   peripheral_clock_mux_select(uint32_t base, int mode);         /* 0x000022b0 */
+extern int   commport_uart_config(uint32_t a, void *b, uint32_t c); /* 0x00002754 */
+extern int   commport_isr_install(uint32_t a, uint32_t b, uint32_t c); /* 0x000078f0 */
 extern int   xSemaphoreCreateBinary(void);                            /* 0x0000879c */
 extern int   func_0x00006708(int a, void *b);               /* 0x00006708 (raw indirect target; distinct from gpio_base_to_bank/pcc_gate/irqn labels) */
 extern int   func_0x00009876(uint32_t a, void *b, int c);   /* 0x00009876 */
@@ -636,7 +636,7 @@ LAB_00004826:
                 if (iVar14 != 0) goto LAB_00004c00;
             }
         }
-        FUN_000079c0(piVar13);                    /* cleanup on error */
+        commport_teardown(piVar13);                    /* cleanup on error */
     }
 
 LAB_00004c00:
@@ -1120,10 +1120,10 @@ switchD_caseD_5:
         FUN_00003eac(DAT_00005664, 0x4a, 0);
     } else {
 LAB_00005604:
-        iVar15 = FUN_000022b0(DAT_00005690, 2);
+        iVar15 = peripheral_clock_mux_select(DAT_00005690, 2);
         if ((iVar15 != 0) ||
-            (iVar15 = func_0x00002754(DAT_00005690, &local_3c, uVar19), iVar15 != 0) ||
-            (iVar14 = FUN_000078f0(DAT_00005690, DAT_00005694,
+            (iVar15 = commport_uart_config(DAT_00005690, &local_3c, uVar19), iVar15 != 0) ||
+            (iVar14 = commport_isr_install(DAT_00005690, DAT_00005694,
                                    *(uint32_t *)(iVar14 + 0x134)), iVar14 != 0)) {
             goto switchD_caseD_5;
         }
@@ -1155,9 +1155,9 @@ LAB_00005604:
         }
         uVar28 = (MMIO32(0x40000330) & 0xff00) / ((MMIO32(0x40000330) & 0xff) + 1) + 1;
         if ((uVar19 < uVar28) ||
-            (iVar14 = FUN_000022b0(DAT_00005960, 2), iVar14 != 0) ||
-            (iVar14 = func_0x00002754(DAT_00005960, &local_3c, uVar19 / uVar28), iVar14 != 0) ||
-            (uVar19 = FUN_000078f0(DAT_00005960, DAT_00005964,
+            (iVar14 = peripheral_clock_mux_select(DAT_00005960, 2), iVar14 != 0) ||
+            (iVar14 = commport_uart_config(DAT_00005960, &local_3c, uVar19 / uVar28), iVar14 != 0) ||
+            (uVar19 = commport_isr_install(DAT_00005960, DAT_00005964,
                                    *(uint32_t *)(iVar16 + 0x134)), uVar19 != 0) ||
             (iVar16 = xTaskCreate(DAT_00005970, DAT_0000596c, 0x186,
                                   (void *)(intptr_t)DAT_00005968, 3, NULL), iVar16 != 1) || /* l_led_ring_task */
@@ -1315,7 +1315,7 @@ LAB_00005c7a:
             goto LAB_00005b10;
         }
         *piVar13 = DAT_00005cb4;
-        FUN_000022b0(iVar16, 3);
+        peripheral_clock_mux_select(iVar16, 3);
         if ((local_3c & 0xff) == 0) {
             uVar19 = MMIO32(iVar16 + 0x800) & 0x1e;
         } else {
@@ -1450,7 +1450,7 @@ LAB_00005c7a:
     pbVar3[0xc] = 0;
     pbVar3[0xd] = 0;
     pbVar3[0x10] = 0;
-    FUN_000022b0(iVar16, 5);
+    peripheral_clock_mux_select(iVar16, 5);
     iVar14 = DAT_00006074;
     uVar19 = DAT_00006030 & ((uint32_t) *(uint16_t *)(pbVar3 + 0xc) << 0x10);
     {
