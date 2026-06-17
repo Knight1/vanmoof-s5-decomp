@@ -36,9 +36,11 @@ repo); extract it yourself from a FOTA bundle or eMMC dump.
 | [`version.md`](docs/version.md) | **what version this is** — firmware tag, OS base, kernel/toolchain, build provenance |
 | [`oem-differences.md`](docs/oem-differences.md) | **what VanMoof changed vs the stock NXP i.MX image** — the `meta-vmxs5` layer, package-by-package |
 | [`architecture.md`](docs/architecture.md) | the whole stack — SoC, boot/partitions, the service graph, how data flows bike ↔ cloud |
+| [`hardware.md`](docs/hardware.md) | i.MX8 peripherals — charger/gauge ICs, the two batteries, RTC/IMU, CAN/SPI/serial |
 | [`services.md`](docs/services.md) | per-service / per-binary inventory (the Go `gateway`, the C++ app suite, the bridges) |
 | [`mqtt-bus.md`](docs/mqtt-bus.md) | the internal **MQTT** IPC bus — topic namespace + the BLE role-based ACL |
-| [`fota-image.md`](docs/fota-image.md) | container format, unpack recipe, eMMC partition map |
+| [`update.md`](docs/update.md) | the two OTA paths — i.MX8 A/B self-update + the peripheral (CAN/SMP) updater |
+| [`fota-image.md`](docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
 | [`progress.md`](docs/progress.md) | analysis tracker |
 
 ## At a glance

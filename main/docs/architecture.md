@@ -41,14 +41,17 @@ the bus.
   `/opt/devices_fw`), the SPI↔CAN gateway to the mechatronics bus. The
   **`jailhouse.ko`** hypervisor partitions the SoC so the M-core / RT workload
   is isolated from Linux.
-- **Storage:** eMMC `mmcblk2`. U-Boot env at `mmcblk2 @ 0x400000`
-  (`/etc/fw_env.config`). Partition map in `fota-image.md`:
-  - `mmcblk2p1` — vfat (boot: U-Boot / kernel / dtb)
-  - `mmcblk2p2` / `p3` — **A/B** root slots (the SquashFS this image flashes to)
-  - `mmcblk2p6` — ext4 **config / persistent** (logs, timesync, mosquitto
-    persistence, provisioning)
+- **Storage:** eMMC `mmcblk2`, **A/B dual-slot** (confirmed from `runFOTA.sh`):
+  bootloader in `boot0`/`boot1`, kernel in `p2`/`p3`, rootfs in `p4`/`p5`,
+  shared `p6` = ext4 config/persistent, `p1` = vfat (misc). U-Boot env raw at
+  `mmcblk2 @ 0x400000`. Slot switch via `mmc bootpart enable`, with a
+  verify-or-rollback safe-update state in U-Boot `su_state`. Full map +
+  Pegatron image format in [`fota-image.md`](fota-image.md).
 - **Root fs:** read-only **SquashFS** (gzip). Writable state is confined to
   tmpfs (`/run`, `/var/volatile`) and the ext4 config partition via bind mounts.
+- **Power HW:** internal **LiPo** battery (TI bq27542 gauge + BQ25672 charger on
+  I²C bus 2) + the removable **primary** Panasonic pack on CAN; RTC + IMU
+  wake sources. See [`hardware.md`](hardware.md).
 
 ## The MQTT bus (IPC)
 
@@ -57,11 +60,12 @@ lo`) is the inter-process bus. Design points:
 
 - **Internal-only:** bound to `lo`, never exposed off-box. Reachability off the
   bike is exclusively through `gateway` (cloud) and the BLE proxy.
-- **Authenticated & ACL'd:** every client authenticates as a named user and is
-  constrained by `/etc/mosquitto/acl`. Service users (`power-service`,
-  `ux-service`, `gateway`, …) and **BLE rider roles** (`ble-role-7` = Owner,
-  `ble-role-11` = Shared bike, …) each get a topic allow-list. Full map in
-  `mqtt-bus.md`.
+- **ACL'd, but not authenticated:** there is no password file — the broker is
+  anonymous and enforces `/etc/mosquitto/acl` by the *claimed* username. Service
+  users (`power-service`, `ux-service`, `gateway`, …) and **BLE rider roles**
+  (`ble-role-7` = Owner, `ble-role-11` = Shared bike, …) each get a topic
+  allow-list; the BLE cert auth happens on the nRF52, not the broker. Full map
+  in [`mqtt-bus.md`](mqtt-bus.md).
 - **Persistent:** retained messages survive reboot via
   `mmcblk2p6/config/mosquitto/`.
 

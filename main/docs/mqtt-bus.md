@@ -11,16 +11,27 @@ persistence true
 persistence_location /run/media/mmcblk2p6/config/mosquitto/   # retained msgs survive reboot
 ```
 
-Two classes of MQTT users authenticate to the broker:
+There is **no `password_file` and no auth plugin** — only an `acl_file`. So the
+broker accepts **anonymous** connections (mosquitto 1.6's default) and enforces
+the ACL purely by the **username the client supplies in CONNECT**; there is no
+secret verifying that username. The entire trust model therefore rests on
+(a) the listener being bound to `lo` (only on-box processes can connect) and
+(b) the BLE/modem bridges choosing the right username on a remote party's
+behalf. Any process that reaches `127.0.0.1:1883` can claim `factory` (full
+`readwrite #`) — the isolation is the loopback bind, not a credential.
+
+Two classes of usernames appear in the ACL:
 
 1. **Service users** — the on-box daemons (`power-service`, `ux-service`,
    `gateway`, …). Most have full `readwrite #`; `gateway` is deliberately
    constrained (read-all + a fixed write-list).
-2. **BLE rider roles** — `ble-role-N`. When a phone connects over BLE and
-   authenticates, the BLE SoC maps its certificate role to a `ble-role-N` MQTT
-   identity, so the rider's app effectively publishes/subscribes on the bus
-   **through the ACL for their role**. This is the bike's authorization model.
-   (VanMoof's own doc: Jira `AD/2321186824 — RFC Certificate for SA5 Bluetooth
+2. **BLE rider roles** — `ble-role-N`. When a phone connects over BLE, the
+   nRF52 authenticates the phone's **certificate**, derives its role number,
+   and the BLE proxy then speaks to the broker as `ble-role-N`, so the rider's
+   app publishes/subscribes **through the ACL for that role**. The real
+   authentication is the BLE certificate check on the nRF52 (the broker does
+   none); the `ble-role-N` username is just the post-auth label. (VanMoof's own
+   doc: Jira `AD/2321186824 — RFC Certificate for SA5 Bluetooth
    authentication`, referenced in the ACL header.)
 
 ## BLE rider roles (`ble-role-N`)
@@ -65,7 +76,10 @@ animation_theme,bell_sound}/set`, `ux/sound/play`,
 | `ux/info/…`, `ux/sensor/…`, `ux/sound/play`, `ux/usb/settings/enable/set` | `ux` | UI info, sensors, sounds, USB-C charge enable |
 | `settings/…` | `ux`/config | `assist_level`, `shift_levels`, `light_mode`, `light_auto_threshold`, `bell_sound`, `brake_lights`, `turning_lights`, `ride_animation_right`, `animation_theme`, `region`, `mode` (each `…/set`) |
 | `eshifter/gear`, `eshifter/gear/set` | e-shifter (via CAN) | current / requested gear |
-| `update/…`, `update/start` | `update` | OTA progress / trigger |
+| `power/battery/{lipo,primary}/info/…` | `power` | per-battery `soc`,`voltage`,`current`,`temp`,`cycles`,`health`,… (LiPo = I²C gauge; primary = CAN) |
+| `power/{state,deep_sleep,low_power,low_power_extend}` | `power` | power-state machine |
+| `device/+/version/{firmware,bootloader,vendor}/#`, `device/+/status` | `update` | per-ECU version/status (drives OTA) |
+| `update/…`, `update/start` | `update` | OTA progress / trigger (see [`update.md`](update.md)) |
 | `ble/…` | BLE side | `ble/proxy`, `ble/proxy/config`, `ble/findmy/report`, `ble/findmy/certified`, `ble/system/version_info`, `ble/vars/update` |
 | `modem/…` | modem side | `modem/info/datetime`, `modem/system/time`, … |
 | `device/+/status`, `device/ble/#`, `device/modem/#` | per-device status | |
@@ -81,12 +95,14 @@ Owner/Shared roles and forwarded to the cloud by `gateway`.
 
 ## Security posture (notes)
 
-- The broker is loopback-only; there is **no network firewall** doing the
-  isolation (`/etc/iptables/iptables.rules` is empty). Off-box reach is only
-  via `gateway` (cloud, mTLS) and the BLE/modem bridges.
+- The broker has **no passwords/auth** — anonymous + ACL-by-claimed-username.
+  Combined with the loopback bind and an **empty** `iptables.rules`, the only
+  thing stopping a process from claiming `factory` (full bus) is that it must
+  already be running on the box. Off-box reach is only via `gateway` (cloud,
+  mTLS) and the BLE/modem bridges.
 - The privileged BLE roles (Bike Hunter/QA/R&D/doctor) get full `readwrite #`;
   possession of the corresponding BLE auth certificate grants total bus
-  control. The trust boundary is the **BLE certificate role**, enforced by the
-  nRF52 auth flow, not by the broker beyond the role→ACL mapping.
+  control. The trust boundary is the **BLE certificate check on the nRF52**, not
+  the broker (which only maps the post-auth role→ACL).
 - `root` in `/etc/shadow` has a real `$6$` sha512crypt hash (not blank).
 - `sshd` is installed but not enabled in this production image.

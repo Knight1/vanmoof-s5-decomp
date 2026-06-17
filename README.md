@@ -82,15 +82,17 @@ nRF9160 modem, and the CAN fleet. Full analysis under [`main/docs/`](main/docs/)
 | [`version.md`](main/docs/version.md) | firmware tag, OS base, kernel/toolchain, build provenance |
 | [`oem-differences.md`](main/docs/oem-differences.md) | what VanMoof added vs the stock NXP image (the `vmxs5-*` packages) |
 | [`architecture.md`](main/docs/architecture.md) | SoC, boot/partitions, service graph, bike ↔ cloud data flow |
+| [`hardware.md`](main/docs/hardware.md) | i.MX8 peripherals — charger/gauge ICs, the two batteries, RTC/IMU, CAN/SPI/serial |
 | [`services.md`](main/docs/services.md) | per-service / per-binary inventory (Go gateway + C++ suite + bridges) |
 | [`mqtt-bus.md`](main/docs/mqtt-bus.md) | the internal MQTT bus + the BLE role-based ACL |
-| [`fota-image.md`](main/docs/fota-image.md) | container format, unpack recipe, eMMC layout |
+| [`update.md`](main/docs/update.md) | the two OTA paths — i.MX8 A/B self-update + peripheral (CAN/SMP) updater |
+| [`fota-image.md`](main/docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
 
 ### Wireless SoCs (Zephyr + MCUboot, magic `0x96f3b83d`)
 
 | Component | Image | MCU | Size | Status |
 | --- | --- | --- | --- | --- |
-| [`ble`](ble/) | `ble.*.bin` | Nordic **nRF52840** *(tbc)*, Zephyr + SoftDevice Controller | ~273 KB | **active** — base fixed to `0x23000`, 2015 fns; **50 VanMoof fns** (auth/ble/settings/findmy-glue) classified, rest vendor (incl. 118 Apple Find My, deferred) |
+| [`ble`](ble/) | `ble.*.bin` | Nordic **nRF52840** *(tbc)*, Zephyr + SoftDevice Controller | ~273 KB | **active** — base fixed to `0x23000`, 2015 fns; **50 VanMoof fns** (auth/ble/settings/findmy-glue) classified (**38 reconstructed to C**), rest vendor (incl. 118 Apple Find My, deferred) |
 | `modem` | `modem.*.bin` | Nordic **nRF9160** (LTE-M/NB-IoT + GNSS), Zephyr | ~302 KB | pending |
 
 Both carry an MCUboot image header (`0x96f3b83d`); the payload is a Zephyr/nRF

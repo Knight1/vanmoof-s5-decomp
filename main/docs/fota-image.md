@@ -2,86 +2,129 @@
 
 ## Container
 
-The `v1.5.0-main` file is three nested layers:
+`v1.5.0-main` is a **Pegatron (PEGA) whole-system FOTA image**, gzip-then-tar
+wrapped. It is *not* rootfs-only — it carries the bootloader, kernel and rootfs
+concatenated, with a 2 KiB descriptor trailer:
 
 ```
 v1.5.0-main                         59,270,028 B  gzip (RFC1952, from Unix)
   └─ gunzip → tar                   59,576,320 B  POSIX tar (GNU)
-       └─ member "VM-XS5_FOTA"      59,567,600 B  SquashFS 4.0 root filesystem
-            └─ unsquashfs → rootfs                the i.MX8 Linux system
+       └─ member "VM-XS5_FOTA"      59,567,600 B  PEGA FOTA = [rootfs][kernel][boot][2KiB header]
 ```
+
+`unsquashfs VM-XS5_FOTA` works directly only because the **rootfs squashfs sits
+first** (offset 0); the tool reads the leading filesystem and ignores the
+appended kernel + bootloader + trailer.
 
 `sha256(v1.5.0-main) = 45ab7c4da9769c9a9079154493eeb6086f7e580f3660edcf77b5eba8cd878546`
 
-### SquashFS superblock (`VM-XS5_FOTA`)
+### The PEGA header (last 2048 bytes; 643 used)
+
+The on-device updater reads the image's tail to learn the layout. For this
+build:
 
 | Field | Value |
 | --- | --- |
-| Magic | `hsqs` (0x73717368) |
-| Version | **4.0** |
-| Compression | **gzip (zlib)** — id 1 |
-| Block size | **131072** (128 KiB), block_log 17 |
-| Inodes | 6190 |
-| Contents | 5129 files, 386 dirs, 675 symlinks |
+| `HEAD.HSIG` / `HEAD.TSIG` | `HEAD_PEGA_FOTA_VM-XS5_SIG` / `TAIL_PEGA_FOTA_VM-XS5_SIG` |
+| `PRODUCT.VERSION` | `v1.5.0-main` |
+| `SCRIPT.VERSION` | `1.2.9` (the `runFOTA` that *built* it; installed one is 1.3.11) |
+| `FILE.ROOTFS` | `root.sqfs` @ **0**, size **48,914,272**, md5 `ef2bdfbf…` |
+| `FILE.KERNEL` | `boot.sqfs` @ **48,914,272**, size **9,969,504**, md5 `dfe3c2cc…` |
+| `FILE.BOOT` | `imx-boot_signed.tgz` (→ `imx-boot_signed.bin`) @ **58,883,776**, size **681,776** |
+| `CORE.MD5` / `IMAGE.MD5` / `DTS.MD5` | product-core / kernel-image / device-tree digests (version gate) |
+| `HEAD.MD5` | digest over the 643-byte header |
 
-> `file(1)` mis-reports the superblock ("version 1024.0", absurd size) — it
-> matches the wrong magic table. It *is* a normal SquashFS 4.0; `unsquashfs`
-> reads it cleanly.
+So the three payloads are: a **rootfs** SquashFS, a **kernel** packaged as its
+own SquashFS (`boot.sqfs`, mounted to provide Image + dtb), and a **signed
+i.MX bootloader** (`imx-boot_signed.bin` = SPL + U-Boot + ATF; "signed" ⇒
+HAB/secure-boot). Everything is integrity-checked by **MD5** (not a
+cryptographic signature at the FOTA layer — the *bootloader* is separately
+signed for HAB).
+
+### Rootfs SquashFS superblock
+
+| Field | Value |
+| --- | --- |
+| Magic / version | `hsqs` / **4.0** |
+| Compression | **gzip (zlib)** |
+| Block size | 131072 (128 KiB) |
+| Contents | 5129 files, 386 dirs, 675 symlinks (6190 inodes) |
+
+> `file(1)` mis-reports the superblock; it *is* a normal SquashFS 4.0.
 
 ## Unpack recipe
 
 ```sh
-# 1. gunzip
-gunzip -k -c v1.5.0-main > main.tar          # → POSIX tar
+gunzip -c v1.5.0-main | tar -xO > VM-XS5_FOTA     # the PEGA image
 
-# 2. untar (single member)
-tar -xf main.tar                              # → VM-XS5_FOTA (squashfs)
+# rootfs (leading squashfs):
+unsquashfs -d rootfs VM-XS5_FOTA
 
-# 3. unsquash
-unsquashfs -d rootfs VM-XS5_FOTA              # → rootfs/  (the Linux tree)
+# the appended payloads, using the trailer offsets:
+tail -c 2048 VM-XS5_FOTA                            # read the header
+dd if=VM-XS5_FOTA of=root.sqfs  bs=1 skip=0        count=48914272
+dd if=VM-XS5_FOTA of=boot.sqfs  bs=1 skip=48914272 count=9969504    # kernel
+dd if=VM-XS5_FOTA of=imxboot.tgz bs=1 skip=58883776 count=681776    # bootloader
 ```
 
-(Equivalently `gunzip -c v1.5.0-main | tar -xO > VM-XS5_FOTA`.)
+(The extracted rootfs is **not** committed — clean-room policy.)
 
-The extracted rootfs is **not** committed to this repo (clean-room policy — no
-OEM binaries). Keep it outside the tree (e.g. a scratch dir) and analyze in
-place.
+## eMMC layout & A/B "ping-pong"
 
-## eMMC partition layout
+The application processor boots from eMMC **`/dev/mmcblk2`**. The updater
+(`/usr/bin/runFOTA.sh`, in `vmxs5-utils`) is a Pegatron A/B dual-slot
+installer. Slots:
 
-The application processor boots from eMMC **`/dev/mmcblk2`**. Confirmed from
-`/etc/fstab` and `/etc/fw_env.config`:
-
-| Partition | FS | Mount | Role |
+| Slot | Bootloader | Kernel | Rootfs |
 | --- | --- | --- | --- |
-| `mmcblk2p1` | vfat | `/run/media/mmcblk2p1` | boot — U-Boot / kernel / dtb |
-| `mmcblk2p6` | ext4 | `/run/media/mmcblk2p6` | **config / persistent** state |
-| (root) | squashfs (ro) | `/` | this FOTA image, flashed to a root slot |
-| — | — | U-Boot env | on `mmcblk2` at offset **0x400000**, size 0x1000 |
+| **A** (index 1) | `mmcblk2boot0` | `mmcblk2p2` | `mmcblk2p4` |
+| **B** (index 2) | `mmcblk2boot1` | `mmcblk2p3` | `mmcblk2p5` |
+| shared | — | — | `mmcblk2p6` = **user/config/persistent** (ext4); `mmcblk2p1` = vfat (misc) |
 
-Persistent state bound into the read-only root from the config partition:
+- **Bootloader** lives in the eMMC **hardware boot partitions** (`boot0`/`boot1`),
+  written after clearing `/sys/block/mmcblk2bootN/force_ro`. The active one is
+  selected with `mmc bootpart enable 1|2 0 /dev/mmcblk2`.
+- **Current slot** is discovered from `/proc/cmdline` (`root=/dev/mmcblk2p4` ⇒
+  slot A, `…p5` ⇒ slot B); the installer always writes the *other* slot, then
+  flips the boot partition — classic flash-inactive-then-switch.
+- **U-Boot env** is raw on `mmcblk2 @ 0x400000` size 0x1000 (`/etc/fw_env.config`),
+  read/written with `fw_printenv`/`fw_setenv`.
+- Each image is MD5-verified before and after write; if the device already holds
+  the target md5, the write is skipped.
+
+### Safe-update (anti-brick) state machine
+
+`runFOTA.sh -s {install|verify|rollback|query}` tracks an install across
+reboots in the U-Boot env var **`su_state`**, formatted `su_v1_` + 4 digits
+`state,pp,pp,state` (the last two mirror the first two as a checksum):
 
 ```
-/run/media/mmcblk2p6/config/log       → /var/log
-/run/media/mmcblk2p6/config/timesync  → /var/lib/systemd/timesync
-/run/media/mmcblk2p6/config/mosquitto → mosquitto persistence
-                       config/…       → provisioning, certs, settings
+state: 0 idle · 1 installed · 2 try-new · 3 failed · 4 rollback
+pp:    0 @first(boot0) · 1 @second(boot1)
 ```
 
-Volatile state is tmpfs: `/run`, `/var/volatile`.
+Flow: `install` writes the new slot + sets `installed`; on next boot `verify`
+confirms the bike came up on the candidate (→ `try-new`/commit) or `rollback`
+flips back to the previous boot partition. This is what makes a bad OTA
+self-heal instead of bricking.
 
-> **A/B (inferred):** the root is a read-only SquashFS delivered as a single
-> flashable blob, and the FOTA only carries the root image (boot/config are not
-> in it). That is the classic dual-slot pattern — two root partitions, flash the
-> inactive one, switch the U-Boot `boot_part` env var, fall back on failure —
-> handled by `vmxs5-upgrade-scripts`. The exact slot partition numbers
-> (`p2`/`p3` vs others) are **not** provable from the rootfs alone; confirm
-> against an eMMC dump or the upgrade scripts before relying on them.
+### Delta updates
+
+If the header carries `DELTA.*` fields, the installer reconstructs the full
+image with **`xdelta3`** against a backup of the previous FOTA kept on the user
+partition (`mmcblk2p6/delta-update/VM-XS5_FOTA`), then proceeds normally. This
+build ships no delta section (full image).
+
+### Download transports
+
+`runFOTA.sh -l <url>` supports `scp://`, `tftp://`, `http://` (factory/bench
+paths). In production the image is delivered to `/tmp/download/VM-XS5_FOTA`
+(cloud → `gateway`/`update`), and `runFOTA` is driven by the `update` service's
+`runfota` client — see [`update.md`](update.md).
 
 ## Per-ECU device files
 
-The sibling directory `../VanMooof-Firmware/SA5/v1.5.0-main_device_files/`
-holds the individually-extracted peripheral images plus `manifest.txt` — the
-same set bundled inside the rootfs at `/opt/devices_fw` (`vmxs5-device-binaries`).
-These are the images the on-bike `update` service flashes to the sub-ECUs; each
-has its own target subdirectory in this repo (`ble/`, `user_ecu/`, …).
+The sibling `…/v1.5.0-main_device_files/` and the in-rootfs `/opt/devices_fw`
+hold the sub-ECU images + `manifest.txt` — the set the on-bike `update` service
+flashes over CAN/SMP. Their format and flashing protocol are in
+[`update.md`](update.md); each ECU has its own target dir in this repo.
