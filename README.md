@@ -68,7 +68,23 @@ to be confirmed in Ghidra.
 
 | Component | Image | Format | Size | Status |
 | --- | --- | --- | --- | --- |
-| `main` (i.MX8 system) | `v1.5.0-main` → `VM-XS5_FOTA` | gzip → tar → **SquashFS** (zlib) | ~57 MB | pending — unpack rootfs, enumerate services |
+| [`main`](main/) | `v1.5.0-main` → `VM-XS5_FOTA` | gzip → tar → **SquashFS** (zlib) | ~57 MB | **documented** — i.MX8M Nano, NXP 5.4-zeus + `meta-vmxs5`; rootfs unpacked, service graph + MQTT bus + OEM delta mapped |
+
+The `main` module is the bike's Linux brain (hostname `vmxs5mainecu`): an
+**i.MX8M Nano** running **NXP i.MX Release Distro 5.4-zeus** with a VanMoof
+application layer (`meta-vmxs5`) — a Go **`gateway`** to AWS IoT plus a C++
+service suite (`power`, `ride`, `ux`, `tracking`, `monitor`, `update`,
+`logging`) wired together over a loopback **MQTT** bus, bridging BLE, the
+nRF9160 modem, and the CAN fleet. Full analysis under [`main/docs/`](main/docs/):
+
+| Doc | Covers |
+| --- | --- |
+| [`version.md`](main/docs/version.md) | firmware tag, OS base, kernel/toolchain, build provenance |
+| [`oem-differences.md`](main/docs/oem-differences.md) | what VanMoof added vs the stock NXP image (the `vmxs5-*` packages) |
+| [`architecture.md`](main/docs/architecture.md) | SoC, boot/partitions, service graph, bike ↔ cloud data flow |
+| [`services.md`](main/docs/services.md) | per-service / per-binary inventory (Go gateway + C++ suite + bridges) |
+| [`mqtt-bus.md`](main/docs/mqtt-bus.md) | the internal MQTT bus + the BLE role-based ACL |
+| [`fota-image.md`](main/docs/fota-image.md) | container format, unpack recipe, eMMC layout |
 
 ### Wireless SoCs (Zephyr + MCUboot, magic `0x96f3b83d`)
 
