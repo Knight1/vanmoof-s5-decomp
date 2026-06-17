@@ -88,13 +88,15 @@ At `0x6210..0x6248` in `main_SystemInit`: `SHPR3 |= 0xFFFF0000`; CSR=0; CVR=0;
 | Base / offset | Inferred block | Evidence / use |
 |---|---|---|
 | `0x40000000` | SCG-like clock/reset mega-block (FIRC@+0x300, SOSC@+0x380/+0x388, SPLL@+0x580.., status@+0xa18, src-sel@+0x280/+0x284) | `main_SystemInit`, `SystemClock_PllFlashInit`, `GetSystemCoreClockSource` |
-| `0x40004000` | per-channel clock-gate / port | `periph_clk_nvic_enable` |
+| `0x40004000` | per-channel clock-gate / port. Gates `+0x08/+0x0c/+0x14/+0x1c/+0x20`; **status reg `+0x28`** (top byte = pending flags) + **W1C-ack `+0x2c`** | `periph_clk_nvic_enable`, `pcc_gate_set` (0x8aca), `clockgate_status_ack` (0x84be ← IRQ trampolines 0x2314/0x2344) |
 | `0x40006000` | PCC-like clock control / GPIO pin-mux (+0xc0..+0x94) | `gpio_pin_config`, literal @0x4840 |
 | `0x40013000` | clock/oscillator status | `GetSystemCoreClockSource`, `SystemClock_PllFlashInit` |
 | `0x40020000` | FTFC flash controller (unlock/cmd @+0xc0/+0xc8) | `SystemClock_PllFlashInit` |
 | `0x40034000` | FTFC flash (mirror; +0xfe8/+0x80/+0xfe0) | verifier |
-| `0x40082000` | timer (FlexTimer/PWM-class) | literal @0x6034 |
-| `0x4008C000` | timer/PWM MMIO base | literals @0x86c/0x880/0x1764/0x1de0/0x3fc8/0x6290 |
+| `0x40082000` | **eDMA / DMAMUX** (channel ctrl `+0x400`/`+0x20`/`+0x48`/`+0x50`; NVIC ISER `0xE000E100`). *(Earlier mislabeled "FlexTimer/PWM"; reclassified by the batch-20 comm-port pass.)* | `DAT_00006034`; `edma_tcd_build` (0x8a7a), `edma_chan_irq_enable` (0x8c46) |
+| `0x40089000` | **comm port — CAN/CAN-FD** (instance 3 of a 4-member family). Bit-timing `+0xc00` (bit0=TX kick)/`+0xc04`/`+0xc1c`; FIFO ctrl `+0xe00`, status `+0xe08`, cmd `+0xe14`, RX data `+0xe20` (eDMA src), TX data `+0xe30` (eDMA dst); clock mux `+0xff8` | `DAT_00006070`; `commport_*` family, `commport_ring_drain` (0x2d34) |
+| `0x40095000` | **HW checksum / CRC engine** (data/feed reg `+8`) | `checksum_feed` (0x64f0), `fota_image_verify` (0x2acc) |
+| `0x4008C000` | timer/PWM + GPIO-input MMIO base (button-scan poller reads here) | literals @0x86c/0x880/0x1764/0x1de0/0x3fc8/0x6290; `button_scan_poll` (0x3ddc) |
 | `0x40086000` | GPIO (interrupt dispatch bank) | `gpio_bank_irq_trampoline_*` |
 | `0x0003F000` | flash factory IFR / trim / UID (+0xce8/+0xcec/+0xd30/+0xd40) | `SystemClock_PllFlashInit` |
 
@@ -119,6 +121,24 @@ At `0x6210..0x6248` in `main_SystemInit`: `SHPR3 |= 0xFFFF0000`; CSR=0; CVR=0;
   base+0x800/0x810/0x814/0x824; DMA at +0xc00/+0xc04/+0xc1c and +0xe00/+0xe08.
   `dmic_task` prio 4 (highest named). Sample/RMS logic in the not-yet-defined task
   body. TBC.
+- **CAN comm port (software ring + eDMA):** no classic FlexCAN mailbox driver —
+  `0x40089000` is instance 3 of a 4-member comm-port family run as CAN/CAN-FD via
+  the bit-timing block at `+0xc00`; the MCU-side data path is a **software
+  descriptor ring + eDMA** (`0x40082000`), not hardware mailboxes. TX
+  (`commport_can_transmit` 0x7624) + ring drain (`commport_ring_drain` 0x2d34) +
+  TCD build (`edma_tcd_build` 0x8a7a); ISR `commport_irq_dispatch_inst3` (0x2190) →
+  FIFO body (0x2510) → RX-complete callback (`commport_rx_complete_cb` 0x96ce). Two
+  queues: a 30-byte event/status queue at `devmgr+0x590` and a 4-byte TX-trigger
+  queue at SRAM `0x200006a0`.
+- **External storage + FOTA updater:** an off-chip flash device holds a staged
+  firmware image + an 8-byte descriptor. Geometry: data `0x1c000..0x37400` =
+  `0x1b400` (111 KB) in `0x200`-byte pages (index `0..0xd9`, byte addr
+  `(page+0xe0)*0x200`); descriptor at `0x37400`. A `bus_*` dispatch layer
+  (`bus_session_open`/`bus_transfer_token`/`bus_page_program`) drives it through a
+  driver vtable, with a `store_*` page-cache on top. Integrity via the
+  `0x40095000` HW checksum engine (`fota_image_verify`). The **off-image
+  bootloader** performs the actual image swap (consistent with the unresolved
+  `VTOR=0xc00` boot question).
 
 ## SRAM globals found (verified / proposed)
 | Address | Name | Role |
@@ -177,7 +197,8 @@ From the decompiled bring-up (`src/main.c`). All MMIO verbatim.
   Ambiq-IOM comms read.
 - Live vector-table contents at VTOR=`0xc00` and how the CPU first enters `0x1d4`
   (likely a separate bootloader).
-- Identity of timers `0x40082000` vs `0x4008C000` (FTM/LPIT/PDB).
+- ~~Identity of timer `0x40082000`~~ **RESOLVED: `0x40082000` is eDMA/DMAMUX** (batch-20
+  comm-port pass), not a timer. `0x4008C000` (FTM/LPIT/PDB vs GPIO-input) still TBC.
 - Whether the `0x40000000`+`0x38c` read-loop-with-float-scale is TRNG/entropy vs
   ADC/temp-trim.
 - Exact sensor part(s) on the I²C bus (addressed numerically; no WHO_AM_I string).
