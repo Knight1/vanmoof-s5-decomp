@@ -5,6 +5,10 @@
  * (ARM Cortex-M4F, ARMv7-M, VFPv4 hard-float, FreeRTOS). Image base 0x0.
  *
  * Functions:
+ *   device_dispatch_command @ 0x000041a4 (inbound command dispatch + reassembly)
+ *   device_mgr_reset      @ 0x00003f14  (re-arm the device block: stop timer + reset)
+ *   device_apply_task     @ 0x00003fe8  (drain the command queue, apply each batch)
+ *   device_fetch_cache_status9c0 @ 0x0000410c (fetch + cache a status word, then apply)
  *   device_send_chunked   @ 0x00008538  (≤8-byte chunked frame transmit)
  *   device_apply          @ 0x00008656  (build + transmit a record's command frame)
  *   device_read_record87  @ 0x00008e76  (read 14-byte record, tag {id,0x87})
@@ -22,11 +26,15 @@
  */
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include "device.h"
 #include "registry.h"
 #include "bus.h"        /* bus_session_open/transfer/commit, mem_free path */
 #include "util.h"       /* vmem_set, vmem_copy, vmem_cmp, mem_free */
+#include "store.h"      /* event_report, timer_remaining_ticks */
+#include "i2c.h"        /* i2c_reg_write_53, i2c_tx_frame */
+#include "control.h"    /* controlTask_CmdHandler (device_fetch_cache_status9c0) */
 
 /* dev_record_t (the 0x2c-byte registry slot) is declared in device.h. */
 
@@ -54,6 +62,45 @@ typedef struct dev_frame {
 /* FreeRTOS — vendor (deferred). */
 extern int   xQueueSemaphoreTake(void *sem, uint32_t ticks);            /* 0x00008d54 */
 extern void  rtos_sem_give_dispatch(void *sem);                         /* semaphore give (0x000097f4) */
+extern void  rtos_sem_give(void *sem, uint32_t a, uint32_t b);          /* semaphore give (0x00006ec0) */
+extern int   rtos_sem_take(void *sem, uint32_t ticks);                  /* blocking take (0x00003698) */
+extern void  vTaskDelay(uint32_t ticks);                                /* 0x00001bdc */
+
+/*
+ * Software-timer helpers used by device_mgr_reset:
+ *   timer_remaining_ticks (0x000019f8) — VanMoof wrapper (declared in store.h):
+ *     active-flag gated "expiry − xTickCount" query over a FreeRTOS Timer_t.
+ *   xtimer_command (0x00006fd0) — FreeRTOS xTimerGenericCommand-style dispatch,
+ *     vendor (deferred), satisfied upstream at link.
+ */
+extern void  xtimer_command(void *timer, int cmd, uint32_t opt_value,
+                            void *higher_pri_woken, uint32_t ticks);    /* 0x00006fd0 */
+
+/* FreeRTOS queue receive (vendor, deferred) — device_apply_task blocks here. */
+extern int   xQueueReceive(void *queue, void *buf, uint32_t ticks);    /* 0x000033f0 */
+
+/* Device-command queue + apply-task constants (literals @ 0x40cc/0x40d0). */
+#define DEV_APPLY_QUEUE       (*(void *volatile *)0x200006a0u) /* batch-ptr queue */
+#define DEV_APPLY_EVENT_CTX   0x4dfc053cu   /* event subsystem id              */
+#define DEV_APPLY_EVENT_CODE  0x1au         /* event code on miss/busy/failure */
+#define DEV_TAG_03C0          0x03c0u       /* lookup tag {0xc0,0x03,0x00}      */
+
+/*
+ * Device-command batch slot — 0x20 bytes; device_apply_task drains 40 (0x500
+ * bytes) per dequeued batch, taking the signed 16-bit field at +0x2/+0xa/+0x12/
+ * +0x1a of each slot (the OEM loads each as two bytes then sxth).
+ */
+typedef struct dev_cmd_slot {
+    uint8_t  _b00[2];      /* +0x00 */
+    int16_t  v0;           /* +0x02 */
+    uint8_t  _b04[6];      /* +0x04 */
+    int16_t  v1;           /* +0x0a */
+    uint8_t  _b0c[6];      /* +0x0c */
+    int16_t  v2;           /* +0x12 */
+    uint8_t  _b14[6];      /* +0x14 */
+    int16_t  v3;           /* +0x1a */
+    uint8_t  _b1c[4];      /* +0x1c..+0x1f (slot is 0x20 bytes) */
+} dev_cmd_slot_t;
 
 /* device_send_chunked is a separate OEM function (0x8538); keep it un-inlined. */
 void device_send_chunked(dev_txch_t *txch, dev_record_t *rec,
@@ -64,6 +111,265 @@ void device_send_chunked(dev_txch_t *txch, dev_record_t *rec,
 #define DEV_TAG_TYPE91    0x91u
 #define DEV_TAG_8C0       0x08c0u
 #define DEV_TAG_8808      0x8808u
+
+/* Subsystem id stamped into the dispatcher's event/error records. // pool @0x4428 */
+#define DEVDISPATCH_EVENT_CTX   0x312d3f0fu
+
+/*
+ * Reassembly slot — one of three fixed entries in the table at mgr+0x5ac
+ * (0x4c-byte stride, 0x13 words). The dispatcher accumulates a multi-fragment
+ * command into `buf` (cap 0x40) before invoking the record handler.
+ */
+typedef struct dispatch_slot {
+    uint32_t age;        /* +0x00 0 = free; while busy it is also an aging count */
+    uint8_t  key[3];     /* +0x04 the 3-byte command key being reassembled       */
+    uint8_t  _pad7;      /* +0x07                                                */
+    uint32_t fill;       /* +0x08 bytes written so far / sub-fragment write offset */
+    uint8_t  buf[0x40];  /* +0x0c reassembly buffer                              */
+} dispatch_slot_t;       /* 0x4c bytes */
+
+#define DISPATCH_SLOT_COUNT   3
+#define DISPATCH_BUF_CAP      0x40u
+
+/*
+ * Dispatch-record fields beyond the documented dev_record_t names. The inbound
+ * dispatcher reuses the same 0x2c-byte slot the cache accessors return, but
+ * reads it through these roles:
+ *   +0x10 type    (0 single, 1/2 streaming)        — dev_record_t.type
+ *   +0x0f mode    (0 normal, 1 raw-only)
+ *   +0x08 length  (expected payload size)          — dev_record_t.length
+ *   +0x14 handler  int (*)(ctx, msg, buf, len)
+ *   +0x18 ctx     handler context
+ *   +0x20 aux / +0x24 aux_len                      — dev_record_t.aux/aux_len
+ *   +0x28 notify  semaphore released on a type-1 plain ack
+ *   +0x04 sem     access semaphore                 — dev_record_t.sem
+ */
+#define DR_MODE(r)     (*(const uint8_t  *)((const uint8_t *)(r) + 0x0f))
+#define DR_LENGTH(r)   (*(const uint32_t *)((const uint8_t *)(r) + 0x08))
+#define DR_HANDLER(r)  (*(int (**)(void *, void *, void *, uint32_t)) \
+                            ((const uint8_t *)(r) + 0x14))
+#define DR_HCTX(r)     (*(void *const *)((const uint8_t *)(r) + 0x18))
+#define DR_AUX(r)      (*(uint8_t *const *)((const uint8_t *)(r) + 0x20))
+#define DR_AUXLEN(r)   (*(const uint32_t *)((const uint8_t *)(r) + 0x24))
+#define DR_NOTIFY(r)   (*(void *const *)((const uint8_t *)(r) + 0x28))
+
+/*
+ * device_dispatch_command — inbound command dispatch + fragment reassembly.
+ * // 0x000041a4
+ *
+ * `msg` is the inbound command: bytes 0..2 a 3-byte key, byte 3 flags
+ * (bit 0x10 = streaming/ack qualifier, low 3 bits = fragment sub-index), byte 4
+ * the payload length, bytes 5.. the payload. The key selects a device record
+ * (registry_lookup_value(mgr, key24)); the record's type at +0x10 drives the
+ * dispatch:
+ *
+ *   type 0 — single-shot. With a handler (rec+0x14) and flags bit 0x10 set,
+ *            run handler(ctx, msg, buf, len): the buf/len are the rec's aux
+ *            payload (refilled from the message) or, with no aux, the rec's
+ *            zeroed data buffer. With a small record (length <= 8) the payload
+ *            is staged in an 8-byte scratch and the handler called directly.
+ *            Larger records accumulate fragments into a 3-slot reassembly table
+ *            at mgr+0x5ac until rec->length bytes are gathered, then run the
+ *            handler. A handler return of -3 short-circuits to success.
+ *   type 1 — streaming. mode (rec+0x0f) gates flags bit 0x10; a plain ack with
+ *            no handler simply releases the notify semaphore (rec+0x28).
+ *   type 2 — streaming, send-only.
+ *
+ * When the dispatch leaves `send` armed (and the record is not type 2) a reply
+ * frame is built from the key and pushed through the manager's channel
+ * (device_send_chunked on mgr+0x594) under the access semaphore. Returns 0 on
+ * success, 0xffffffff (-1) on a bad key/type/flags or a semaphore timeout.
+ */
+uint32_t device_dispatch_command(int mgr, void *msg)
+{
+    uint8_t *m = (uint8_t *)msg;
+    uint8_t *rec;
+    uint32_t key24;
+    uint8_t  type;
+    uint8_t  mode;
+    uint8_t  send;          /* bVar11 — reply-frame gate */
+    int      hret;
+    dev_frame_t frame;      /* the reply frame, built at the end (sp+0x10) */
+
+    key24 = (uint32_t)m[0] | ((uint32_t)m[1] << 8) | ((uint32_t)m[2] << 16);
+    rec = (uint8_t *)registry_lookup_value((registry_t *)mgr, key24, 0);
+    if (rec == (uint8_t *)0) {
+        return 0xffffffff;
+    }
+
+    type = *(rec + 0x10);
+    if (type < 2) {
+        mode = DR_MODE(rec);
+        if (mode == 0) {
+            send = (uint8_t)(m[3] & 0x10);
+            if ((m[3] & 0x10) != 0) {
+                return 0xffffffff;
+            }
+            if (type == 1) {
+                if (DR_NOTIFY(rec) == (void *)0) {
+                    return 0;
+                }
+                rtos_sem_give(DR_NOTIFY(rec), send, send);   /* send == 0 here */
+                return 0;
+            }
+            /* type 0 — fall through */
+        } else if (mode == 1) {
+            send = 1;
+            if ((m[3] & 0x10) == 0) {        /* lsls #0x1b / bpl: bit4 must be set */
+                return 0xffffffff;
+            }
+        } else {
+            return 0xffffffff;
+        }
+    } else if (type == 2) {
+        send = 1;
+    } else {
+        return 0xffffffff;
+    }
+
+    if (DR_HANDLER(rec) == (int (*)(void *, void *, void *, uint32_t))0) {
+        goto reply;                          /* no handler: just send the reply */
+    }
+
+    if (type == 0 && (m[3] & 0x10) != 0) {
+        /* single-shot with handler: pass the rec's aux/data buffer */
+        uint8_t *buf;
+        uint32_t len;
+        if (DR_AUX(rec) != (uint8_t *)0) {
+            vmem_set(DR_AUX(rec), 0, DR_AUXLEN(rec));
+            vmem_copy(DR_AUX(rec), m + 5, m[4]);
+            buf = DR_AUX(rec);
+            len = DR_AUXLEN(rec);
+        } else {
+            vmem_set(*(uint8_t **)rec, 0, DR_LENGTH(rec)); /* clear rec->data (rec+0) */
+            buf = *(uint8_t **)rec;                        /* rec->data */
+            len = DR_LENGTH(rec);
+        }
+        hret = DR_HANDLER(rec)(DR_HCTX(rec), msg, buf, len);
+    } else if (DR_LENGTH(rec) < 9) {
+        /* small record: stage <=8 bytes on the stack and dispatch directly */
+        uint8_t scratch[8];
+        if ((m[3] & 7) != 0) {
+            goto reply;
+        }
+        vmem_copy(scratch, m + 5, 8);
+        hret = DR_HANDLER(rec)(DR_HCTX(rec), msg, scratch, m[4]);
+    } else {
+        /* multi-fragment reassembly across the 3-slot table at mgr+0x5ac */
+        dispatch_slot_t *table = *(dispatch_slot_t **)((uint8_t *)mgr + 0x5ac);
+        uint8_t  flags = m[3];
+        uint32_t off = (uint32_t)(flags & 7) * 8;    /* sub-fragment write offset */
+        dispatch_slot_t *slot = (dispatch_slot_t *)0;
+        int i;
+
+        /* find a slot already reassembling this key */
+        for (i = 0; i < DISPATCH_SLOT_COUNT; i++) {
+            dispatch_slot_t *s = &table[i];
+            if (s->age != 0 && vmem_cmp(s->key, msg, 3) == 0) {
+                if (off == s->fill) {
+                    slot = s;
+                    goto accumulate;             /* contiguous: append */
+                }
+                if ((flags & 7) != 0) {
+                    return 0;                    /* non-contiguous fragment: drop */
+                }
+                /* restart this slot for a fresh first fragment */
+                s->fill = off;                   /* == 0 */
+                vmem_set(s->buf, 0, DISPATCH_BUF_CAP);
+                slot = s;
+                goto accumulate;
+            }
+        }
+
+        if ((flags & 7) != 0) {
+            return 0;                            /* continuation with no slot */
+        }
+
+        /* allocate a slot for a new first fragment */
+        if (table[0].age == 0) {
+            slot = &table[0];
+        } else if (table[1].age == 0) {
+            slot = &table[1];
+        } else if (table[2].age == 0) {
+            slot = &table[2];
+        } else {
+            /* all busy: age every slot, evict the most-aged */
+            dispatch_slot_t *oldest = (dispatch_slot_t *)0;
+            uint32_t boff = 0;
+            do {
+                dispatch_slot_t *s = (dispatch_slot_t *)((uint8_t *)table + boff);
+                uint32_t a = s->age + 1;
+                s->age = a;
+                if (oldest == (dispatch_slot_t *)0) {
+                    oldest = s;                  /* first iteration latches slot 0 */
+                } else if (a > oldest->age) {
+                    oldest = s;
+                }
+                boff += 0x4c;
+            } while (boff != 0xe4);
+            event_report(DEVDISPATCH_EVENT_CTX, 0xd8, 3,
+                         (uint32_t)oldest->key[2],
+                         (uint32_t)oldest->key[1],
+                         (uint32_t)oldest->key[0]);
+            slot = oldest;
+        }
+        slot->age  = 1;
+        slot->fill = 0;
+        vmem_copy(slot->key, msg, 3);
+        vmem_set(slot->buf, 0, DISPATCH_BUF_CAP);
+
+    accumulate:
+        {
+            uint32_t fill = slot->fill;
+            if (fill + (uint32_t)m[4] > DISPATCH_BUF_CAP) {
+                slot->age = 0;
+                event_report(DEVDISPATCH_EVENT_CTX, 0xee, 3,
+                             fill, (uint32_t)m[4], DISPATCH_BUF_CAP);
+                return 0;
+            }
+            vmem_copy((uint8_t *)slot + fill + 0xc, m + 5, m[4]);
+            slot->fill = fill + m[4];
+            if (slot->fill != DR_LENGTH(rec)) {
+                return 0;                        /* still gathering */
+            }
+            /* r3 (4th arg) survives as the just-written fill == DR_LENGTH */
+            hret = DR_HANDLER(rec)(DR_HCTX(rec), msg, slot->buf, slot->fill);
+            slot->age = 0;                       /* release slot */
+        }
+    }
+
+    if (hret == -3) {
+        return 0;
+    }
+
+reply:
+    if (send != 0 && *(rec + 0x10) != 2) {
+        uint8_t  rtype = *(rec + 0x10);
+        uint32_t gate;
+
+        vmem_set(&frame, 0, 0xd);
+        frame.key[0] = m[0];
+        frame.key[1] = m[1];
+        frame.key[2] = m[2];
+        frame.seq &= 0xef;                       /* bfc #4,#1 on the (zeroed) byte */
+
+        if (rtype == 1) {
+            gate = 0;
+        } else {
+            gate = 1;
+            if (xQueueSemaphoreTake(*(void **)(rec + 0x4), 0x7fffffff) != 0) {
+                event_report(DEVDISPATCH_EVENT_CTX, 0x172, 0);
+                return 0xffffffff;
+            }
+        }
+        device_send_chunked((dev_txch_t *)((uint8_t *)mgr + 0x594),
+                            (dev_record_t *)rec, &frame, gate);
+        if (rtype != 1) {
+            rtos_sem_give_dispatch(*(void **)(rec + 0x4));
+        }
+    }
+    return 0;
+}
 
 /*
  * device_send_chunked — transmit rec's payload as ≤8-byte frames. // 0x00008538
@@ -443,4 +749,212 @@ int device_store_words8808(registry_t *reg, const void *src, uint32_t arg3)
         }
     }
     return -1;
+}
+
+/*
+ * Device peripheral block (memory-mapped, off-image at 0x4008c000). Only the
+ * three control bytes cleared on entry are touched here; the full register map
+ * lives in the vendor IOM/device driver. The reset register at 0x4000038c is
+ * the device-block soft reset: writing 0x40000000 asserts it (the bring-up path
+ * at 0x1710 writes 0 to release it).
+ */
+#define DEVBLK_BASE          0x4008c000u
+#define DEVBLK_RESET_REG     0x4000038cu
+#define DEVBLK_RESET_ASSERT  0x40000000u
+
+/* Device-manager RAM state (shared with the control task and the sensor read). */
+#define DEV_SEM_HANDLE       0x20001718u   /* access semaphore handle cell      */
+#define DEV_STATE_PAIR       0x200007fcu   /* 2-word device state {mode, 0}     */
+#define DEV_ENABLE_FLAG      0x200070e8u   /* device-enabled flag (u8)          */
+#define DEV_SENSOR_VARIANT   0x200070dfu   /* sensor sub-address selector (u8)  */
+#define DEV_TIMER_HANDLE     0x20001d84u   /* software-timer handle cell        */
+#define DEV_TIMER_REMAINING  0x200006a4u   /* last queried timer remaining/state */
+
+/* Subsystem id stamped into device_mgr_reset's event/error records. // pool @0x3fd8 */
+#define DEVRESET_EVENT_CTX   0xc8cf5962u
+
+/*
+ * device_mgr_reset — re-arm the device block: stop its timer, reprogram the
+ * part and assert the peripheral soft reset. // 0x00003f14
+ *
+ * Clears three device-block control bytes (off 0x04/0x17/0x19), takes the access
+ * semaphore (blocking, portMAX_DELAY), zeroes the device state pair and raises
+ * the enable flag, then programs the part: a register write (opcode 0x53,
+ * value 1) followed by a two-byte command frame {0x36, 0x15}. A failed register
+ * write reports event 0x4a; a successful frame send is followed by a 5-tick
+ * delay, a failed one reports event 0x4f. It then latches the sensor variant
+ * (0xe0) and the state pair {0xe0, 0}, releases the semaphore, and queries the
+ * software timer: the remaining-tick value (or 1 when zero) is stashed at
+ * DEV_TIMER_REMAINING and, if the timer is live, it is stopped (command 5) and
+ * its handle cleared. Finally the device-block soft reset is asserted. Always
+ * returns 0. Reached as a device-manager dispatch callback (no direct callers).
+ *
+ * The OEM `push {r0-r3,...}` only reserves the 4-word scratch frame; none of the
+ * caller's register arguments are read, so this is a no-argument routine.
+ */
+int device_mgr_reset(void)
+{
+    uint8_t  cmd[2];                 /* sp+0xc scratch command buffer */
+    int      status;
+    void   **timer;                  /* DEV_TIMER_HANDLE: pointer to the timer object */
+    int      remaining;
+
+    /* 0x3f1c-0x3f20: clear the three device-block control bytes */
+    *(volatile uint8_t *)(DEVBLK_BASE + 0x19) = 0;
+    *(volatile uint8_t *)(DEVBLK_BASE + 0x04) = 0;
+    *(volatile uint8_t *)(DEVBLK_BASE + 0x17) = 0;
+
+    /* 0x3f22-0x3f28: take the access semaphore, block forever */
+    rtos_sem_take(*(void *volatile *)DEV_SEM_HANDLE, 0xffffffffu);
+
+    /* 0x3f2e-0x3f3a: reset the state pair, raise the enable flag */
+    ((volatile uint32_t *)DEV_STATE_PAIR)[0] = 0;       /* strd r4,r4 */
+    ((volatile uint32_t *)DEV_STATE_PAIR)[1] = 0;
+    *(volatile uint8_t *)DEV_ENABLE_FLAG = 1;
+
+    /* 0x3f3c-0x3f4e: register write (opcode 0x53, value 1); report on failure */
+    cmd[0] = 0;                                          /* strb r4,[sp,#0xc] */
+    status = i2c_reg_write_53(0, (uint32_t)(uintptr_t)cmd, 1);
+    if (status != 0) {
+        event_report(DEVRESET_EVENT_CTX, 0x4a, 0);       /* 0x3f4c */
+    }
+
+    /* 0x3f50-0x3f64: send the 2-byte command frame {0x36, 0x15} */
+    cmd[0] = 0x36;
+    cmd[1] = 0x15;
+    if (i2c_tx_frame(cmd, 2) == 0) {
+        vTaskDelay(5);                                   /* 0x3f68 */
+    } else {
+        event_report(DEVRESET_EVENT_CTX, 0x4f, 0);       /* 0x3fba */
+    }
+
+    /* 0x3f6c-0x3f7c: latch sensor variant + state pair, release the semaphore */
+    *(volatile uint8_t *)DEV_SENSOR_VARIANT = 0xe0;      /* strb [r1] */
+    ((volatile uint32_t *)DEV_STATE_PAIR)[0] = 0xe0;     /* strd r3(0xe0),r2(0) */
+    ((volatile uint32_t *)DEV_STATE_PAIR)[1] = 0;
+    rtos_sem_give(*(void *volatile *)DEV_SEM_HANDLE, 0, 0);
+
+    /* 0x3f80-0x3fc4: query the software timer; stash remaining (or 1), stop it */
+    timer = *(void ** volatile *)DEV_TIMER_HANDLE;
+    remaining = timer_remaining_ticks(timer);
+    *(volatile int *)DEV_TIMER_REMAINING = (remaining == 0) ? 1 : remaining;
+    if (timer != NULL && *timer != NULL) {
+        xtimer_command(*timer, 5, 0, NULL, 0);           /* 0x3fa0 */
+        *timer = NULL;                                   /* 0x3fa4 */
+    }
+
+    /* 0x3fa6-0x3fac: assert the device-block soft reset */
+    *(volatile uint32_t *)DEVBLK_RESET_REG = DEVBLK_RESET_ASSERT;
+    return 0;
+}
+
+/*
+ * device_apply_task — drain the device-command queue and push each batch to the
+ * registry device. // 0x00003fe8
+ *
+ * A never-returning FreeRTOS task. It blocks on the global command queue
+ * (DEV_APPLY_QUEUE); each message is a pointer to a 0x500-byte batch of forty
+ * 0x20-byte command slots. For each slot it extracts four signed 16-bit values,
+ * looks up the target device record by tag {0xc0,0x03,0x00}, takes its
+ * semaphore, writes the four halfwords into the cached buffer, re-looks-up the
+ * record, runs device_apply and releases the semaphore. Any miss/busy/apply
+ * failure posts event_report(ctx, 0x1a, 0). (Lookups pass key1 = 0, the OEM's
+ * don't-care r2.)
+ */
+void device_apply_task(void *mgr)
+{
+    registry_t *reg   = (registry_t *)mgr;             /* r4 = param */
+    void       *queue = DEV_APPLY_QUEUE;               /* r11 = *0x200006a0 */
+
+    for (;;) {
+        const dev_cmd_slot_t *batch;
+
+        /* block until a batch pointer is dequeued (portMAX_DELAY) */
+        while (xQueueReceive(queue, &batch, 0xffffffffu) != 1) {
+        }
+
+        const dev_cmd_slot_t *slot = batch;
+        const dev_cmd_slot_t *end  = batch + 0x28;     /* +0x500 == 40 slots */
+
+        do {
+            int16_t v0 = slot->v0;                     /* ldrsh slot+0x02 */
+            int16_t v1 = slot->v1;                     /* ldrsh slot+0x0a */
+            int16_t v2 = slot->v2;                     /* ldrsh slot+0x12 */
+            int16_t v3 = slot->v3;                     /* ldrsh slot+0x1a */
+            dev_record_t *rec;
+
+            rec = (dev_record_t *)registry_lookup_value(reg, DEV_TAG_03C0, 0);
+            if (rec != (dev_record_t *)0 &&
+                xQueueSemaphoreTake(rec->sem, 100) == 0) {
+                int16_t *data = (int16_t *)rec->data;   /* rec+0x00 -> buffer */
+                data[2] = v2;                           /* strh data+0x04 */
+                data[0] = v0;                           /* strh data+0x00 */
+                data[1] = v1;                           /* strh data+0x02 */
+                data[3] = v3;                           /* strh data+0x06 */
+
+                rec = (dev_record_t *)registry_lookup_value(reg, DEV_TAG_03C0, 0);
+                if (rec != (dev_record_t *)0) {
+                    int rc = device_apply(reg, rec);
+                    rtos_sem_give_dispatch(rec->sem);   /* release semaphore */
+                    if (rc != 0) {
+                        event_report(DEV_APPLY_EVENT_CTX, DEV_APPLY_EVENT_CODE, 0);
+                    }
+                } else {
+                    event_report(DEV_APPLY_EVENT_CTX, DEV_APPLY_EVENT_CODE, 0);
+                }
+            } else {
+                event_report(DEV_APPLY_EVENT_CTX, DEV_APPLY_EVENT_CODE, 0);
+            }
+
+            slot++;                                     /* += 0x20 */
+        } while (slot != end);
+    }
+}
+
+/*
+ * device_fetch_cache_status9c0 — fetch a status word and cache it into device
+ * {..,0x09,0xc0}, then run the apply/notify hook. // 0x0000410c
+ *
+ * Gated on cmd[0] == 1. Pulls a 16-bit status via controlTask_CmdHandler(0x3a);
+ * on a handler error it posts an event and returns the sign-extended error.
+ * Otherwise it looks up the device keyed {0x09,0xc0} (top byte of `ctx` stamped
+ * into the key word), takes its semaphore, stores the status into the cached
+ * record, re-looks-up the slot and runs device_apply + releases the semaphore.
+ * Returns 0, or the sign-extended handler error.
+ */
+int device_fetch_cache_status9c0(void *reg, uint32_t ctx, const char *cmd, uint32_t arg)
+{
+    int           rc;
+    uint32_t      out[2];   /* controlTask_CmdHandler result {value, status} */
+    uint32_t      key0;     /* {0x09,0xc0} tag, ctx high byte stamped */
+    dev_record_t *e1;
+    dev_record_t *e2;
+
+    if (*cmd != 1) {                              /* ldrb r5; cmp #1; bne */
+        return 0;
+    }
+
+    /* result struct pre-seeded with {cmd, arg} (the OEM's arg spill); cmd 0x3a
+     * only produces out[0] (the read status). */
+    out[0] = (uint32_t)(uintptr_t)cmd;
+    out[1] = arg;
+    rc = controlTask_CmdHandler(0x3a, out, 0, 0);  /* 0x411c: bl 0x1ee0 */
+    if (rc != 0) {
+        event_report(0xc8cf5962u, 0x34, 1, (uint32_t)rc);   /* 0x412c: bl 0x3eac */
+        return (int)(int8_t)rc;                              /* 0x4130: sxtb r0,r4 */
+    }
+
+    key0 = (ctx & 0xff000000u) | 0x000009c0u;     /* low 3 bytes {0xc0,0x09,0x00} */
+
+    e1 = (dev_record_t *)registry_lookup_value(reg, key0, (uint32_t)(uintptr_t)cmd);
+    if (e1 != (dev_record_t *)0 &&
+        xQueueSemaphoreTake(e1->sem, 100) == 0) {            /* take(e1[1],0x64) */
+        *(uint16_t *)e1->data = (uint16_t)out[0];            /* cache status */
+        e2 = (dev_record_t *)registry_lookup_value(reg, key0, (uint16_t)out[0]);
+        if (e2 != (dev_record_t *)0) {
+            device_apply(reg, e2);                           /* 0x4192: bl 0x8656 */
+            rtos_sem_give_dispatch(e2->sem);                 /* 0x4198: bl 0x97f4 */
+        }
+    }
+    return 0;
 }

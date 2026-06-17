@@ -7,6 +7,7 @@
  * Functions:
  *   store_flush             @ 0x00008876  (write-back the cached page, advance)
  *   store_load              @ 0x000088d2  (flush, then prefetch a page range)
+ *   record_table_store      @ 0x000040d4  (store a 42-byte record into an indexed SRAM table)
  *   event_report            @ 0x00003eac  (post an event/error record to the queue)
  *   flash_page_write        @ 0x0000442c  (program a page + read-back verify)
  *   flash_page_commit       @ 0x0000668c  (stage scratch + program descriptor)
@@ -15,6 +16,9 @@
  *   store_descriptor_write  @ 0x00006794  (write the 8-byte descriptor)
  *   log_append_event        @ 0x0000681c  (append an event record via the writer)
  *   xfer_state_log_notify   @ 0x00001884  (transfer-complete: state toggle + log + wake)
+ *   xfer_waiter_notify      @ 0x00001914  (reset waiter queues flagged in a record byte)
+ *   xfer_waiter_post_frame  @ 0x0000193c  (assemble a 7-byte frame, post to both waiters)
+ *   timer_remaining_ticks   @ 0x000019f8  (ticks until a software timer expires)
  *
  * Storage is addressed in 0x200-byte pages; page index N lives at byte address
  * (N + 0xe0) * 0x200, valid indices 0..0xd9. The page buffer is programmed back
@@ -41,6 +45,18 @@
 
 /* HW checksum/CRC engine (DAT_00002b90): +0 control, +4 seed, +8 result/data. */
 #define CSUM_BASE               0x40095000u
+
+/*
+ * Indexed record table (SRAM) written by record_table_store: 0x1f5 (501) slots
+ * of 0x2a bytes each, addressed slot N -> base + N * 0x2a. An out-of-range index
+ * posts an event under this module's own subsystem ctx (distinct from the flash
+ * FLASH_EVENT_CTX above). // pool @ 0x00004104 / 0x00004108
+ */
+#define REC_TABLE_BASE          0x201e1eb4u  /* DAT @0x4108: slot-0 byte address */
+#define REC_TABLE_STRIDE        0x2au        /* 42-byte record / slot           */
+#define REC_TABLE_SLOTS         0x1f5u       /* valid index range 0..0x1f4      */
+#define REC_TABLE_EVENT_CTX     0x207a5327u  /* DAT @0x4104: subsystem id       */
+#define REC_TABLE_EVENT_OOR     0x114u       /* event code on index out-of-range */
 
 /*
  * FreeRTOS xStreamBufferSend (stream_buffer.c, vendor, deferred) — event_report
@@ -93,8 +109,18 @@ extern void xfer_waiter_reset(void *waiter);
  */
 extern int rtos_sem_give(void *q, const void *item, int pos);
 
+/*
+ * FreeRTOS critical-section / configASSERT-trap primitives (vendor, deferred) —
+ * used by xfer_waiter_post_frame and timer_remaining_ticks. // 0x6454/0x6470/0x950a
+ */
+extern void vPortEnterCritical(void);
+extern void vPortExitCritical(void);
+extern void vPortRaiseBASEPRI(void);
+
 /* Separate OEM functions defined below; forward-declared (kept un-inlined). */
 void event_report(uint32_t ctx, uint16_t code, int word_count, ...);
+int  record_table_store(uint32_t arg0, uint32_t arg1, const void *record,
+                        uint32_t arg3);
 int  flash_page_write(void *sess, uint32_t addr, void *buf);
 int  flash_page_commit(void *sess, void *src);
 int  store_descriptor_write(void *sess, const void *descriptor);
@@ -103,6 +129,16 @@ int  store_descriptor_write(void *sess, const void *descriptor);
 #define STORE_PAGE_BASE     0xe0u      /* page N -> byte (N + 0xe0) * 0x200 */
 #define STORE_PAGE_LAST     0xd9u      /* highest valid page index         */
 #define STORE_PAGE_INVALID  0xffffu
+
+/*
+ * FOTA image-region byte geometry (sibling of fota_image_verify). The image
+ * footer/trailer occupies the last data page (index 0xd9); its byte address is
+ * (0xd9 + 0xe0) * 0x200 = 0x37200, and the writable image region spans
+ * 0..0x1b3fc bytes. // pool @ 0x00002ac0
+ */
+#define FOTA_IMAGE_SIZE     0x1b3fcu   /* DAT @0x2ac0: writable span / bound  */
+#define FOTA_FOOTER_PAGEIDX 0x100d9u   /* DAT @0x2ac4: count<<16 | page(0xd9) */
+#define FOTA_FOOTER_ADDR    0x37200u   /* DAT @0x2ac8: byte addr of page 0xd9 */
 
 /*
  * The storage cache object. Only the OEM-touched fields are modeled; the
@@ -261,6 +297,37 @@ void event_report(uint32_t ctx, uint16_t code, int word_count, ...)
 }
 
 /*
+ * record_table_store — store a 42-byte record into the indexed SRAM table. // 0x000040d4
+ *
+ * The record's first 16-bit field is the slot index; the 42 bytes that follow
+ * (record + 2) are copied verbatim to REC_TABLE_BASE + index * 0x2a. Valid
+ * indices are 0..0x1f4 (< REC_TABLE_SLOTS); an out-of-range index posts
+ * event REC_TABLE_EVENT_OOR under this module's ctx and returns -1. Returns 0 on
+ * a successful store. The leading r0/r1/r3 register arguments are part of the OEM
+ * dispatch ABI but unread by the body. // push {r3,lr}
+ */
+int record_table_store(uint32_t arg0, uint32_t arg1, const void *record,
+                       uint32_t arg3)
+{
+    const uint16_t *rec = (const uint16_t *)record;
+    uint32_t        index = *rec;                /* ldrh [r2,#0] */
+
+    (void)arg0;
+    (void)arg1;
+    (void)arg3;
+
+    if (index < REC_TABLE_SLOTS) {               /* cmp #0x1f4 ; bls */
+        vmem_copy((void *)(REC_TABLE_BASE + index * REC_TABLE_STRIDE),
+                  rec + 1,                        /* record + 2 bytes */
+                  REC_TABLE_STRIDE);              /* 0x984c */
+        return 0;
+    }
+
+    event_report(REC_TABLE_EVENT_CTX, REC_TABLE_EVENT_OOR, 0);  /* 0x3eac */
+    return -1;
+}
+
+/*
  * flash_page_write — program a 0x200-byte page at `addr` and read-back verify. // 0x0000442c
  *
  * 1) bus_transfer_token(sess, addr) — arm/select the page (fail -> code 0x31).
@@ -331,6 +398,76 @@ int flash_page_commit(void *sess, void *src)
         event_report(FLASH_EVENT_CTX, 0x73, 2, 0, (uint32_t)rc);
     }
     return 0;                                     /* token-error tail returns r4 (==0) */
+}
+
+/*
+ * fota_image_write — write image bytes into the staged region. // 0x000029f8
+ *
+ * The write counterpart of fota_image_verify (sibling pool @0x2ac0). `off` is a
+ * byte offset within the writable image span (0..0x1b3fc); `src`/`len` are the
+ * source bytes. Requires the store enabled (+0x3c). Two paths:
+ *
+ *   A) Footer prime + write (page index invalid AND off == 0x1b3fc): clear the
+ *      cached count, fill the page buffer with 0xff, latch the footer page index
+ *      (0x100d9 -> page 0xd9, count 1) and fetch page 0xd9 (byte 0x37200) via
+ *      bus_page_read. If the read succeeded, the buffer is live, the cached page
+ *      latched to 0xd9, and the write ends in page 0xd9 ((len + 0x1b3fb) >> 9 ==
+ *      0xd9), copy `len` bytes to buf+0x1fc, token the footer page, and tail-call
+ *      store_flush (its status is the return). Any sub-step failure -> 1.
+ *
+ *   B) In-window write (otherwise): reject (return 2) if off, len, or off+len
+ *      exceed 0x1b3fc. Else, when the buffer is live and the target span lies
+ *      wholly within the currently-cached page (cached == off>>9 ==
+ *      (off+len-1)>>9), copy `len` bytes to buf + (off & 0x1ff) and return 0.
+ *
+ * Returns 0 (in-window write OK / store_flush success in path A), 1 (disabled or
+ * NULL store, cache miss, or any path-A sub-step failure), or 2 (span out of
+ * range). ABI: f(int h, uint32_t off, const void *src, uint32_t len).
+ */
+uint32_t fota_image_write(int h, uint32_t off, const void *src, uint32_t len)
+{
+    store_t *st = (store_t *)(intptr_t)h;
+    uint16_t cached;
+
+    if (h == 0 || st->enable == 0) {            /* cbz r0 ; ldrb +0x3c */
+        return 1;
+    }
+
+    cached = st->page;                          /* ldrh +0x44 */
+
+    if (cached == STORE_PAGE_INVALID && off == FOTA_IMAGE_SIZE) {
+        /* Path A: prime + write the image footer page (0xd9 @ 0x37200). */
+        st->count = 0;                          /* strh +0x46 = 0 */
+        vmem_set(st->buf, 0xff, STORE_PAGE_SIZE);
+        /* 32-bit store of 0x100d9 lands page=0xd9 (+0x44), count=1 (+0x46). */
+        *(uint32_t *)((uint8_t *)st + 0x44) = FOTA_FOOTER_PAGEIDX;
+        if (bus_page_read(st, FOTA_FOOTER_ADDR, st->buf, STORE_PAGE_SIZE) == 0 &&
+            st->buf != (uint8_t *)0 &&
+            (uint16_t)st->page == STORE_PAGE_LAST &&
+            ((len + (FOTA_IMAGE_SIZE - 1)) >> 9) == STORE_PAGE_LAST) {
+            /* OEM passes the vmem_copy return (buf+0x1fc) to the token call;
+             * r0 is not reloaded (vmem_copy returns dst). // 0x2a6a..0x2a76 */
+            if (bus_transfer_token(vmem_copy(st->buf + 0x1fc, src, len),
+                                   FOTA_FOOTER_ADDR) == 0) {
+                return (uint32_t)store_flush(st);   /* tail-call */
+            }
+        }
+        return 1;
+    }
+
+    /* Path B: in-window write. */
+    if (off > FOTA_IMAGE_SIZE || len > FOTA_IMAGE_SIZE ||
+        off + len > FOTA_IMAGE_SIZE) {          /* bhi (unsigned) */
+        return 2;
+    }
+    if (st->buf != (uint8_t *)0 &&
+        cached == (off >> 9) &&
+        cached == ((off + len) - 1) >> 9) {
+        vmem_copy(st->buf + (off & 0x1ff), src, len);
+        return 0;
+    }
+
+    return 1;
 }
 
 /*
@@ -577,4 +714,161 @@ uint32_t xfer_state_log_notify(uint32_t a, uint32_t b, const void *record)
     }
 
     return 0;
+}
+
+/*
+ * xfer_waiter_notify — reset the waiter queues flagged in a record byte. // 0x00001914
+ *
+ * Sibling of xfer_state_log_notify; a small leaf reached via a function pointer
+ * when a transfer/operation `record` completes. The single flag byte at
+ * record[0] selects which waiter(s) to reset: bit1 (0x02) -> waiter A, bit0
+ * (0x01) -> waiter B. The first two args (r0/r1) are ABI placeholders the body
+ * never reads; returns 0.
+ */
+uint32_t xfer_waiter_notify(uint32_t a, uint32_t b, const void *record)
+{
+    const uint8_t *rec = (const uint8_t *)record;
+    (void)a;
+    (void)b;
+
+    if ((rec[0] & 0x02u) != 0u) {                  /* (byte<<0x1e) < 0 -> bit1 */
+        xfer_waiter_reset((void *)g_xfer_waiter_a);
+    }
+    if ((rec[0] & 0x01u) != 0u) {                  /* (byte<<0x1f) < 0 -> bit0 */
+        xfer_waiter_reset((void *)g_xfer_waiter_b);
+    }
+
+    return 0;
+}
+
+/*
+ * xfer_waiter_post_frame — assemble a 7-byte completion frame and post it to the
+ * two transfer waiters. // 0x0000193c
+ *
+ * Two near-identical blocks, one per waiter object (A @ 0x200006b4, B @
+ * 0x20000970). Each loads the waiter's embedded queue/sem handle (waiter+0xc;
+ * NULL -> configASSERT trap), samples handle+0x38 under a critical section, and
+ * posts the frame iff the queue is idle (handle+0x38 == 0), the skip-lock
+ * (waiter+0x03 bit0) is clear and the presence byte (waiter+0x00) is zero. The
+ * 7-byte frame: [0..1]=1, [2]=(arg0>>16)&0xfe, [3..4]=len_a+len_b-1, [5]=1,
+ * [6]=0. arg1 is an unused placeholder; arg2's first byte is latched at
+ * 0x2000001c. Returns 0. (OEM `bfi r3,r1,#0,#1` clears byte[2] bit0 with the
+ * presence byte, provably 0 on the post path -> modeled as `&= 0xfe`.)
+ */
+typedef struct xfer_waiter {
+    uint8_t  present;       /* +0x00 presence; must be 0 to post           */
+    uint8_t  _pad01[2];     /* +0x01..+0x02                                 */
+    uint8_t  lock;          /* +0x03 bit0: skip-post lock                   */
+    uint16_t len_a;         /* +0x04 length field A                         */
+    uint16_t len_b;         /* +0x06 length field B                         */
+    uint8_t  _pad08[4];     /* +0x08..+0x0b                                 */
+    void    *handle;        /* +0x0c embedded queue/sem handle             */
+} xfer_waiter_t;
+
+/* The 7-byte framed message posted to each waiter's queue. */
+typedef struct xfer_frame {
+    uint16_t _h0;           /* +0x00 = 1                                    */
+    uint8_t  type;          /* +0x02 = (arg0>>16) & 0xfe                    */
+    uint16_t length;        /* +0x03 = len_a + len_b - 1                    */
+    uint8_t  flag;          /* +0x05 = 1                                    */
+    uint8_t  tail;          /* +0x06 = 0                                    */
+} __attribute__((packed)) xfer_frame_t;
+
+/* Byte latched from the posted record (DAT_000019f0). */
+#define g_xfer_post_byte    (*(volatile uint8_t *)0x2000001cu)
+
+uint32_t xfer_waiter_post_frame(uint32_t arg0, uint32_t arg1, const uint8_t *arg2)
+{
+    xfer_frame_t   frame;
+    xfer_waiter_t *w;
+    int            blocked;
+
+    (void)arg1;
+
+    frame.type = (uint8_t)(arg0 >> 16);     /* sp+2 seed: arg0 byte2     */
+    g_xfer_post_byte = *arg2;               /* *0x2000001c = *arg2       */
+
+    /* ---- waiter A @ 0x200006b4 ---- */
+    w = (xfer_waiter_t *)g_xfer_waiter_a;
+    if (w->handle == 0) {                    /* configASSERT(handle)     */
+        vPortRaiseBASEPRI();
+        for (;;) { }
+    }
+    vPortEnterCritical();
+    blocked = *(int volatile *)((uint8_t *)w->handle + 0x38);
+    vPortExitCritical();
+    if (blocked == 0 && (w->lock & 1u) == 0u && w->present == 0u) {
+        frame.type  &= 0xfeu;                              /* bfi bit0 <- 0 */
+        frame.length = (uint16_t)(w->len_b + w->len_a - 1);
+        frame.flag   = 1;
+        frame._h0    = 1;
+        frame.tail   = 0;
+        rtos_sem_give(w->handle, &frame, 1);               /* 0x6ec0 */
+    }
+
+    /* ---- waiter B @ 0x20000970 ---- */
+    w = (xfer_waiter_t *)g_xfer_waiter_b;
+    if (w->handle == 0) {                    /* configASSERT(handle)     */
+        vPortRaiseBASEPRI();
+        for (;;) { }
+    }
+    vPortEnterCritical();
+    blocked = *(int volatile *)((uint8_t *)w->handle + 0x38);
+    vPortExitCritical();
+    if (blocked == 0 && (w->lock & 1u) == 0u && w->present == 0u) {
+        frame.type  &= 0xfeu;
+        frame.length = (uint16_t)(w->len_b + w->len_a - 1);
+        frame.flag   = 1;
+        frame._h0    = 1;
+        frame.tail   = 0;
+        rtos_sem_give(w->handle, &frame, 1);               /* 0x6ec0 */
+    }
+
+    return 0;
+}
+
+/*
+ * timer_remaining_ticks — ticks remaining until a software timer expires.
+ * // 0x000019f8
+ *
+ * `timer_holder` is the pointer the OEM passes in r0; *timer_holder is a
+ * FreeRTOS software-timer object (allocated by FUN_000015e0 with
+ * pvPortMalloc(0x28)). The object carries its active flag at +0x24 (bit0) and
+ * its expiry tick at +0x04. Returns 0 when the holder/timer is NULL or the
+ * timer is inactive, else (expiry - xTickCount) — the signed ticks-until-fire.
+ * The status byte is sampled inside a critical section; the post-critical
+ * re-read with a configASSERT trap (vPortRaiseBASEPRI + spin) is reproduced.
+ * Callers: device_mgr_reset (0x3f86), button_scan_poll (0x3e1c).
+ */
+int timer_remaining_ticks(void **timer_holder)
+{
+    void    *timer;
+    uint8_t  status;
+
+    if (timer_holder == (void **)0) {           /* cbnz r0 ; else return 0 */
+        return 0;
+    }
+    timer = *timer_holder;                       /* ldr r5,[r0]            */
+    if (timer == (void *)0) {                    /* cmp r5,#0 ; beq        */
+        return 0;
+    }
+
+    vPortEnterCritical();                        /* bl 0x6454              */
+    status = *(volatile uint8_t *)((uint8_t *)timer + 0x24) & 0x01u; /* ldrb +0x24 ; and #1 */
+    vPortExitCritical();                         /* bl 0x6470              */
+
+    if (status == 0) {                           /* timer not active       */
+        return 0;
+    }
+
+    timer = *timer_holder;                       /* ldr r3,[r4]  (re-read) */
+    if (timer == (void *)0) {                    /* cbnz r3 ; else panic   */
+        vPortRaiseBASEPRI();                     /* configASSERT fail path */
+        for (;;) {
+        }
+    }
+
+    /* (expiry tick @ +0x04) - xTickCount @ 0x20001e44 */
+    return *(int *)((uint8_t *)timer + 0x04)
+         - *(volatile int *)0x20001e44u;
 }

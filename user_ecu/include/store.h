@@ -65,6 +65,16 @@ int store_descriptor_read(void *sess, void *out);
 void event_report(uint32_t ctx, uint16_t code, int word_count, ...);
 
 /*
+ * fota_image_write — write `len` bytes of image data at byte offset `off` into
+ * the staged region (the write counterpart of fota_image_verify). Path A primes
+ * and writes the footer page (off == 0x1b3fc); path B does an in-window write
+ * when the target span lies wholly within the cached page. Returns 0 on success,
+ * 1 on a disabled/NULL store, cache miss, or sub-step failure, 2 on a span past
+ * the 0x1b3fc-byte region. // 0x000029f8
+ */
+uint32_t fota_image_write(int h, uint32_t off, const void *src, uint32_t len);
+
+/*
  * fota_image_verify — stream `length` bytes of the staged image (from byte
  * `offset` within the data region) through the hardware checksum engine and
  * publish the accumulated result to *out_crc. Returns 0 on success, 1 on a
@@ -96,5 +106,25 @@ void log_append_event(uint8_t flag);
  * returns 0. Reached via a function pointer. // 0x00001884
  */
 uint32_t xfer_state_log_notify(uint32_t a, uint32_t b, const void *record);
+
+/*
+ * xfer_waiter_notify — reset the waiter queue(s) flagged in record[0] (bit1 ->
+ * waiter A, bit0 -> waiter B). `a`/`b` are unused ABI placeholders; returns 0.
+ * Reached via a function pointer. // 0x00001914
+ */
+uint32_t xfer_waiter_notify(uint32_t a, uint32_t b, const void *record);
+
+/*
+ * xfer_waiter_post_frame — build a 7-byte completion frame and post it to both
+ * transfer waiters when their embedded queues are idle and unlocked. `arg1` is
+ * unused; *arg2 is latched at 0x2000001c. Returns 0. // 0x0000193c
+ */
+uint32_t xfer_waiter_post_frame(uint32_t arg0, uint32_t arg1, const uint8_t *arg2);
+
+/*
+ * timer_remaining_ticks — ticks until the software timer in *timer_holder
+ * expires (expiry - xTickCount), or 0 if NULL/inactive. // 0x000019f8
+ */
+int timer_remaining_ticks(void **timer_holder);
 
 #endif /* USER_ECU_STORE_H */

@@ -46,8 +46,9 @@ typedef struct i2c_xfer_desc {
  */
 extern int iom_i2c_transfer(int *iom_ctx, int *desc);
 
-/* 0x00001a34 : register write, opcode 0x53. */
-void i2c_reg_write_53(uint32_t addr, uint32_t reg, uint32_t value);
+/* 0x00001a34 : register write, opcode 0x53. OEM tail-returns the
+ * iom_i2c_transfer status in r0 (device_mgr_reset @0x3f14 checks it). */
+int i2c_reg_write_53(uint32_t addr, uint32_t reg, uint32_t value);
 
 /* 0x00001a70 : register read, opcode 0x153. */
 void i2c_reg_read_153(uint32_t addr, uint32_t reg, uint32_t out);

@@ -14,6 +14,7 @@
  *   commport_irq_dispatch_inst3 @ 0x00002190  (vector IRQ trampoline, inst 3)
  *   commport_rx_complete_cb     @ 0x000096ce  (RX-complete ring callback)
  *   commport_ring_drain         @ 0x00002d34  (TX/RX descriptor-ring drain)
+ *   commport_tx_complete_advance@ 0x00002ed4  (eDMA TX-complete ring advance)
  *   commport_can_transmit       @ 0x00007624  (TX/enqueue engine)
  *   commport_dma_ring_read_frame@ 0x0000976e  (eDMA-ring frame read-out)
  *   commport_frame_enqueue      @ 0x000085f8  (packed-frame decode -> queue)
@@ -123,6 +124,42 @@ typedef struct tx_desc_cell {
     uint32_t buf;       /* +0x04 */
     uint32_t len;       /* +0x08 */
 } tx_desc_cell_t;
+
+/* --- commport_tx_complete_advance (0x2ed4) views (outer channel + its ring) - */
+
+/* 8-byte queue record @ ring+0x14, stride 8: {len, remaining}. */
+typedef struct commport_q_slot {
+    uint32_t len;           /* +0x00  (slot i @ ring + 0x14 + i*8) */
+    uint32_t remaining;     /* +0x04 */
+} commport_q_slot_t;
+
+typedef void (*commport_ring_done_fn)(uint32_t base, void *ring,
+                                      uint32_t code, uint32_t arg);
+
+/* ring/queue object bound to a channel (chan->ring). Partial; head indexes
+ * slot[0..3] (mod 4), so slot[4] (ending at +0x33) sits just before flag@+0x34. */
+typedef struct commport_tx_ring {
+    uint32_t              state;     /* +0x00  0=idle,1=RX,2=TX,3=terminal */
+    uint32_t              _r04;      /* +0x04 */
+    commport_ring_done_fn done;      /* +0x08  completion callback (NULL-guarded) */
+    uint32_t              arg;       /* +0x0c  callback arg */
+    edma_chan_desc_t     *edma;      /* +0x10  bound eDMA channel descriptor */
+    commport_q_slot_t     slot[4];   /* +0x14  {len,remaining} ring (indexed head) */
+    uint8_t               flag;      /* +0x34 */
+    uint8_t               head;      /* +0x35  ring head (mod 4) */
+} commport_tx_ring_t;
+
+/* outer channel object (chan / param_2). Partial. The 2-entry u16 length
+ * scratch at +0x08 is accessed raw as *(u16*)(chan + (len_idx+4)*2). */
+typedef struct commport_tx_chan {
+    uint32_t            reg_base;    /* +0x00  comm-port register base */
+    commport_tx_ring_t *ring;        /* +0x04  bound ring object */
+    uint8_t             _r08[4];     /* +0x08..+0x0b  length scratch (raw access) */
+    uint8_t             len_idx;     /* +0x0c  scratch index (mod 2) */
+    uint8_t             _r0d;        /* +0x0d */
+    uint8_t             inflight;    /* +0x0e  in-flight chunk count */
+    uint8_t             _r0f;        /* +0x0f */
+} commport_tx_chan_t;
 
 void commport_ring_drain(uint32_t base, commport_xfer_req_t *req);   /* fwd (called by transmit) */
 
@@ -774,5 +811,123 @@ void event_handler_dispatch(void *obj)
 
     if (block->handler != 0) {
         block->handler(block->arg);                  /* tail call handler(arg) */
+    }
+}
+
+/*
+ * commport_tx_complete_advance — eDMA transfer-complete ring advance. // 0x00002ed4
+ *
+ * Retires the in-flight chunk on the current ring head, advances the head when
+ * its queue record drains, fires the ring completion callback, and either pushes
+ * the next descriptor (tail-call commport_ring_drain) or, when the ring is fully
+ * drained, flushes the RX FIFO, re-arms the eDMA channel, flips the CAN FIFO
+ * direction, clears the TX kick and resets the per-channel TX-ring scratch.
+ *
+ * Per-head slot stride is 8 bytes (slot index == head, NOT head*2); the u16
+ * length scratch is at chan + (len_idx+4)*2. The OEM reloads chan->reg_base into
+ * `base` after the early-out and uses it for the callback + all MMIO. The
+ * +0xe04 double-read on the RX path feeds a discarded snapshot — preserved.
+ */
+void commport_tx_complete_advance(uint32_t base, commport_tx_chan_t *chan,
+                                  int cond, uint32_t arg4)
+{
+    (void)arg4;
+    commport_tx_ring_t *ring = chan->ring;                /* chan[1] = +0x04 */
+    uint8_t  head = ring->head;                           /* +0x35 (mod 4)   */
+    int      saved_len = ring->slot[head].len;            /* +0x14 + head*8  */
+    uint32_t idx = chan->len_idx;                         /* +0x0c           */
+    uint16_t chunk_len =
+        *(uint16_t *)((uint8_t *)chan + (idx + 4u) * 2u); /* halfword @ (idx+4)*2 = idx*2+8 */
+
+    if (cond == 0 || ring->state == 0) {
+        return;
+    }
+
+    base = chan->reg_base;                                /* iVar5 = *param_2 = chan[0] */
+
+    if (chan->inflight != 0) {                            /* +0x0e: retire one in-flight chunk */
+        ring->slot[head].remaining -= chunk_len;          /* +0x18 */
+        ring->slot[head].len        = chunk_len + saved_len; /* +0x14 */
+        *(uint16_t *)((uint8_t *)chan + (idx + 4u) * 2u) = 0;
+        chan->len_idx = (uint8_t)((chan->len_idx + 1u) & 1u);
+        chan->inflight = (uint8_t)(chan->inflight - 1u);
+    }
+
+    if (ring->slot[head].remaining == 0) {                /* active record drained */
+        ring->slot[head].len = 0;
+        ring->head = (uint8_t)((head + 1u) & 3u);
+        if (ring->done != 0) {
+            ring->done(base, ring, 0xa8c, ring->arg);     /* (base, ring, 0xa8c, ring[3]) */
+        }
+    }
+
+    {
+        int state = ring->state;
+        if (state == 3) {
+            return;
+        }
+        /* current (post-advance) head's queue record still pending? -> push next TCD */
+        if (ring->slot[ring->head].remaining != 0) {      /* +0x18 + head2*8 */
+            commport_ring_drain(base, (commport_xfer_req_t *)ring);   /* tail call */
+            return;
+        }
+
+        uint32_t fifo_snapshot = 0;
+        if (state == 1) {                                /* RX dir: flush data FIFO */
+            int spins = 9;
+            while (((int)(MMIO32(base + 0xe04) << 0x1b) >= 0) && spins != 1) {
+                busy_wait(0xc35);
+                spins--;
+            }
+            MMIO32(base + 0xe20) = 0;
+            if ((int)(MMIO32(base + 0xe04) << 0x1b) >= 0) {
+                busy_wait(0xc35);
+                (void)MMIO32(base + 0xe04);              /* OEM emits a discarded reload */
+            }
+            fifo_snapshot = MMIO32(base + 0xe04);
+        }
+        (void)fifo_snapshot;
+
+        int chan_idx = commport_base_to_index(base);
+        edma_chan_irq_enable((commport_handle_t *)ring);  /* uses ring->edma @+0x10 */
+
+        {
+            uint32_t edma  = ring->edma->edma_base;       /* ring[4]->[+8]  */
+            uint8_t  cnum  = ring->edma->channel;         /* ring[4]->[+0xc] */
+            uint32_t grp   = (uint32_t)(cnum >> 5);
+            uint32_t bit   = 1u << (cnum & 0x1f);
+
+            MMIO32(edma + 0x28 + grp * 4u) |= bit;        /* group EEI set   */
+            do { } while ((MMIO32(edma + 0x38 + grp * 4u) & bit) != 0); /* wait clear */
+            MMIO32(edma + 0x78 + grp * 4u) |= bit;        /* INT set         */
+            MMIO32(edma + 0x20 + grp * 4u) |= bit;        /* ERQ set         */
+        }
+
+        if (ring->state == 1) {                          /* CAN FIFO direction @+0xe00 */
+            MMIO32(base + 0xe00) &= 0xffffefffu;
+            MMIO32(base + 0xe00) = MMIO32(base + 0xe00) | 0x10000u;
+        } else {
+            MMIO32(base + 0xe00) &= 0xffffdfffu;
+            MMIO32(base + 0xe00) = MMIO32(base + 0xe00) | 0x20000u;
+        }
+        MMIO32(base + 0xc00) &= 0xfffffffeu;             /* clear TX kick   */
+
+        ring->state = 0;
+        vmem_set((uint8_t *)ring + 0x14, 0, 0x20);       /* zero length scratch */
+        ring->head = 0;                                  /* +0x35           */
+        ring->flag = 0;                                  /* +0x34           */
+
+        {
+            uint32_t off = (uint32_t)chan_idx * 0x38u;
+            uint8_t *st  = (uint8_t *)(uintptr_t)(COMMPORT_TX_RING + off);
+            vmem_set(st + 0x14, 0, 0x20);                /* length table    */
+            vmem_set(st + 0x08, 0, 4);                   /* one cell .len   */
+            st[0x0c] = 0;
+            st[0x0d] = 0;
+            st[0x0e] = 0;
+            st[0x0f] = 0;
+            st[0x10] = 0;
+            st[0x34] = 0;
+        }
     }
 }

@@ -68,9 +68,11 @@ void vmem_set(void *dst, uint8_t value, size_t count)
  *
  * Hand-written sibling of vmem_set: byte-granular forward copy, end-pointer
  * terminator via src-pointer equality, no overlap handling, no word fast path.
- * NOT a toolchain/libgcc memcpy, so reproduced here as VanMoof util.
+ * NOT a toolchain/libgcc memcpy, so reproduced here as VanMoof util. The OEM
+ * uses r3 = dst - 1 as the (pre-incremented) store cursor and never modifies
+ * r0, so dst survives in r0 across the whole loop and is the return value.
  */
-void vmem_copy(void *dst, const void *src, size_t count)
+void *vmem_copy(void *dst, const void *src, size_t count)
 {
     const uint8_t *cursor = (const uint8_t *)src;
     const uint8_t *end = cursor + count;    // add r2,r1
@@ -81,6 +83,7 @@ void vmem_copy(void *dst, const void *src, size_t count)
         out = out + 1;
         cursor = cursor + 1;
     }
+    return dst;                             // r0 = dst, untouched throughout
 }
 
 /*

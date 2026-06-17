@@ -115,4 +115,29 @@ int device_cmd_read87(dev_handle_t *dev, uint32_t arg2, const void *payload);
  */
 int device_cmd_read91(dev_handle_t *dev, uint32_t arg2, const void *payload);
 
+/*
+ * device_dispatch_command — dispatch one inbound command `msg` against the
+ * device manager `mgr`. The 3-byte key selects a device record; its type drives
+ * single-shot dispatch, streaming, or multi-fragment reassembly (a 3-slot table
+ * at mgr+0x5ac), invoking the record's handler and/or replying through the
+ * manager's channel (mgr+0x594). Returns 0 on success, 0xffffffff on a bad
+ * key/type/flags or a reply-semaphore timeout. // 0x000041a4
+ */
+uint32_t device_dispatch_command(int mgr, void *msg);
+
+/*
+ * device_apply_task — never-returning FreeRTOS task: block on the device-command
+ * queue, and for each dequeued 0x500-byte batch (40 × 0x20-byte slots) write the
+ * four signed 16-bit fields of every slot into device {0xc0,0x03,0x00}'s cached
+ * record and run device_apply under its semaphore. // 0x00003fe8
+ */
+void device_apply_task(void *mgr);
+
+/*
+ * device_fetch_cache_status9c0 — when cmd[0]==1, fetch a 16-bit status via
+ * controlTask_CmdHandler(0x3a), cache it into device {..,0x09,0xc0} and run the
+ * apply hook. Returns 0, or the sign-extended handler error. // 0x0000410c
+ */
+int device_fetch_cache_status9c0(void *reg, uint32_t ctx, const char *cmd, uint32_t arg);
+
 #endif /* USER_ECU_DEVICE_H */

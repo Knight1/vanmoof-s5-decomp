@@ -32,10 +32,12 @@ void vmem_set(void *dst, uint8_t value, size_t count);
  * OEM ABI: (dst, src, count). The hand-written sibling of vmem_set: it
  * precomputes end = src + count, then copies one byte at a time (ldrb/strb
  * post/pre-increment) terminating on src == end. Byte-granular forward copy
- * with no overlap handling and no word/alignment fast path; returns void.
- * Used by registry_add to stamp a 0x2c-byte entry into a slot.
+ * with no overlap handling and no word/alignment fast path. The OEM walks via
+ * r3 = dst - 1 and never touches r0, so it returns `dst` unchanged in r0 (the
+ * memcpy contract); fota_image_write relies on this to forward buf+0x1fc into
+ * bus_transfer_token. Used by registry_add to stamp a 0x2c-byte entry too.
  */
-void vmem_copy(void *dst, const void *src, size_t count);
+void *vmem_copy(void *dst, const void *src, size_t count);
 
 /*
  * vmem_cmp — compare `count` bytes of `a` and `b`, forward. // 0x0000982c

@@ -40,8 +40,9 @@ extern int *g_iom_ctx_ctrl;   /* @0x200007f8 */
  */
 extern void rtos_delay_00001bdc(uint32_t ms);
 
-/* 0x00001a34 */
-void i2c_reg_write_53(uint32_t addr, uint32_t reg, uint32_t value)
+/* 0x00001a34 — OEM tail-returns the iom_i2c_transfer status in r0 (callers
+ * such as device_mgr_reset @0x3f14 check it), so the return type is int. */
+int i2c_reg_write_53(uint32_t addr, uint32_t reg, uint32_t value)
 {
     int *ctx = g_iom_ctx_regio;            /* *DAT_00001a6c */
     i2c_xfer_desc_t desc;
@@ -53,7 +54,7 @@ void i2c_reg_write_53(uint32_t addr, uint32_t reg, uint32_t value)
     desc.word[4] = 1;
     desc.word[5] = reg;
     desc.word[6] = value;
-    iom_i2c_transfer(ctx, (int *)&desc);
+    return iom_i2c_transfer(ctx, (int *)&desc);
 }
 
 /* 0x00001a70 */
