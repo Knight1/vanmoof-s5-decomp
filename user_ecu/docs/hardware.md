@@ -170,9 +170,25 @@ From the decompiled bring-up (`src/main.c`). All MMIO verbatim.
   `base+0x814`/`+0x810`; DMA descriptors; `nvic_irq_enable(0xf)`.
 - **FlexCAN** comm port — CTRL1-style timing assembled into `+0xc00`, plus `+0xc04`/
   `+0xc1c`/`+0xe00`/`+0xe08`.
-- **Charger/PMIC** — status regs via `DAT_00005650`; two `Adc_ReadCh_LPO1MHz` samples
-  scaled `×5.75` / `×1.5` (VFP); a **PRIMASK critical section** writes status + scaled
-  values + a `0xaa`→`0x55` unlock double-write.
+- **USB-C / phone-charging power monitor** (`main_SystemInit` `0x535e..0x5554`,
+  Ghidra mis-bounds the region) — samples the charge-port rails and publishes them
+  to a status block at `DAT_00005650` (SRAM-mapped charger/PMIC struct):
+  - Two `Adc_ReadCh_LPO1MHz` reads, each divided by the ADC clock divider
+    (`(0x4000038c & 0x3f)+1`) then `>>2`, converted to float and scaled **`×5.75`**
+    (`0x40b80000`, a **VBUS-voltage** divider) and **`×1.5`** (`0x3fc00000`, a
+    **current/second-rail** scale).
+  - A **PRIMASK critical section** (`0x5420..0x5448`) writes the status word
+    (`*puVar7`, value `|2` or `|10` per `*puVar7` bit), the two scaled samples
+    (`puVar7[1]`, `puVar7[6]`), a 10-bit field (`puVar7[5]`), then a write-protect
+    **`0xaa` → `0x55` unlock double-write** at `puVar7[2]`, and polls
+    `((u8*)DAT_00005650)[3] == 0xff` for completion. Strobe `0x40000220 = 0x400000`.
+  - **No USB-PD / TCPC / CC-line protocol is present** — there is no Power-Delivery
+    message stack, no `USB`/`PD`/`VBUS` string (logging stripped), and no TCPC
+    register window. The user_ecu **monitors** the phone-charge output (voltage +
+    current via ADC) and reports it; PD negotiation, if any, is fixed-profile or
+    handled by an external charge/PD IC. (The bike's *battery* charger is a
+    separate `charger_liteon` firmware per `manifest.txt`.) Exact ADC channels and
+    the `DAT_00005650` field semantics are **TBC**.
 - **SysTick** — `RVR = SystemCoreClock/1000 - 1` (1 ms), `CSR = 7`; SHPR3 sets PendSV +
   SysTick to lowest priority.
 

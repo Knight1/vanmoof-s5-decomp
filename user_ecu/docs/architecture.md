@@ -55,9 +55,12 @@ triple adaptive EMA, damped second-order integrator) — most consistent with
 **LED-ring brightness/animation easing**, not motor torque (FOC lives in the
 separate `motor_control` ECU). `controlTask_CmdHandler` (`0x1ee0`) reads scaled
 sensor counts from a companion MCU over a checksummed packet and runs the kernel
-on two channel structs (`0x20001ce4` / `0x20000860`, the L/R rings). The control
+on two channel structs (`0x20001ce4` / `0x20000860`, channel A/B). The control
 task also uses a small VFP helper `int_pair_to_float` (`0x884`) to fold a
 `{whole, micros}` integer pair into a single-precision float (`p[0] + p[1]/1e6`).
+The full LED control chain — physical sensors → `0x1926` companion exchange →
+Q16.16 easing → the `0x04c0` CAN telemetry record — is documented end-to-end with
+worked CAN/I²C examples in **`led_control.md`**.
 
 ## Comms
 Two independent comm paths:

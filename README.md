@@ -13,9 +13,12 @@ target by target.
 
 > Status: **first target active.** The repo documents the firmware layout and
 > each target's container format / MCU. **[`user_ecu/`](user_ecu/)** is the
-> first target under analysis (Ghidra auto-analyzed, scaffolded, mapping in
-> progress); no functions are translated to C yet. The remaining per-target
-> subdirectories are created as work on each begins.
+> first target under reconstruction: **~121 VanMoof functions translated to C**
+> (all compile clean for Cortex-M4F), the FreeRTOS/libgcc/SDK code identified and
+> deferred as vendor, and the static frontier exhausted. The boot/clocks, I²C +
+> CAN comms, FOTA/storage, device registry, the handlebar buttons, and the LED
+> control chain are documented under [`user_ecu/docs/`](user_ecu/docs/). The
+> remaining per-target subdirectories are created as work on each begins.
 
 ## Firmware source
 
@@ -31,6 +34,29 @@ version `1.5.0`), located at:
 
 `manifest.txt` is the authoritative list of components shipped in this release
 (`Filename,Device,Date,Time,Major,Minor,Patch,Type,AllowSkip,DontRollback`).
+Rendered readable (all `main` images share build `2024-01-29 14:52:22` except
+`motor_control` at `15:42:39`; the battery/charger blobs are vendor `untagged`):
+
+| Device | Version | Type | Build | Skippable | No-rollback |
+| --- | --- | --- | --- | --- | --- |
+| `imx8_bridge` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `ble` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `modem` | 1.5.0 | main | 2024-01-29 14:52:22 | **yes** | no |
+| `motor_sensor` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `elock` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `user_ecu` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `frontlight` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `rearlight` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `eshifter` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `motor_control` | 1.5.0 | main | 2024-01-29 15:42:39 | no | no |
+| `power_control` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `power_pedal` | 1.5.0 | main | 2024-01-29 14:52:22 | no | no |
+| `battery_primary_panasonic` | 1.4.256 | untagged | — | **yes** | **yes** |
+| `charger_liteon_normal` | 1.8.0 | untagged | — | **yes** | **yes** |
+| `charger_liteon_speed` | 1.2.0 | untagged | — | **yes** | **yes** |
+
+> `AllowSkip` = the updater may skip this image; `DontRollback` = it must not be
+> rolled back to an earlier version (set on the vendor battery/charger blobs).
 
 ## Targets
 
@@ -62,7 +88,7 @@ All start with a Cortex-M vector table (initial SP `0x2000_8000`, except
 
 | Component | Image | Role | Size | Status |
 | --- | --- | --- | --- | --- |
-| [`user_ecu`](user_ecu/) | `user_ecu.*.bin` | main controller (the S5's "muco") — **Cortex-M4F**, **FreeRTOS**; LED-ring/sensor/dmic tasks; I²C+CRC-8 inter-ECU bus | ~106 KB | **active** — 160 fns analyzed, **44 named**, boot+comms+control mapped |
+| [`user_ecu`](user_ecu/) | `user_ecu.*.bin` | handlebar controller — **Cortex-M4F**, **FreeRTOS**; handlebar buttons + cluster LEDs, sensors, USB-C phone-charge monitor; I²C+CRC-8 + CAN comms | ~106 KB | **active** — 192 fns analyzed, **~121 reconstructed to C**; boot/comms/control/FOTA/buttons/LED documented |
 | `imx8_bridge` | `imx8_bridge.*.bin` | gateway between the i.MX8 and the ECU/CAN bus | ~24 KB | pending |
 | `motor_control` | `motor_control.*.bin` | motor controller (non-standard header `0x000008aa`) | ~25 KB | pending |
 | `motor_sensor` | `motor_sensor.*.bin` | motor position/torque sensing | ~25 KB | pending |
@@ -72,6 +98,24 @@ All start with a Cortex-M vector table (initial SP `0x2000_8000`, except
 | `eshifter` | `eshifter.*.bin` | e-shifter (auto gearbox) | ~29 KB | pending |
 | `frontlight` | `frontlight.*.bin` | front light | ~28 KB | pending |
 | `rearlight` | `rearlight.*.bin` | rear light | ~27 KB | pending |
+
+#### `user_ecu` documentation
+
+The first reconstructed target is documented under
+[`user_ecu/docs/`](user_ecu/docs/):
+
+| Doc | Covers |
+| --- | --- |
+| [`architecture.md`](user_ecu/docs/architecture.md) | what the firmware does — boot, RTOS startup, tasks, control/math, the two comms paths, subsystems, reconstruction status |
+| [`hardware.md`](user_ecu/docs/hardware.md) | MCU identity, memory/peripheral map, clock tree, SRAM globals, the USB-C phone-charge power monitor |
+| [`protocol.md`](user_ecu/docs/protocol.md) | the I²C wire framing + CRC-8, **and the CAN/device command dispatch** (inbound command frames, device-record commands, outbound framing, event/status records, the comm-port frame path) |
+| [`buttons.md`](user_ecu/docs/buttons.md) | the handlebar buttons — GPIO scan, debounce, and **exactly what CAN data each press/release sends** |
+| [`led_control.md`](user_ecu/docs/led_control.md) | the LED control chain end-to-end with CAN/I²C worked examples |
+| [`progress.md`](user_ecu/docs/progress.md) | per-function tracker (source of truth for what's left) |
+
+> **CAN bus:** the on-MCU command/event framing is documented in `protocol.md`
+> and `buttons.md`; the **on-wire CAN ID/DLC mapping is off-image** (it lives in
+> the application processor's upper protocol layer, not in any sub-ECU image).
 
 ### Peripheral / vendor firmware
 

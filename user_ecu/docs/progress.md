@@ -3,9 +3,10 @@
 Per-function tracker. Source of truth for "what's left to do."
 
 > Companion docs: **`architecture.md`** (overview), **`hardware.md`** (memory
-> map, MCU, peripherals, SRAM globals) and **`protocol.md`** (I²C wire framing &
-> commands). Renamed functions are exported to
-> `ghidra/exports/user_ecu_program.json`.
+> map, MCU, peripherals, SRAM globals), **`protocol.md`** (I²C wire framing,
+> command dispatch & device-level commands) and **`led_control.md`** (the LED-ring
+> control chain end-to-end + CAN/I²C worked examples). Renamed functions are
+> exported to `ghidra/exports/user_ecu_program.json`.
 
 Status legend:
 - **pending** — not started (still `FUN_*` in Ghidra)
@@ -32,17 +33,65 @@ _(Prior: batch 26 — orphaned-gap carve + translate, 16 functions across the ne
 | Status | Count |
 | --- | --- |
 | pending (still `FUN_*`, VanMoof) |   0 |
-| named             |   9 |
-| decomp-c (VanMoof)| 121 |
-| byte-eq           |   0 |
-| deferred (vendor) |  45 |
+| named (no C yet / extern) |   5 |
+| decomp-c (VanMoof)| 119 |
+| byte-eq           |   8 |
+| deferred (vendor) |  66 |
+| flagged (do-not-reconstruct) |   2 |
+
+_Counts re-synced to the Ghidra export `ghidra/exports/user_ecu_program.json`
+(machine-recounted from the 192 Ghidra functions, batch 27): **119** reconstructed
+to C, **5** named-but-no-C (`Reset_Handler` ×2, the `sensors_task` interior label,
+`iom_i2c_transfer` and `xfer_waiter_reset` left extern), **66** vendor (61
+named + 5 still-`FUN_*`), **2** flagged. The earlier hand-tally undercounted the
+FreeRTOS functions Ghidra had named across batches; the export is now authoritative._
 
 _**VanMoof static frontier exhausted (batch 27).** 7 `FUN_*` remain in Ghidra — all
 FreeRTOS vendor (5: `0x15e0` xTimerCreate, `0x6dc4` task-notify wait, `0x6e20`
 queue-receive internal, `0x6fd0` timer-cmd dispatch, `0x74e0` task-notify give) or
 flagged do-not-reconstruct (2: `0x9408`, `0x9544`). None are VanMoof application
-code. `byte-eq` stays 0 because the image is not linkable (no startup/FreeRTOS) so
-`make compare` cannot run; per-function fidelity is verified by `objdump`._
+code. The image is not linkable (no startup/FreeRTOS), so fidelity is verified
+**per function** by a relocation-masked byte compare against the OEM image (see
+*Validation* below): **8 of 119** are byte-identical; the rest are
+behaviour-oriented (encoding differs)._
+
+## Validation — per-function byte compare vs OEM (batch 27)
+
+Because the image cannot be linked here, each reconstructed function is verified
+directly against the OEM bytes: extract its `.text.<name>` from the `-Os` `.o`
+(`objcopy`), zero the relocation sites (bl targets + ABS32 literal-pool addresses,
+which only resolve at link time; from `objdump -r`), slice the OEM image at the
+function's address for the same length, mask the same offsets, and compare. Equal
+masked bytes ⇒ **byte-identical modulo link-time addresses**.
+
+**Result (119 decomp-c functions):**
+
+| Bucket | Count | Meaning |
+| --- | --- | --- |
+| **byte-identical** | **8** | `bus_variant_b`, `commport_base_to_index`, `registry_find`, `q16_sigmoid`, `clockgate_status_ack`, `registry_add`, `mem_free`, `event_handler_dispatch` |
+| close (<15% bytes differ) | 2 | `xfer_waiter_notify` (10%), `gpio_base_to_bank` (11%) — encoding-only |
+| medium (15–50%) | 28 | same logic, different reg-alloc/scheduling |
+| far (>50%) | 81 | substantially different encoding |
+
+**Interpretation — this is a behaviour-oriented reconstruction, NOT (yet) a
+byte-matching decomp.** The C reproduces the OEM *logic* (translated from the
+disassembly/decompiler and logic-checked during each batch), but is not tuned to
+emit the OEM's exact instruction stream. An opt-level sweep confirms `-Os` is the
+best fit (`-O1` 1, `-O2`/`-O3` 2, **`-Os` 8** exact), so optimisation level is not
+the blocker. The dominant cause is the **toolchain**: ours is **GCC 9.2.1
+(2019-q4)** vs an OEM image built **2024-01-29** (almost certainly GCC 12/13.x);
+different GCC majors emit very different code at the same `-O`.
+
+**Path to a byte-identical / provably behaviour-identical build (large, optional):**
+- *Matching decomp* — pin the exact OEM `arm-none-eabi-gcc` (2023-era 12.x/13.x),
+  then iterate each function's C until the masked compare is clean. Gold standard;
+  this is typically the bulk of a matching-decomp project.
+- *Emulation-based equivalence* — run OEM vs reconstructed each function on sample
+  inputs (Ghidra `emulate_function` / QEMU) and compare results + side effects.
+  Proves behaviour-equivalence without byte-matching.
+
+The harness is reproducible (objcopy/objdump/objdump -r + the OEM image); rerun it
+after any toolchain change.
 
 _Core CONFIRMED: **ARM Cortex-M4F** (VFPv4, hard-float). RTOS CONFIRMED:
 **FreeRTOS**. **Batch 1**: 14 functions translated to C, all compile clean
