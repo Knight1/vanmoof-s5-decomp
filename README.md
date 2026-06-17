@@ -74,7 +74,7 @@ to be confirmed in Ghidra.
 
 | Component | Image | MCU | Size | Status |
 | --- | --- | --- | --- | --- |
-| `ble` | `ble.*.bin` | Nordic nRF5x *(tbc)*, Zephyr | ~273 KB | pending |
+| [`ble`](ble/) | `ble.*.bin` | Nordic **nRF52840** *(tbc)*, Zephyr + SoftDevice Controller | ~273 KB | **active** — base fixed to `0x23000`, 2015 fns; **50 VanMoof fns** (auth/ble/settings/findmy-glue) classified, rest vendor (incl. 118 Apple Find My, deferred) |
 | `modem` | `modem.*.bin` | Nordic **nRF9160** (LTE-M/NB-IoT + GNSS), Zephyr | ~302 KB | pending |
 
 Both carry an MCUboot image header (`0x96f3b83d`); the payload is a Zephyr/nRF
