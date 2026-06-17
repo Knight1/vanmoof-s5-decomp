@@ -161,7 +161,7 @@ extern int ble_json_open(void *writer, void *state, uint32_t arg);  /* vendor //
 extern void ble_json_str(void *writer, const char *str);  /* vendor // 0x00058938 */
 extern int ble_json_close(void *writer, void *state);  /* vendor // 0x0005ff32 */
 extern void ble_msg_transmit(uint32_t a, uint32_t type, void *buf, uint32_t len, uint32_t e, uint32_t f);  /* vendor // 0x00058a50 */
-extern void ble_event_post(void);  /* vendor // 0x00040d98 */
+extern void ble_event_post(int event);  /* vendor // 0x00040d98 */
 extern void ble_reg_460d0(void *arg);  /* vendor // 0x000460d0 */
 extern void ble_reg_44978(void *arg);  /* vendor // 0x00044978 */
 extern void ble_reg_44d5c(void *arg);  /* vendor // 0x00044d5c */
@@ -178,11 +178,161 @@ void     auth_copy_pubkey_32(const uint32_t *src);      /* 0x0003dff8 */
 void     auth_copy_bike_id(const void *src, uint32_t len);   /* 0x0003e020 */
 uint32_t auth_submit_id_event(const void *src, uint32_t len); /* 0x0003e11c */
 uint32_t auth_check_connection_state(uint32_t conn);    /* 0x0003e18c */
-void *auth_alloc_disconnect_event(void);  /* 0x0003e164 */
-void *auth_alloc_connection_event(void);  /* 0x0003e178 */
-void *auth_alloc_event_0x14(void);  /* 0x0003e574 */
+int auth_alloc_disconnect_event(void);  /* 0x0003e164 */
+int auth_alloc_connection_event(void);  /* 0x0003e178 */
+int auth_alloc_event_0x14(void);  /* 0x0003e574 */
 void auth_format_ble_address(const uint8_t *addr, char *out);  /* 0x0003e2d8 */
 void auth_init_connection_slots(void);  /* 0x0003e45c */
 void auth_send_disconnect_reason(uint32_t conn_handle, uint8_t flag, uint32_t reason);  /* 0x0003e4b0 */
+
+
+
+
+
+
+/* ====================================================================
+ * auth core (carved batch 2) — appended declarations
+ * ==================================================================== */
+
+/* --- types --- */
+/* Parsed "connection command" control message. The handler only inspects the
+ * descriptor (+4), the subcommand byte (+8), and the flags word (+0xc). */
+typedef struct {
+    uint32_t reserved0;   /* +0x0 */
+    uint32_t descriptor;  /* +0x4: must equal AUTH_CONN_CMD_DESC */
+    uint8_t  command;     /* +0x8: subcommand 0..4 */
+    uint8_t  pad9;
+    uint8_t  pad10;
+    uint8_t  pad11;
+    uint32_t flags;       /* +0xc: bit0 challenge variant, bit1 suppress reply, bit2 suppress publish */
+} auth_conn_msg_t;
+
+/* --- globals --- */
+/* Static "connection command" message descriptor; msg->descriptor (+4) must
+ * equal this to be handled. Points at a rodata descriptor struct. // 0x00067278 */
+#define AUTH_CONN_CMD_DESC        (0x00067278u)
+/* FindMy-enabled flag, raised once serial/pub-key/bike-id are installed into
+ * the secure session. // 0x20007db6 */
+#define AUTH_FINDMY_ENABLED_FLAG  (*(volatile uint8_t *)0x20007db6u)
+/* 3-byte challenge seed copied into the case-0 frame ({0x01,0x32,0x00}). rodata. // 0x00062616 */
+#define AUTH_TIME_PUBKEY_SEED     ((const uint8_t *)0x00062616u)
+/* Connection-command certificate-challenge descriptor (rodata table). // 0x00062990 */
+#define AUTH_CERT_DESC            ((void *)0x00062990u)
+/* rodata key string "findmy" used both as a JSON key and a bus topic. // 0x00064168 */
+#define AUTH_FINDMY_KEY           ((const char *)0x00064168u)
+/* rodata bus/MQTT topic "findmy/enable". // 0x000642e6 */
+#define AUTH_FINDMY_ENABLE_TOPIC  ((const char *)0x000642e6u)
+/* Literal field value emitted by ble_json_add_field_5fe92 in case 0. // 0x3d838 literal */
+#define AUTH_FINDMY_FIELD_CONST   (0x01010000u)
+/* Provisioning-topic match handler passed to ble_bus_publish_40618 (Thumb code
+ * pointer; this is findmy_match_provisioning_topic). // 0x0003d234 */
+#define AUTH_PROV_TOPIC_HANDLER   ((void *)0x0003d234u)
+/* Connection-state descriptor installed by auth_send_connection_state. // 0x000629a4 */
+#define AUTH_STATE_DESC           ((void *)0x000629a4u)
+/* Cached session-field source buffers pushed into the secure session. */
+#define AUTH_SESSION_SERIAL_SRC   ((void *)0x20007994u)   /* serial   // 0x20007994 */
+#define AUTH_SESSION_PUBKEY_SRC   ((void *)0x20007da4u)   /* pub key  // 0x20007da4 */
+#define AUTH_SESSION_BIKEID_SRC   ((void *)0x200079a4u)   /* bike id  // 0x200079a4 */
+/* State-report handler passed to ble_bus_publish_40618 (Thumb code pointer,
+ * un-carved interior function). // 0x0003d1c4 */
+#define AUTH_STATE_REPORT_HANDLER ((void *)0x0003d1c4u)
+/* Fixed 64-bit baseline used by auth_parse_certificate_challenge to reject an
+ * implausibly-early clock (low word; high word is 0x18c). // 0x0003db20 literal */
+#define AUTH_VALIDITY_MIN_BASELINE  0x0000018cc251f3ffLL
+/* Static work-item descriptor planted into the internal auth event at +4.
+ * rodata struct in the device image. // 0x00067218 (0x3db30 literal) */
+#define AUTH_INTERNAL_EVENT_DESC  ((const void *)0x00067218u)
+
+/* --- vendor callees (deferred) --- */
+extern void *ble_conn_get_address(void *conn); /* vendor // 0x5c9a4 (returns conn+0x90) */
+extern int ble_conn_is_valid(void *conn); /* vendor // 0x58858 */
+extern int ble_conn_get_handle_id(void *conn, uint16_t *out_handle); /* vendor // 0x5b906 */
+extern int ble_msg_alloc(uint16_t type, int len); /* vendor // 0x42418 */
+extern void *ble_msg_reserve(int msg_buf, short n); /* vendor // 0x5ef52 */
+extern int ble_msg_finalize(uint16_t type, int msg, int *out_msg); /* vendor // 0x4248c */
+extern void ble_msg_free(int msg); /* vendor // 0x4860c */
+extern void ble_timer_init(int timer, int base, unsigned int a, int b, unsigned int period, int d); /* vendor // 0x50920 */
+extern void ble_timer_stop(int timer); /* vendor // 0x6183e */
+extern int ble_conn_ref(void *conn); /* vendor // 0x5c7e8 */
+extern void ble_conn_unref(void *conn); /* vendor // 0x5c81e */
+/* Secure-session state register read: returns (state & 7) >> 2 (session-active
+ * predicate); DMB-fenced. // 0x0004e9e4 */
+extern uint32_t auth_secure_state_get_4e9e4(void);
+/* Tear down the secure session (exclusive-access bit dance); 0 on success. // 0x0004eb28 */
+extern int auth_secure_session_teardown_4eb28(void);
+/* (Re)generate the local certificate / challenge response; 0 on success. // 0x0004e418 */
+extern int auth_certificate_generate_4e418(void);
+/* Apply/verify a certificate challenge from the 3-byte seed frame against the
+ * descriptor; 0 on success. // 0x0004e9fc */
+extern int auth_certificate_challenge_apply_4e9fc(void *frame, void *cert_desc);
+/* Install a connection-state descriptor into the secure-session slot. // 0x0004e298 */
+extern int auth_secure_session_install_4e298(void *desc);
+/* Force-reset the secure session (clears state, DMB-fenced). // 0x00042ca8 */
+extern void auth_secure_session_reset_42ca8(void);
+/* Push the cached serial into the secure session (len 0x10 field). // 0x0004e8b8 (thunk 0x00060736) */
+extern int auth_session_set_serial_4e8b8(void *src);
+/* Push the cached public key into the secure session (len 0x10 field). // 0x0004e8d4 */
+extern int auth_session_set_pubkey_4e8d4(void *src);
+/* Push the cached bike id into the secure session (len 0x400 field). // 0x0004e8f0 */
+extern int auth_session_set_bike_id_4e8f0(void *src);
+/* Read up to *count 7-byte session records into out; updates *count. // 0x000433c0 */
+extern int findmy_read_records_433c0(void *out, uint32_t *count);
+/* Advance/process one session record; <0 error, 1 = done, else continue. // 0x000433e4 */
+extern int findmy_process_record_433e4(int sel);
+/* Queue a findmy work item with type byte 0 and the given code. // 0x0005874c */
+extern void findmy_enqueue_event_0(uint32_t code);
+/* Queue a findmy work item with type byte 1 and the given code. // 0x00058732 */
+extern void findmy_enqueue_event_1(uint32_t code);
+/* Publish payload to a bus/MQTT topic (acquires the publish lock, dispatches). // 0x00040558 */
+extern uint32_t ble_msg_publish_40558(const char *topic, const void *payload, uint32_t flag);
+/* Publish to the in-process subscriber bus, invoking each registered handler. // 0x00040618 */
+extern uint32_t ble_bus_publish_40618(uint32_t arg0, void *handler, uint32_t flag);
+/* Build + send a small JSON state message of the given type (calls 0x58766). // 0x0005876e */
+extern void ble_send_state_msg_5876e(uint32_t msg_type);
+/* Append the connection-state value (state + 0x14) to a JSON writer. // 0x00058766 */
+extern void ble_json_add_state_58766(void *writer, uint8_t state);
+/* Emit a JSON key string into a writer. // 0x000587aa */
+extern void ble_json_emit_key_587aa(void *writer, const char *key);
+/* Append a signed integer JSON field to a writer (sign = value>>31 control). // 0x0005fe92 */
+extern void ble_json_add_field_5fe92(void *writer, uint32_t tag, uint32_t value, uint32_t sign);
+/* System reset / fault entry; raises BASEPRI and loops (no return). // 0x0003ffac */
+__attribute__((noreturn)) extern void ble_system_reset_3ffac(uint32_t mode);
+/* Server certificate-challenge fields. The challenge message is a 0x40-byte
+ * signature blob over the trailing CBOR body. cbor_verify_signature recomputes
+ * the MAC/signature with `key` and returns 0 only when it matches `msg`.
+ * (CC310 / vendor crypto.) */
+extern uint32_t cbor_verify_signature(const uint8_t *msg, const uint8_t *body, uint32_t body_len, const uint8_t *key);  /* vendor // 0x0005606c */
+/* CBOR map field extractors (TinyCBOR-style). u32/u64 read an integer field by
+ * key and return 0 / -1; bstr_len copies a byte-string field (bounded by max,
+ * 0 = unbounded) and returns its length or a negative error. // vendor */
+extern uint32_t cbor_map_get_u32(void *value_ctx, const uint8_t *key, uint32_t *out);   /* vendor // 0x00058b80 */
+extern uint32_t cbor_map_get_u64(void *value_ctx, const uint8_t *key, uint32_t out[2]); /* vendor // 0x00058bb8 */
+extern int      cbor_map_get_bstr_len(void *value_ctx, const uint8_t *key, void *dst, uint32_t max); /* vendor // 0x00058c9c */
+/* Read the current wall-clock as a 64-bit millisecond value into out[0..1];
+ * returns 0 on success or a negative error when the clock is unavailable. */
+extern uint32_t cbor_get_now_ms(uint32_t out[2]);  /* vendor // 0x0005f5fa */
+/* CBOR key / OID descriptor blobs (device rodata, 2-byte header + payload).
+ * Declared as arrays so &name decays to the OEM literal-pool pointer. */
+extern const uint8_t AUTH_CBOR_KEY_ISSUER[];        /* "...crypto@5002a000" key blob // 0x00064c01 */
+extern const uint8_t AUTH_CERT_OID_A[];             /* recognised DER OID (14 bytes) // 0x00064b1c */
+extern const uint8_t AUTH_CERT_OID_B[];             /* recognised DER OID (14 bytes) // 0x000646b2 */
+extern const uint8_t AUTH_CBOR_KEY_AUTH_MODULE[];   /* "auth_module" field key // 0x00064472 */
+extern const uint8_t AUTH_CBOR_KEY_FMNA_SOUND[];    /* "fmna_sound" field key  // 0x00064da3 */
+extern const uint8_t AUTH_CBOR_KEY_CMD[];           /* "cmd" field key         // 0x000640b0 */
+extern const uint8_t AUTH_CBOR_KEY_FMNA_SERIAL[];   /* "fmna_serial_number" key // 0x00064d90 */
+extern const uint8_t AUTH_CBOR_KEY_CONNECTION_ID[]; /* "connection_id" field key // 0x00064422 */
+/* 32-byte server verification public key (== AUTH_PUBKEY 0x20001199), passed to
+ * cbor_verify_signature. Declared as an array for &name pointer decay. */
+extern const uint8_t AUTH_VERIFY_PUBKEY[];          /* // 0x20001199 (AUTH_PUBKEY) */
+
+/* --- prototypes --- */
+void auth_handle_disconnect(void *conn, uint8_t reason); /* 0x3e350 */
+void auth_handle_connect(void *conn, int status); /* 0x3e3a8 */
+void *findmy_alloc_work_item(void);                 /* 0x0003d220 */
+void  findmy_send_state_report(void);               /* 0x0003d47c */
+void *findmy_match_provisioning_topic(void);        /* 0x0003d234 (referenced via AUTH_PROV_TOPIC_HANDLER) */
+uint32_t auth_handle_connection_command(void *msg); /* 0x0003d6b0 */
+void     auth_send_connection_state(void);          /* 0x0003d840 */
+void auth_parse_certificate_challenge(uint32_t conn_handle, const uint8_t *msg, uint32_t len);  /* 0x0003d920 */
 
 #endif /* BLE_H */

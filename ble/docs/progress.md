@@ -27,7 +27,7 @@ else is vendor.
 | vendor-zephyr (kernel + BT host) | 611 |
 | vendor-libc-sdk (libc / aeabi / nrfx / CC310 / arch) | 408 |
 | (unclassified remainder) | 9 |
-| **VanMoof reconstructed to C** | **18** (settings 2, auth 12, ble_connect 2, ble_msg 2) |
+| **VanMoof reconstructed to C** | **23** (settings 2, auth 17, ble_connect 2, ble_msg 2) |
 
 > Build: `ble/` scaffold up (`Makefile`, `include/{compiler,ble}.h`); `make`
 > compile-gate **clean** for all 4 TUs (`arm-none-eabi-gcc 9.2.1`, Cortex-M4F,
@@ -128,7 +128,10 @@ SDC/MPSL ISRs `0x5f754/0x5f78c/0x5f7a6/0x5f966`, `memcpy`/`memset`
   `auth_check_connection_state` (0x3e18c), `auth_alloc_disconnect_event` (0x3e164),
   `auth_alloc_connection_event` (0x3e178), `auth_alloc_event_0x14` (0x3e574),
   `auth_format_ble_address` (0x3e2d8), `auth_init_connection_slots` (0x3e45c),
-  `auth_send_disconnect_reason` (0x3e4b0)
+  `auth_send_disconnect_reason` (0x3e4b0);
+  **auth core** — `auth_handle_connection_command` (0x3d6b0),
+  `auth_send_connection_state` (0x3d840), `auth_parse_certificate_challenge`
+  (0x3d920), `auth_handle_disconnect` (0x3e350), `auth_handle_connect` (0x3e3a8)
 - **ble_connect.c** — `ble_connect_clear_adv_flag` (0x3e588), `ble_connect_set_ready_flag` (0x3e59c)
 - **ble_msg.c** — `ble_msg_tx_busy_get` (0x3f2cc), `ble_msg_tx_busy_clear` (0x3f2d8)
 
@@ -136,10 +139,10 @@ SDC/MPSL ISRs `0x5f754/0x5f78c/0x5f7a6/0x5f966`, `memcpy`/`memset`
 1. [x] Rename the 50 VanMoof functions in Ghidra (synced with export; saved).
 2. [x] Build setup for `ble` (Makefile, `include/`) — Cortex-M4F compile gate, clean.
 3. [x] Carve settings + auth helpers (18 fns, above).
-4. Carve the **auth core**: `auth_handle_connect` (0x3e3a8), `auth_handle_disconnect`
-   (0x3e350), `auth_handle_connection_command` (0x3d6b0), `auth_send_connection_state`
-   (0x3d840), `auth_parse_certificate_challenge` (0x3d920, crypto-heavy — defer until
-   its vendor deps are mapped).
+4. [x] Carve the **auth core**: `auth_handle_connect`, `auth_handle_disconnect`,
+   `auth_handle_connection_command`, `auth_send_connection_state`,
+   `auth_parse_certificate_challenge` (signature/CBOR cert validation; vendor
+   crypto `cbor_verify_signature`/CC310 left extern).
 5. Carve **ble connect/char/message**: connect FSM (0x3e640), advert builders,
    char read/write helpers, `ble_message_dispatch_by_id` (0x3edbc), `ble_msg_send`
    (0x3f210), `ble_ftp_command_handler` (0x3e9a0).
