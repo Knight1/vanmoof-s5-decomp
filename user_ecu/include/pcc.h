@@ -75,4 +75,13 @@ void nvic_clockgate_bringup(void);
  */
 uint32_t gpio_base_to_bank(uint32_t bank_base);
 
+/*
+ * clockgate_status_ack — read the clock-gate block's pending-flag byte
+ * (block_base[0x28] >> 24) and, if non-zero, acknowledge by re-writing the
+ * write-1-to-clear register at block_base[0x2c]. Returns the pending byte.
+ * Invoked from the clock-gate IRQ trampolines with the 0x40004000 block base.
+ * // 0x000084be
+ */
+uint32_t clockgate_status_ack(volatile uint32_t *block_base);
+
 #endif /* USER_ECU_PCC_H */

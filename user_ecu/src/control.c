@@ -11,6 +11,7 @@
  *                                           DECOY reset vector @0x0 points into
  *                                           the middle of the body, splitting it)
  *   controlTask_CmdHandler   @ 0x00001ee0
+ *   int_pair_to_float        @ 0x00000884  (VFP {whole,micros}->float helper)
  *
  * All fixed-point math is signed Q16.16 (1.0 == 0x00010000).
  */
@@ -458,4 +459,20 @@ int controlTask_CmdHandler(int cmd, uint32_t *result, uint32_t arg, uint32_t ctx
     result[0] = res_a;
     result[1] = 0;
     return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+/* int_pair_to_float - convert a {whole, micros} signed int pair to float.    */
+/* 0x00000884                                                                 */
+/* ------------------------------------------------------------------------- */
+/*
+ * Returns p[0] + p[1] / 1e6 in IEEE-754 single precision: the first word is
+ * the whole part, the second word counts millionths. Both words are converted
+ * signed (vcvt.f32.s32) under the live FPSCR rounding mode; the divisor
+ * 1.0e6f is the literal at 0x000008a4 (0x49742400). Two call sites in the
+ * control task (0x00000520 / 0x0000052e).
+ */
+float int_pair_to_float(const int32_t *p)
+{
+    return (float)p[0] + (float)p[1] / 1.0e6f; /* 0x00000884..0x000008a2 */
 }

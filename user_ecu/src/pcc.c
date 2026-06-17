@@ -137,3 +137,21 @@ uint32_t gpio_base_to_bank(uint32_t bank_base)
     }
     return 2u; /* 0x0000200c */
 }
+
+/*
+ * clockgate_status_ack — read the pending-flag byte of the clock-gate block's
+ * status register (block_base[0x28], top byte) and, when any flag is set,
+ * acknowledge it by reading-and-rewriting the write-1-to-clear register at
+ * block_base[0x2c]. Returns the pending byte. // 0x000084be
+ *
+ * Called from the clock-gate IRQ trampolines (e.g. 0x00002314 / 0x00002344)
+ * with block_base == CLOCK_GATE_BLOCK (0x40004000).
+ */
+uint32_t clockgate_status_ack(volatile uint32_t *block_base)
+{
+    uint32_t pending = block_base[10] >> 24; /* [0x28] >> 0x18; 0x84c0/84c2 */
+    if (pending != 0u) {                     /* itt ne; 0x000084c4    */
+        block_base[11] = block_base[11];     /* [0x2c] W1C re-write; 0x84c6/84c8 */
+    }
+    return pending;                          /* r0; bx lr @ 0x000084ca */
+}

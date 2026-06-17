@@ -106,4 +106,11 @@ void ledEasing_ControlUpdate(LedCtrlState *state, int target, int *out);
  */
 int controlTask_CmdHandler(int cmd, uint32_t *result, uint32_t arg, uint32_t ctx);
 
+/*
+ * int_pair_to_float — convert a {whole, micros} signed int pair to float:
+ * p[0] + p[1] / 1e6 (single precision). The first word is the whole part, the
+ * second counts millionths. Used by the control task. // 0x00000884
+ */
+float int_pair_to_float(const int32_t *p);
+
 #endif /* USER_ECU_CONTROL_H */
