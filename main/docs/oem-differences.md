@@ -51,10 +51,15 @@ openssl, kernel modules, wifi firmware, …).
   `logging`, `mqtt-ftp`, `spi-can-bridge@bridge`, `spi-mqtt-bridge@ble`,
   `spi-mqtt-bridge@modem`, `vcan-starter`) alongside stock `mosquitto`,
   `avahi`, `iptables`, `busybox-syslog`, `ppp@nrf9160`.
-- **Kernel:** stock i.MX8MN 5.4.70 config; the only extra loadable modules are
-  `cryptodev.ko` and **`jailhouse.ko`** (the Jailhouse partitioning hypervisor
-  — used to give the Cortex-M `imx8_bridge` its own partition). Wi-Fi
-  (`linux-firmware-ath10k`) and `spidev` are present from the base BSP.
+- **Kernel:** the NXP zeus **5.4.70** kernel (no fork), but with a **custom
+  VanMoof board port** — its own device tree `vm_mainecu-imx8mn-lpddr4.dtb`
+  (model *"NXP VanMoof mainECU i.MX8MNano board"*) and a custom SPI driver
+  `vm,mainecu_spi` binding the four SPI satellites (nRF52840, nRF9160, **SR150
+  UWB**, **LPC55Sxx** secure MCU), plus drivers for the bike's I²C parts
+  (BQ25672, bq27542, ICM-42600, IST8306, TAS2562). The EVK-default peripherals
+  (GPU, EVK audio codecs, NAND, SD) are carried over from the NXP DTS but
+  `status=disabled`. Extra loadable modules: `cryptodev.ko` and
+  **`jailhouse.ko`** (partitions the Cortex-M `imx8_bridge`).
 - **Persistence:** `/var/log` and `/var/lib/systemd/timesync` are bind-mounted
   from the ext4 config partition `mmcblk2p6/config/…`; mosquitto persistence
   lives there too. Everything else is read-only squashfs root (A/B).
@@ -63,8 +68,9 @@ openssl, kernel modules, wifi firmware, …).
 
 - The base distro identity (`/etc/os-release`, `/etc/version`) is left as the
   stock NXP zeus strings — VanMoof did not re-brand the OS.
-- No custom kernel fork is evident in the rootfs (modules are the stock
-  i.MX8MN set; only Jailhouse/cryptodev are added as out-of-tree modules).
+- No custom kernel *fork* — it's the stock NXP 5.4.70 tree with a VanMoof board
+  DTS + drivers added (a board port, not a fork); Jailhouse/cryptodev are the
+  only out-of-tree loadable modules.
 - The firewall is effectively open: `/etc/iptables/iptables.rules` is **empty**
   (the `iptables.service` loads nothing). Network isolation relies on the
   mosquitto listener being bound to `lo` only, not on netfilter.

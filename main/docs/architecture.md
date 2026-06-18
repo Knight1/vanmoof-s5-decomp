@@ -35,12 +35,23 @@ the bus.
 
 ## SoC & boot (hardware)
 
-- **SoC:** NXP **i.MX8M Nano** — quad **Cortex-A53** @ ARMv8-A. Built with
-  `-mcpu=cortex-a53+crc+crypto`. `pinctrl_imx8mn` is the built-in pinctrl.
-- **Co-processor:** the SoC's Cortex-M core runs **`imx8_bridge`** (shipped in
-  `/opt/devices_fw`), the SPI↔CAN gateway to the mechatronics bus. The
-  **`jailhouse.ko`** hypervisor partitions the SoC so the M-core / RT workload
-  is isolated from Linux.
+- **SoC:** NXP **i.MX8M Nano** — quad **Cortex-A53** @ ARMv8-A, **LPDDR4**.
+  Built `-mcpu=cortex-a53+crc+crypto`. DTB model: *"NXP VanMoof mainECU
+  i.MX8MNano board"*. CAAM hardware crypto + SNVS secure storage.
+- **SPI satellites:** a VanMoof kernel driver (`vm,mainecu_spi`) attaches four
+  chips over SPI — **nRF52840** (BLE), **nRF9160** (modem), **NXP SR150 UWB**
+  (secure ranging / phone-as-key), and an **LPC55Sxx** secure MCU (key store /
+  immobilizer). BLE+modem are bridged to MQTT; UWB+LPC55 go through kernel/other
+  paths. See [`hardware.md`](hardware.md).
+- **CAN bridge:** **`imx8_bridge`** (shipped in `/opt/devices_fw`) is a
+  **discrete Cortex-M MCU** running FreeRTOS — SPI-slave to the i.MX8, CAN node
+  to the mechatronics fleet. It is flashed as a separate SPI device by `update`,
+  so it is *not* the SoC's own Cortex-M7 (likely the `lpc55sxx` SPI satellite —
+  see [`../../imx8_bridge/`](../../imx8_bridge/)).
+- **`jailhouse.ko`** (Siemens partitioning hypervisor, v0.12) + its
+  `jailhouse.bin` firmware are present, but no cell configs ship in the rootfs,
+  so what runs in a partition here is unconfirmed — see
+  [`kernel-modules.md`](kernel-modules.md).
 - **Storage:** eMMC `mmcblk2`, **A/B dual-slot** (confirmed from `runFOTA.sh`):
   bootloader in `boot0`/`boot1`, kernel in `p2`/`p3`, rootfs in `p4`/`p5`,
   shared `p6` = ext4 config/persistent, `p1` = vfat (misc). U-Boot env raw at
