@@ -1,0 +1,144 @@
+#user ble-role-X
+#topic [read|write|readwrite] <topic>
+# See https://vmbikes.atlassian.net/wiki/spaces/AD/pages/2321186824/RFC+Certificate+for+SA5+Bluetooth+authentication#Role-examples
+# for documentation
+
+# Owner
+user ble-role-7
+topic readwrite settings/#
+topic readwrite update/#
+topic write ux/lock/touch_unlock_activate
+topic read ux/lock/touch_unlock_request
+topic write ux/lock/unlock
+topic read ux/lock/info/state
+topic read ux/lock/locking_while_riding
+topic read ride/#
+topic read power/battery/primary/info/soc
+topic read power/battery/primary/info/soc_app
+topic write ftp_server/command
+topic read ftp_server/reply
+topic read ble/proxy
+topic write ble/proxy/config
+topic read power/state
+topic read ble/findmy/report
+topic read ble/findmy/certified
+topic read ble/system/version_info
+topic read ux/info/#
+topic read ux/sensor/#
+topic read error/#
+topic read eshifter/gear
+topic write eshifter/gear/set
+topic read device/+/status
+
+# Shared bike
+user ble-role-11
+topic readwrite settings/assist_level/#
+topic readwrite settings/shift_levels/#
+topic readwrite settings/light_mode/#
+topic readwrite settings/light_auto_threshold/#
+topic readwrite settings/bell_sound/#
+topic readwrite settings/brake_lights/#
+topic readwrite settings/turning_lights/#
+topic readwrite settings/ride_animation_right/#
+topic readwrite update/#
+topic write ux/lock/touch_unlock_activate
+topic read ux/lock/touch_unlock_request
+topic read ux/lock/info/state
+topic write ux/lock/unlock
+topic read ux/lock/locking_while_riding
+topic read ride/#
+topic read power/battery/primary/info/soc
+topic read power/battery/primary/info/soc_app
+topic write ftp_server/command
+topic read ftp_server/reply
+topic read ble/proxy
+topic write ble/proxy/config
+topic read power/state
+topic read ble/findmy/report
+topic read ble/findmy/certified
+topic read ble/system/version_info
+topic read ux/info/#
+topic read ux/sensor/#
+topic read error/#
+topic read eshifter/gear
+topic write eshifter/gear/set
+topic read device/+/status
+
+# Bike doctor
+user ble-role-17
+topic readwrite #
+
+# Bike Hunter
+user ble-role-22
+topic readwrite #
+
+# QA Engineer
+user ble-role-55
+topic readwrite #
+
+# R&D Engineer
+user ble-role-66
+topic readwrite #
+
+user ble-ctrl
+topic readwrite ble/#
+topic readwrite device/ble/#
+topic write logging/event/ble
+topic read power/#
+topic read info/#
+topic read modem/info/datetime
+topic read modem/system/time
+
+user modem-ctrl
+topic readwrite modem/#
+topic readwrite device/modem/#
+topic read power/#
+topic read ble/vars/update
+
+user power-service
+topic readwrite #
+
+user update-service
+topic readwrite #
+
+user ride-service
+topic readwrite #
+
+user ux-service
+topic readwrite #
+
+user gateway
+topic read #
+topic write power/state/set
+topic write settings/region/set
+topic write settings/mode/set
+topic write settings/assist_level/set
+topic write settings/shift_levels/set
+topic write settings/light_mode/set
+topic write settings/light_auto_threshold/set
+topic write settings/ride_animation_right/set
+topic write settings/brake_lights/set
+topic write settings/turning_lights/set
+topic write settings/animation_theme/set
+topic write settings/bell_sound/set
+topic write ux/sound/play
+topic write ux/usb/settings/enable/set
+topic write eshifter/gear/set
+topic write update/start
+
+
+user monitor-service
+topic readwrite #
+
+user logging-service
+topic readwrite #
+
+user mqtt-ftp-server
+topic readwrite #
+
+user tracking-service
+topic readwrite #
+
+# Factory user (provisioner, linker)
+user factory
+topic readwrite #

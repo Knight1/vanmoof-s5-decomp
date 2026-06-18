@@ -60,14 +60,25 @@ gunzip -c v1.5.0-main | tar -xO > VM-XS5_FOTA     # the PEGA image
 # rootfs (leading squashfs):
 unsquashfs -d rootfs VM-XS5_FOTA
 
-# the appended payloads, using the trailer offsets:
+# the appended payloads, using the trailer offsets (byte-granular dd):
 tail -c 2048 VM-XS5_FOTA                            # read the header
-dd if=VM-XS5_FOTA of=root.sqfs  bs=1 skip=0        count=48914272
-dd if=VM-XS5_FOTA of=boot.sqfs  bs=1 skip=48914272 count=9969504    # kernel
-dd if=VM-XS5_FOTA of=imxboot.tgz bs=1 skip=58883776 count=681776    # bootloader
+dd if=VM-XS5_FOTA of=root.sqfs   bs=4M iflag=skip_bytes,count_bytes skip=0        count=48914272
+dd if=VM-XS5_FOTA of=boot.sqfs   bs=4M iflag=skip_bytes,count_bytes skip=48914272 count=9969504   # kernel
+dd if=VM-XS5_FOTA of=imxboot.tgz bs=4M iflag=skip_bytes,count_bytes skip=58883776 count=681776    # bootloader
 ```
 
-(The extracted rootfs is **not** committed — clean-room policy.)
+All three carved payloads MD5-match the PEGA header (`ef2bdfbf…`, `dfe3c2cc…`,
+`f72d536d…`). What each contains (verified):
+
+| Payload | Format | Contents |
+| --- | --- | --- |
+| `root.sqfs` | SquashFS 4.0 (gzip) | the Linux rootfs (5129 files) |
+| `boot.sqfs` | SquashFS 4.0 (gzip) | the **kernel** — `Image` (22.5 MB, ARM64 **Linux 5.4.70+**) + `vm_mainecu-imx8mn-lpddr4.dtb` (the device tree; model *"NXP VanMoof mainECU i.MX8MNano board"*) |
+| `imxboot.tgz` | gzip tar | `imx-boot_signed.bin` (3.4 MB; SPL + U-Boot + ATF, HAB-signed; inner md5 `eb60fb8e…`) |
+
+So a slot is `[bootloader → boot.sqfs(kernel+dtb) → root.sqfs(rootfs)]`. The
+device tree is the authoritative hardware map — see [`hardware.md`](hardware.md).
+(The extracted payloads are **not** committed — clean-room policy.)
 
 ## eMMC layout & A/B "ping-pong"
 
