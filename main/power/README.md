@@ -16,33 +16,36 @@ imported in Ghidra as `/S5-v1.5/OS/power` (image base `0x100000`). MQTT user
 
 ## Reconstructed source (`src/`, `include/`)
 
-The VanMoof logic of the power service is reconstructed to faithful C. All **8
-translation units compile clean** with `-Wall -Wextra -Wpedantic` (`make`); like
-the other targets it is **behaviour-oriented, per-TU-compilable**, not a linkable
-rebuild (the STL/`vm`/mosquitto framework is *modelled* via
-[`include/power_common.h`](include/power_common.h), not byte-rebuilt). Each
-function carries its OEM address.
+The VanMoof logic of the power service is reconstructed to faithful C —
+**all 11 `.cpp` modules**, including the STL-heavy `power_service.cpp` spine and
+`monitor.cpp` wiring (the `std::function`/`std::vector`/`std::string` plumbing is
+*modelled* as data-driven subscription/timer tables + typed publish calls via
+[`include/power_common.h`](include/power_common.h), not byte-rebuilt). All **11
+translation units compile clean** with `-Wall -Wextra -Wpedantic` (`make`);
+behaviour-oriented, per-TU-compilable, not a linkable rebuild. Each function
+carries its OEM address.
 
 | Module | OEM | Contents |
 | --- | --- | --- |
 | [`vm_can`](src/vm_can.c) | `0x158d30/b60/c30` | SocketCAN transport + the **verified** 29-bit `vm_address`↔CAN-ID bit-packing. |
 | [`od_table`](src/od_table.c) | `0x158260/860/670` | OD descriptor + 2-byte-key comparator + scan/add + register-thunk pattern. |
 | [`battery_decode`](src/battery_decode.c) | `0x1285c0…12da90`, `0x12cf80` | primary-battery payload decoders + the **SoC display-remap curve**. |
-| [`power_control`](src/power_control.c) | `0x133590/138f90`, `0x133730…ac0` | the **battery/charger command set** (opcodes 0/1/5/6/8/9) + the `power_control_state` status callback (`IsPrimaryInserted`). |
-| [`state_manager`](src/state_manager.c) | `0x11acb0/b520/142670` | `ChangeState` / `OnStateRequest` / `StateName` + the 8-state `IStateTransitions` dispatch. |
-| [`lipo_control`](src/lipo_control.c) | `0x1136e0/11d920/12ba60` | the bq27542 gauge reads + BQ25672 buck/PGOOD control + register profiles + the PGOOD-retry / fault-recovery reset. |
-| [`low_power`](src/low_power.c) | `0x123c30/124660/124860` | `SuspendSystem` (RTC/motion wake, `/sys/power`), `poweroff`, the CAN standby broadcast + CAN-quiet check. |
+| [`power_control`](src/power_control.c) | `0x133590/138f90`, `0x133730…ac0` | the **battery/charger command set** (opcodes 0/1/5/6/8/9) + the `power_control_state` status callback. |
+| [`state_manager`](src/state_manager.c) | `0x11acb0/b520/142670` | `ChangeState` / `OnStateRequest` / `StateName` + the 8-state dispatch. |
+| [`lipo_control`](src/lipo_control.c) | `0x1136e0/11d920/12ba60` | bq27542 gauge + BQ25672 buck/PGOOD control + register profiles + the recovery reset. |
+| [`low_power`](src/low_power.c) | `0x123c30/124660/124860` | `SuspendSystem` (RTC/motion wake, `/sys/power`), poweroff, CAN standby broadcast + CAN-quiet check. |
 | [`switch_control`](src/switch_control.c) | `0x11e430/1477b0/148070` | the per-state power-switch matrix + the sysfs GPIO backend. |
+| [`power_service`](src/power_service.c) | `0x10a220/116350`, `0x112440…f10` | the **spine**: `main`, the ctor's subscription/timer wiring, Run/Stop/TurnOn, the **7 state handlers**, the **5 MQTT handlers** + `on_mqtt_battery_reset`, and the **4000 ms charge-supervisor** sub-state machine. |
+| [`monitor`](src/monitor.c) | `0x129520`, `0x1268d0/1275a0`, `0x128cc4` | the OD-registration wiring, `charger_decode_mode`, the `device/charger/*` publishers, and the `status`/`warning` **bit-field decoders** (~40/~20 flags). |
+| [`battery_power_on`](src/battery_power_on.c) | `0x112560/112fc0`, `0x113130/113280/113580` | the **battery power-on / buck / charging supervisor** virtuals — recovered by hand (see below); were missed by Ghidra auto-analysis. |
 
-**Shared:** [`power_common.h`](include/power_common.h) — the `battery_cmd`/
-`power_state` enums, the `common_logf`/`od_pub_*`/`sysfs_*`/`gpio_*` framework
-interfaces, and the `PowerService` (0x448) offset map.
+**Shared:** [`power_common.h`](include/power_common.h) + per-module headers model
+the STL/`vm`/mosquitto framework (subscription/timer/sysfs/gpio interfaces, the
+`battery_cmd`/`power_state` enums, the `PowerService` 0x448 offset map).
 
-Still prose-only (STL-heavy or no clean form): the `power_service.cpp`
-spine/ctor/handlers, `monitor.cpp` wiring, the `status`/`warning` bit-field
-decoders (~40/~20 runtime-named booleans), and `rtc_handler`/`wake_on_motion`/
-`eshifter_calibration` (documented below). Full MQTT catalog:
-**[`mqtt.md`](mqtt.md)**; full CAN protocol: [`../docs/can-bus.md`](../docs/can-bus.md).
+Documented-only (small, no clean form): `rtc_handler` / `wake_on_motion_handler`
+/ `eshifter_calibration` (below). Full MQTT catalog: **[`mqtt.md`](mqtt.md)**;
+full CAN protocol: [`../docs/can-bus.md`](../docs/can-bus.md).
 
 ## Source-module map (from embedded paths)
 
@@ -182,6 +185,38 @@ clears substate flags, starts the 50 ms timer, asserts battery ON
 | 5 UPDATING | `0x112e40` | If current == CHARGING → `ChangeState(5)` (FOTA while charging, stay powered); else "Turn on" to bring the system up for the update. |
 | 6 ALARM | `0x112f10` | Unconditionally "Turn on" — powers the bike up so the alarm/horn/lights are live. |
 | 7 MAINTENANCE | `0x112440` | Stops **both** timers; if a battery is still ON → "Turning battery off…" + `FUN_00133730` (battery off); `switch_control` "Set switches for state 7" drives **all four** power switches active (gpiod); `ChangeState(7)`. |
+
+## Power-on / buck supervisor — recovered virtuals (`battery_power_on.c`)
+
+The same primary vtable `&DAT_00184a88` holds **more** `power_service.cpp`
+virtuals *after* the 7 state slots — the battery power-on / buck / charging
+supervisors. These are reached **only** through the vtable (their entry
+addresses live as raw 8-byte pointers built with `ADRP+ADD`-to-data, with no
+string-anchored xref), so Ghidra's auto-analysis **never carved them**: a string
+audit found *"Battery error!"* (`0x15c778`) and its neighbours apparently
+unreferenced, which led to an uncarved 1.4 KB code region. Walking the vtable by
+hand (slots `0x184af0`…`0x184b08`) recovered the cluster. Now carved, named,
+plate-commented in Ghidra and reconstructed in
+[`src/battery_power_on.c`](src/battery_power_on.c):
+
+| Addr | Name | `*.cpp:line` | Role |
+| --- | --- | --- | --- |
+| `0x112560` | `battery_power_supervise` | — | buck/fault **watchdog**: state-gated buck force-on (*"BUCK ENABLED"*, `switch_control.cpp:0x52`); arms the timestamped fault flag (`+0x121`, ts at `+0x370`) for OPERATIONAL/UPDATING/ALARM requests. |
+| `0x112fc0` | `battery_charging_poll` | `:0x29d` | charger-mode evaluator: mode 0→fault, 1→`IdentifyCharger`, 2→*"Battery is fully charged, powering off"* / one-shot reset, 3→battery off + →STANDBY. |
+| `0x113130` | `battery_power_on_recovery` | `:0x335` | the **"Battery error!"** handler: latch fault, PGOOD-guarded buck pulse if charger present (*"…turning the buck OFF"* `:0x347`), then `battery_charging_poll`. |
+| `0x113280` | `battery_power_on_sequence` | `:0x2ba–0x2ee` | power-on / charger-state supervisor: drives OPERATIONAL↔CHARGING↔STANDBY, owns *"In battery power on sequence recovery"*, *"Battery powered off in operational state…"*, *"Charger connected, but not charging. Go to charging state"*, *"Charging finished. Go to standby state"*. |
+| `0x113580` | `battery_enter_charging` | `:0x322` | enter-charging: PGOOD-guarded buck (*"No PGOOD received while charging"*), switch state 4, CAN low-power, →CHARGING. |
+
+Each `power_service.cpp` body is also exposed through a second base vtable (at
+`this+0x50`), so the compiler emitted two 8-byte **adjustor thunks** (`0x113270`
+→recovery, `0x113570`→sequence: `sub x0,x0,#0x50 ; b body`) — vendor artifacts,
+not reconstructed. Two `PowerControl` accessors they call were *also* uncarved
+(`power_control_buck_needed` `0x1332f0`, `power_control_retry_pending`
+`0x133410`), as was the eshifter-on-charge trigger `eshifter_request_calibration`
+(`0x120680`, `eshifter_calibration.cpp:0x68`, STL-heavy → prose only). All now
+named + saved. *(Byproduct of the same vtable sweep: the StateManager virtuals
+`StateManager_StateRequestTimeout` `0x11c2c0` and `StateManager_ExtendStateTimeout`
+`0x11a760`, previously uncarved, were named too.)*
 
 ## LiPo charge control (`lipo_control.cpp` + BQ25672)
 
@@ -384,6 +419,10 @@ charger is node **`a0=0xA7,a1=0x11`**. Names applied in Ghidra; map exported to
 - [x] The **`vm` CAN wire protocol** + per-signal numeric CAN IDs — done & verified → [`../docs/can-bus.md`](../docs/can-bus.md).
 - [x] The 4000 ms charge-supervisor worker (sub-state machine) — done (above).
 - [x] BMS type detection, reset + command set, insertion detect — done (above).
+- [x] **Battery-string completeness audit** — every battery/charge log string is
+      now accounted for. Surfaced + carved the **power-on/buck supervisor virtuals**
+      Ghidra missed (`battery_power_on.c`, above); no battery strings remain
+      unreferenced.
 - [ ] Confirm the **supplier matcher** (Panasonic vs DynaPack) in the `update`
       binary (already in Ghidra) — it's not in `power`.
 - [ ] Cross-reference the CAN node map against the other ECU targets (see

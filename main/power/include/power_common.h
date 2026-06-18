@@ -95,4 +95,13 @@ struct PowerService { uint8_t _raw[0x448]; };
 #define PS_low_power(p)      PS_SUBOBJ(p, 0x3a0)         /* low_power / CAN client*/
 #define PS_lipo_check(p)     PS_FIELD(p, 0x394, uint32_t)/* LiPo charge-check cnt */
 
+/* battery power-on / fault-watchdog fields (devices/main/power/src/power_service.cpp;
+ * see battery_power_on.c). The fault flag at +0x121 sits right after the standby
+ * sub-state byte, so the OEM sometimes tests both as one u16 at +0x120. */
+#define PS_fault(p)          PS_FIELD(p, 0x121, uint8_t) /* 0 ok,1 err,2 watchdog,3 chg */
+#define PS_buck_logged(p)    PS_FIELD(p, 0x2e8, uint8_t) /* "BUCK ENABLED" logged once */
+#define PS_fault_ts(p)       PS_FIELD(p, 0x370, uint64_t)/* fault timestamp (ns)       */
+#define PS_reset_done(p)     PS_FIELD(p, 0x391, uint8_t) /* battery reset issued once   */
+#define PS_eshifter_calib(p) PS_SUBOBJ(p, 0x410)         /* eshifter calibration FSM    */
+
 #endif /* POWER_COMMON_H */
