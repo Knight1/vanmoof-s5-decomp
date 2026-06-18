@@ -144,8 +144,22 @@ unlock/command magic.
 | `power_control_control` / `_state` | 0xA3 | 0x02 | 0x82 | 0x00 | 2 | `0x14605040` | `0x138b80` |
 | `power_control_measurements` | 0xA3 | 0x04 | 0x82 | 0x00 | 2 | `0x14609040` | `0x138c40` |
 | `power_pedal_power_switch_control_init` | 0xA2 | 0x0A | 0x82 | 0x00 | 1 (polled) | `0x14415040` | `0x139300` |
-| (key `0x1a3`) | 0xA3 | 0x01 | 0x82 | 0x00 | 1 | `0x14603040` | `0x138ac0` |
+| **battery/charger command** (key `0x1a3`) | 0xA3 | 0x01 | 0x82 | 0x00 | 1 | `0x14603040` | `0x138ac0` |
 | rear-carrier `_query` (`switch_control`) | 0xC3 | 0x80 | 0x82 | 0x00 | 7 | `0x1870F040` | `0x11fbe0` |
+
+The `0x1a3` channel (node `0xA3`, id `0x14603040`) carries the **battery/charger
+command opcodes** (`power` stamps a 1-byte opcode in `frame[0]` and the
+power-control board relays it to the battery):
+
+| opcode | command | | opcode | command |
+| --- | --- | --- | --- | --- |
+| `0` | battery OFF | | `6` | **battery RESET** |
+| `1` | battery ON | | `8` | shipping mode |
+| `5` | IdentifyCharger | | `9` | clear fault flags |
+
+Separately, the **charger** node `0xA7` has the raw clear-test/burn-in frames
+`0x14E2321{0,4}` (data `A5 5A 00`) sent via `cansend` (not the OD path). See
+[`../power/`](../power/) for the reset/recovery flow.
 
 (The first workflow read `a2=0x80` for the `power_control_*` rows; the verified
 re-trace shows `a2=0x82` — the whole bus uses `a2=0x82`. The runtime-`a0` thunks

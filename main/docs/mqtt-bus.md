@@ -89,9 +89,10 @@ animation_theme,bell_sound}/set`, `ux/sound/play`,
 | `ftp_server/command`, `ftp_server/reply` | `mqtt-ftp-service` | file transfer channel |
 
 The `power/…`, `power/battery/…`, `device/charger/…` and `maintenance/…` topics
-above are **decoder-confirmed** from the reversed `power` service — their payload
-formats and the CAN side are in [`../power/`](../power/) and
-[`can-bus.md`](can-bus.md).
+above are **decoder-confirmed** from the reversed `power` service. Its **complete
+catalog** (19 subscribe + 42 publish, with the handler/publisher function and
+payload of every topic) is in **[`../power/mqtt.md`](../power/mqtt.md)**; the CAN
+side is in [`can-bus.md`](can-bus.md).
 
 ### Find My
 

@@ -16,22 +16,33 @@ imported in Ghidra as `/S5-v1.5/OS/power` (image base `0x100000`). MQTT user
 
 ## Reconstructed source (`src/`, `include/`)
 
-The **CAN/transport core** is reconstructed to faithful C (the self-contained,
-verified VanMoof algorithms — not the STL/`vm`/mosquitto framework glue, which
-stays as prose). Each TU compiles clean with `-Wall -Wextra -Wpedantic` (`make`);
-like the other targets it is **behaviour-oriented, per-TU-compilable**, not a
-linkable rebuild. Each function carries its OEM address.
+The VanMoof logic of the power service is reconstructed to faithful C. All **8
+translation units compile clean** with `-Wall -Wextra -Wpedantic` (`make`); like
+the other targets it is **behaviour-oriented, per-TU-compilable**, not a linkable
+rebuild (the STL/`vm`/mosquitto framework is *modelled* via
+[`include/power_common.h`](include/power_common.h), not byte-rebuilt). Each
+function carries its OEM address.
 
-| File | OEM | Contents |
+| Module | OEM | Contents |
 | --- | --- | --- |
-| [`include/vm_can.h`](include/vm_can.h) · [`src/vm_can.c`](src/vm_can.c) | `0x158d30`/`b60`/`c30` | the SocketCAN transport + the **verified** 29-bit `vm_address`↔CAN-ID bit-packing (`vm_can_open`/`tx`/`rx`). Real, standard SocketCAN C. |
-| [`include/od_table.h`](include/od_table.h) · [`src/od_table.c`](src/od_table.c) | `0x158260`/`860`/`670` | the OD descriptor + 2-byte-key comparator + linear-scan find/add + the register-thunk pattern. |
-| [`include/battery_decode.h`](include/battery_decode.h) · [`src/battery_decode.c`](src/battery_decode.c) | `0x1285c0`…`0x12da90`, `0x12cf80` | the per-signal battery payload decoders (voltage/charging/health/capacity/temperature) + the **SoC display-remap curve** `soc_to_soc_app`. |
+| [`vm_can`](src/vm_can.c) | `0x158d30/b60/c30` | SocketCAN transport + the **verified** 29-bit `vm_address`↔CAN-ID bit-packing. |
+| [`od_table`](src/od_table.c) | `0x158260/860/670` | OD descriptor + 2-byte-key comparator + scan/add + register-thunk pattern. |
+| [`battery_decode`](src/battery_decode.c) | `0x1285c0…12da90`, `0x12cf80` | primary-battery payload decoders + the **SoC display-remap curve**. |
+| [`power_control`](src/power_control.c) | `0x133590/138f90`, `0x133730…ac0` | the **battery/charger command set** (opcodes 0/1/5/6/8/9) + the `power_control_state` status callback (`IsPrimaryInserted`). |
+| [`state_manager`](src/state_manager.c) | `0x11acb0/b520/142670` | `ChangeState` / `OnStateRequest` / `StateName` + the 8-state `IStateTransitions` dispatch. |
+| [`lipo_control`](src/lipo_control.c) | `0x1136e0/11d920/12ba60` | the bq27542 gauge reads + BQ25672 buck/PGOOD control + register profiles + the PGOOD-retry / fault-recovery reset. |
+| [`low_power`](src/low_power.c) | `0x123c30/124660/124860` | `SuspendSystem` (RTC/motion wake, `/sys/power`), `poweroff`, the CAN standby broadcast + CAN-quiet check. |
+| [`switch_control`](src/switch_control.c) | `0x11e430/1477b0/148070` | the per-state power-switch matrix + the sysfs GPIO backend. |
 
-Not reconstructed (vendor/framework or no clean numeric form): the StateManager /
-state handlers / lipo_control (documented as prose below), the `status`/`warning`
-bit-field decoders (~40/~20 runtime-named booleans), and the STL/`vm`/mosquitto
-plumbing. See [`../docs/can-bus.md`](../docs/can-bus.md) for the full protocol.
+**Shared:** [`power_common.h`](include/power_common.h) — the `battery_cmd`/
+`power_state` enums, the `common_logf`/`od_pub_*`/`sysfs_*`/`gpio_*` framework
+interfaces, and the `PowerService` (0x448) offset map.
+
+Still prose-only (STL-heavy or no clean form): the `power_service.cpp`
+spine/ctor/handlers, `monitor.cpp` wiring, the `status`/`warning` bit-field
+decoders (~40/~20 runtime-named booleans), and `rtc_handler`/`wake_on_motion`/
+`eshifter_calibration` (documented below). Full MQTT catalog:
+**[`mqtt.md`](mqtt.md)**; full CAN protocol: [`../docs/can-bus.md`](../docs/can-bus.md).
 
 ## Source-module map (from embedded paths)
 
@@ -197,6 +208,120 @@ HW: TI **BQ25672** buck/charger at I²C **2-006b** (sysfs
   re-arms 1000/3000/10000/15000/30000/900000 ms by sub-state). **50 ms**
   (`FUN_001146d0`) = fast poll / state publisher.
 
+## BMS: type detection, reset & command set
+
+### Battery type: Panasonic vs DynaPack
+
+Within the `power` service the bike does **not** decide Panasonic-vs-DynaPack
+from any runtime signal — **there is no BMS-type detector in this binary.** The
+device-name fragments `battery_primary` (VA `0x15c2e8`), `_panasonic`
+(`0x15c2f8`), `_dynapack` (`0x15c308`), `_liteon_normal` (`0x15c318`),
+`_liteon_speed` (`0x15c328`) are loaded only via `ADRP(0x15c000)+ADD` (no Ghidra
+xref). An ADRP+ADD resolver over the ELF shows every genuine user is a **static
+name-table builder** — `main` and the static ctors `_INIT_7` (`0x10cee0`),
+`_INIT_11` (`0x1119d0`), `_INIT_12` (`0x111bd0`) — which concatenate the base +
+each supplier suffix (`std::string` ctor `0x112100` + `operator+` `0x111fb0`)
+and emit **all** names *unconditionally* into a global registry of
+device-firmware-target names (`battery_primary_panasonic`,
+`battery_primary_dynapack`, `charger_liteon_{normal,speed}`, `motor_control`, …).
+At each site the only branch is the stack-canary epilogue — **no `cmp` on a
+battery-type byte.**
+
+So here Panasonic/DynaPack is purely a set of **FOTA / firmware-image
+identifiers** (matched downstream against update payloads / version reporting),
+not a sensed property. Battery telemetry comes from a local TI **bq27542** fuel
+gauge over sysfs (`/sys/class/power_supply/bq27542-0/…`, `FUN_001214c0`) and the
+CAN status/health decoders expose **no** vendor/manufacturer/model field (a
+whole-binary scan finds `panasonic`/`dynapack`/`liteon` only as those fragments).
+**The supplier-selection logic is not in this `power` service** — it lives in the
+BMS firmware or another host service (the `update` service matches the reported
+device version against the per-supplier firmware names). *(Confirming the exact
+matcher is the natural next step — the `update` binary is already in Ghidra.)*
+
+### Battery / charger CAN command set
+
+All battery commands are single-byte opcodes stamped into frame byte `[0]` and
+published to the **power-control board** (node `a0=0xA3`, `a1=0x01`; OD index
+`0x1a3`, descriptor `0x8201a3`) — **not** to battery node `0xA4` directly; the
+power-control board relays to the battery. Send path: `FUN_00133590` →
+`FUN_00138f90` stamps the opcode → publish frame `obj+0x40` via the OD/TP client
+`obj+0x90` (`FUN_00157ca0`, 3 retries / 100 ms). CAN id
+`(0xA3<<21)|(0x01<<13)|(0x82<<5)|EFF ≈ 0x14603040`.
+
+| cmd | meaning | wrapper | notes |
+| --- | --- | --- | --- |
+| `0` | **Battery OFF** | `FUN_00133730` | shipping / fully-charged / maintenance / charge-worker |
+| `1` | **Battery ON** | `FUN_001335d0` | `PowerService_TurnOn`, fault recovery |
+| `5` | **IdentifyCharger** | `FUN_00133660` | `power_control.cpp:0xd4`; first runs the charger clear-test |
+| `6` | **Battery RESET** | `FUN_00133ac0` | `power_control.cpp:0xf0` *"Sending battery reset command"* |
+| `8` | **Shipping mode** | `FUN_00133780` | final step after power-off (*"Entering shipping mode"*) |
+| `9` | **Clear fault flags** | `FUN_001337d0` | *"Try to clear battery flags."* |
+
+(`get_xrefs_to FUN_00133590` returns exactly these six sites; the `#5`/`#6`
+opcodes are `strb`-verified in machine code.)
+
+Separate **raw charger clear-test** (`power_control_clear_charger_test_burnin`
+`0x133620`, `power_control.cpp:0xca`) — two `system()` `cansend` calls to the
+**charger** node `0xA7`: `cansend vcan0 14E23214#A55A00` (set) /
+`14E23210#A55A00` (clear), payload `A5 5A 00`.
+
+### BMS reset flow
+
+- **MQTT-triggered:** `maintenance/battery/primary/reset` → `FUN_00112a50`
+  (*"MQTT Request to Reset Primary Battery."*) → cmd `6` → `nanosleep` ~16 s →
+  *"Primary Battery Reset completed - going to Standby."* → `PowerService_OnStandby`.
+- **Automatic fault recovery** (in `lipo_buck_enable_pgood`, gated on monitor
+  flag `+0x121==1`, set when `charger_decode_mode` `monitor.cpp:0x244` returns
+  mode 2 → **the feature string** *"Battery has generic fault bit set, need to
+  reset battery"* `0x15ed28`):
+  *"Try to clear battery flags"* → cmd `9` → ~2 s → cmd `1` (ON) → if still off
+  → *"Unable to clear flags, try battery reset"* → cmd `6` (reset) → ~21 s → cmd
+  `1` → *"Battery reset succesfull, battery on."* (else *"Unable to turn on
+  battery."*, flag `+0x121=3`).
+
+### Battery insertion detection (`BatteryINS-DET`)
+
+Detected by **CAN status bits, not GPIO**. The log `IsPrimaryInserted: %d
+BatteryINS-DET: %d BatteryINS-DET FAIL: %d` reads three bit-fields:
+
+| field | slot | source bit |
+| --- | --- | --- |
+| `IsPrimaryInserted` | power_control `+0x49` (`FUN_00133450`) | power-control status `frame[2] & 1` |
+| `BatteryINS-DET` | monitor `+0x8f` (`FUN_00128170`) | battery status `frame[6]>>5 & 1` |
+| `BatteryINS-DET FAIL` | monitor `+0x90` (`FUN_00128190`) | battery status `frame[6]>>4 & 1` |
+
+`frame[2]&1 == 0` → *"Primary battery not detected"*. No firmware debounce — FAIL
+is a BMS-reported bit. (The sysfs GPIO class that exists drives the **buck/charger**
+line, not insertion.)
+
+## Charge-supervisor worker (4000 ms)
+
+`charge_supervisor_worker` (`0x115140`, `power_service.cpp`) is the periodic
+**Standby** sub-state machine, run by `timer_4000ms_charge_supervisor`
+(`0x115a10`) while in/entering Standby. The sub-state byte is `this+0x120`; each
+pass re-arms `this+0x1f0` with a state-specific period.
+
+**Prelude** (every pass): if a charger connects in standby → *"Charger connected
+while in standby"*, arm 30000 ms, return. Else if charger present + battery up →
+`PowerService_TurnOn`, then *"Enable Buck for charging lipo"*
+(`buck_set_enable(1)`, 100 ms), byte→`1` (stamp charge-start ts); *"LiPo
+Capacity: %d Current: %d"*; if `cap==0 & Dead & I<1` → reset fuel gauge.
+
+| byte | name *(tbc)* | action | re-arm |
+| --- | --- | --- | --- |
+| `0` | kStandbyIdle/restart | Standby switches; battery on if charger off; byte→`2` | 10000 ms |
+| `1` | kStandbyLiPoCharging | charge monitoring (below) | 3000–30000 ms |
+| `2` | kStandbyGoToSleep | if battery still ON → *"Battery should be off before we go to sleep"*, byte→`0` (3000); else *"Send standby request to battery, LPC and nRF devices"*, byte→`3` (1000) | 1000–10000 ms |
+| `3` | kStandbyCheckCanQuiet | *"Check that there is no traffic on the CAN bus"* — read `/sys/class/net/vcan0/statistics/rx_packets` over 500 ms; quiet → byte→`4`; else retry ≤3 then restart | 1000 ms |
+| `4` | kStandbySuspend | VAC2/VAC1/VBUS present → *"…Stay awake."* (30000); else *"Go to sleep"*: `SuspendSystem(0x708, …)` = SetWakeAlarm + EnableWakeOnMotion (RTC/motion wake) | 1000–30000 ms |
+
+**Byte `1` detail:** elapsed ≥ 3600 s → *"Maximum lipo charge duration… going
+back to standby"* (byte→0); standalone main ECU → *"Standalone main ECU, going to
+shipping"* (`ChangeState(1)`, 900000 ms); not charging while ON → *"Battery is ON
+but not charging LiPo"* (re-toggle buck, read `PGOOD/MuxSwitch/VAC1`); `cap<31` &
+(`primary RSOC==0` or `LiPo CheckTimes==10`) → *"Can't charge LiPo, going to
+shipping"*; else continue (30000 ms).
+
 ## Primary (Panasonic) battery — CAN / Object Dictionary
 
 The bike does **not** use a raw DBC-style CAN signal table. The primary
@@ -257,8 +382,10 @@ charger is node **`a0=0xA7,a1=0x11`**. Names applied in Ghidra; map exported to
 - [x] `lipo_control` buck/charge logic (BQ25672) + `device/charger/*` reaction — done (above).
 - [x] The 50 ms / 4000 ms timer handlers — done (above).
 - [x] The **`vm` CAN wire protocol** + per-signal numeric CAN IDs — done & verified → [`../docs/can-bus.md`](../docs/can-bus.md).
-- [ ] The 4000 ms periodic worker `FUN_00115140` internals (the shipping/sleep/
-      `SuspendSystem` sub-state machine keyed on `this+0x120`).
+- [x] The 4000 ms charge-supervisor worker (sub-state machine) — done (above).
+- [x] BMS type detection, reset + command set, insertion detect — done (above).
+- [ ] Confirm the **supplier matcher** (Panasonic vs DynaPack) in the `update`
+      binary (already in Ghidra) — it's not in `power`.
 - [ ] Cross-reference the CAN node map against the other ECU targets (see
       `can-bus.md` §6).
 
