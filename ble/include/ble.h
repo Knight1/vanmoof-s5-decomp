@@ -283,8 +283,10 @@ extern int findmy_process_record_433e4(int sel);
 extern void findmy_enqueue_event_0(uint32_t code);
 /* Queue a findmy work item with type byte 1 and the given code. // 0x00058732 */
 extern void findmy_enqueue_event_1(uint32_t code);
-/* Publish payload to a bus/MQTT topic (acquires the publish lock, dispatches). // 0x00040558 */
-extern uint32_t ble_msg_publish_40558(const char *topic, const void *payload, uint32_t flag);
+/* Publish a payload to a bus/MQTT topic (acquires the publish lock, dispatches).
+ * The 3rd register arg is the payload byte length (0 for a NULL payload), not a
+ * flag. // 0x00040558 */
+extern uint32_t ble_msg_publish_40558(const char *topic, const void *payload, uint32_t len);
 /* Publish to the in-process subscriber bus, invoking each registered handler. // 0x00040618 */
 extern uint32_t ble_bus_publish_40618(uint32_t arg0, void *handler, uint32_t flag);
 /* Build + send a small JSON state message of the given type (calls 0x58766). // 0x0005876e */
@@ -334,5 +336,155 @@ void *findmy_match_provisioning_topic(void);        /* 0x0003d234 (referenced vi
 uint32_t auth_handle_connection_command(void *msg); /* 0x0003d6b0 */
 void     auth_send_connection_state(void);          /* 0x0003d840 */
 void auth_parse_certificate_challenge(uint32_t conn_handle, const uint8_t *msg, uint32_t len);  /* 0x0003d920 */
+
+
+
+
+/* ====================================================================
+ * ble connect / char / message (carved batch 3) — appended declarations
+ * ==================================================================== */
+
+/* --- types --- */
+/* 24-byte static flash-region descriptor (FTP_BLOB_TABLE entries; also the
+ * currently-selected FTP_ACTIVE_DESC target). */
+typedef struct ftp_blob_desc {
+    uint8_t     flag;     /* +0x00: 0 = erase per-page on write, non-0 = erase whole region on open */
+    uint8_t     pad1;
+    uint8_t     pad2;
+    uint8_t     pad3;
+    const char *name;     /* +0x04: region name ("app_update" / "fmna_blob") */
+    uint32_t    word8;    /* +0x08 */
+    uint32_t    offset;   /* +0x0c: flash base offset of the region */
+    uint32_t    size;     /* +0x10: region size in bytes */
+    uint32_t    callback; /* +0x14: void(*)(int status) completion callback (0 = none) */
+} ftp_blob_desc_t;
+
+/* Zephyr flash device + driver API (vendor structs; only the touched fields). */
+struct ble_flash_device;
+struct ble_flash_api {
+    int (*read)(const struct ble_flash_device *dev, uint32_t off, void *dst, uint32_t len);        /* +0x00 */
+    int (*write)(const struct ble_flash_device *dev, uint32_t off, const void *src, uint32_t len); /* +0x04 */
+    int (*erase)(const struct ble_flash_device *dev, uint32_t off, uint32_t len);                  /* +0x08 */
+};
+struct ble_flash_device {
+    const char *name;                  /* +0x00 */
+    uint32_t    config;                /* +0x04 */
+    const struct ble_flash_api *api;   /* +0x08 */
+    void       *data;                  /* +0x0c */
+};
+
+/* BLE command dispatch/broadcast table entry (12 bytes, rodata): a 16-bit
+ * command id, a Thumb handler pointer, and a per-command argument pointer. */
+typedef struct {
+    uint16_t id;       /* +0x0 */
+    uint16_t pad;      /* +0x2 */
+    uint32_t handler;  /* +0x4: Thumb code pointer (raw word); called handler(arg, id, ctx) */
+    uint32_t arg;      /* +0x8: per-command argument word (usually a rodata name pointer) */
+} ble_cmd_entry_t;
+typedef void (*ble_cmd_handler_fn)(uint32_t arg, uint16_t id, uint32_t ctx);
+
+/* --- globals --- */
+/* connect / advertise */
+#define BLE_CONNECT_MSG_HANDLE   (*(volatile int *)0x20007df7u)      /* EXT_API connect message slot id // 0x20007df7 */
+#define BLE_CONNECT_FSM_MODE     (*(volatile uint8_t *)0x20007ed5u)  /* pairing FSM mode (0 idle,1 begin,2 ready) // 0x20007ed5 */
+#define BLE_CONNECT_PAYLOAD_BUF  ((void *)0x20007dd5u)               /* 32-byte staged connect payload // 0x20007dd5 */
+#define BLE_CONNECT_PAYLOAD_LEN  (*(volatile uint32_t *)0x200008b8u) /* staged connect payload length // 0x200008b8 */
+#define BLE_COSE_AUDIENCE        ((const char *)0x000645ddu)         /* "nl.samsonit.vanmoofapp" // 0x000645dd */
+#define BLE_CONNECT_URL_BIKE_ID  ((const char *)0x000645f4u)         /* "vmf://connect?bike_id=" // 0x000645f4 */
+#define BLE_CONNECT_URL_ECU      ((const char *)0x0006460bu)         /* "vmf://connect?main_ecu_serial=" // 0x0006460b */
+#define BLE_BUS_TOPIC_VM         ((const char *)0x0006466au)         /* in-process bus topic "vm" // 0x0006466a */
+
+/* GATT characteristic value buffers / publish topics */
+#define BLE_PUBKEY_VALUE_BUF     (0x200076f7u)                /* pub_key GATT value (32B); != SETTINGS_PUB_KEY_BUF/AUTH_PUBKEY // 0x200076f7 */
+#define BLE_TOPIC_ECU_SERIAL     ((const char *)0x00064646u)  /* "vm/ecu_serial" // 0x00064646 */
+#define BLE_TOPIC_PUB_KEY        ((const char *)0x00064654u)  /* "vm/pub_key"    // 0x00064654 */
+#define BLE_TOPIC_BIKE_ID        ((const char *)0x0006465fu)  /* "vm/bike_id"    // 0x0006465f */
+
+/* ftp_command (firmware / flash-blob transfer over BLE) */
+#define BLE_FLASH_DEV        ((const struct ble_flash_device *)0x000622b8u)  /* "flash-controller@4001e000" // 0x000622b8 */
+#define FTP_REPLY_BUF        (0x20007f31u)                        /* static CBOR reply buffer (cap 0x40) // 0x20007f31 */
+#define FTP_ACTIVE_DESC      (*(volatile uint32_t *)0x20005298u)  /* active flash-blob descriptor ptr (0 = idle) // 0x20005298 */
+#define FTP_NAME_BUF         (0x20007f71u)                        /* inbound "name" scratch // 0x20007f71 */
+#define FTP_DATA_BUF         (0x20007f91u)                        /* inbound "data" scratch // 0x20007f91 */
+#define FTP_BLOB_TABLE       (0x000629acu)                        /* 2 x 24-byte ftp_blob_desc (app_update, fmna_blob) // 0x000629ac */
+#define FTP_KEY_CMD          ((const char *)0x000640b2u)   /* "cmd"        */
+#define FTP_KEY_SILENT       ((const char *)0x0006466du)   /* "silent"     */
+#define FTP_KEY_NAME         ((const char *)0x00064674u)   /* "name"       */
+#define FTP_KEY_SIZE         ((const char *)0x000646bau)   /* "size"       */
+#define FTP_KEY_INDEX        ((const char *)0x000646bfu)   /* "index"      */
+#define FTP_KEY_DATA         ((const char *)0x000646c5u)   /* "data"       */
+#define FTP_KEY_CRC          ((const char *)0x000646cau)   /* "crc"        */
+#define FTP_KEY_STATUS       ((const char *)0x000646ceu)   /* "status"     */
+#define FTP_KEY_CHUNK_SIZE   ((const char *)0x000646b4u)   /* "chunk_size" */
+#define FTP_KEY_N            ((const char *)0x000642b8u)   /* "n" (cmd-4 block count) */
+#define FTP_STR_APP_UPDATE   ((const char *)0x00064679u)   /* "app_update" */
+#define FTP_STR_FMNA_BLOB    ((const char *)0x000646aau)   /* "fmna_blob"  */
+#define FTP_STR_COMPARING    ((const char *)0x00064684u)   /* "Comparing %s with %s (%d characters)\n" */
+
+/* command dispatch (incoming requests) */
+#define BLE_CMD_KEY_TPC             ((const uint8_t *)0x000646e1u)  /* "tpc" command-id key // 0x000646e1 */
+#define BLE_CMD_KEY_SUB             ((const uint8_t *)0x000646e5u)  /* "sub" subscribe-flag key // 0x000646e5 */
+#define BLE_CMD_DISPATCH_TABLE      ((const void *)0x000671e8u)     /* 2 x 12-byte entries // 0x000671e8 */
+#define BLE_CMD_DISPATCH_TABLE_END  ((const void *)0x00067200u)
+#define BLE_CMD_BROADCAST_TABLE     ((const void *)0x00067108u)     /* 14 x 12-byte entries // 0x00067108 */
+#define BLE_CMD_BROADCAST_TABLE_END ((const void *)0x000671b0u)
+
+/* comm-port (SPI-bridge) transport */
+#define BLE_COMM_LOCK              (0x20001e38u)            /* comm-port lock object (paired with spi_bridge_unlock) // 0x20001e38 */
+#define BLE_COMM_FRAME_BUF         (0x20008191u)            /* shared framed-packet buffer (cap 0x406) // 0x20008191 */
+#define BLE_COMM_PIPE              (0x20001f18u)            /* comm-port pipe / ring object // 0x20001f18 */
+#define BLE_COMM_NOTIFY_PTR        (0x2000529cu)            /* ptr-to-consumer-notify object // 0x2000529c */
+#define BLE_DEVICE_PROVISION_WORD  (*(volatile uint32_t *)0x10001208u)  /* UICR config word (0xFFFFFFFF = unprovisioned) // 0x10001208 */
+
+/* --- vendor callees (deferred) --- */
+/* toolchain / libc */
+extern uint32_t vm_strlen_36d1c(const char *s);  /* vendor // 0x00036d1c (strlen) */
+extern void    *vm_memcpy_61e20(void *dst, const void *src, uint32_t len);  /* vendor // 0x00061e20 (forward bytewise memcpy) */
+extern int      vm_memcmp_61e00(const void *a, const void *b, uint32_t n);  /* vendor // 0x00061e00 (memcmp) */
+extern int      aeabi_d2iz(uint32_t lo, uint32_t hi);  /* vendor // 0x000234e0 (__aeabi_d2iz) */
+/* connect / secure-session / EXT_API */
+extern int  ble_cose_sign_4a7ec(const char *audience, int audience_len, const void *body, int body_len);  /* vendor // 0x0004a7ec (COSE/CWT signer) */
+extern int  ble_msg_reserve_len_59e16(int handle, uint32_t *len);  /* vendor // 0x00059e16 (GATT length-header reserve) */
+extern int  ble_msg_send_51670(int handle, uint32_t len);  /* vendor // 0x00051670 (EXT_API send/commit) */
+extern void ble_json_open_5fe82(void *json_state);  /* vendor // 0x0005fe82 (JSON open-container; -> 0x0005fe1a) */
+extern int  ble_secure_session_start_51b0c(void *handler_cb, int arg);  /* vendor // 0x00051b0c (secure-session bring-up) */
+/* ftp_command: logger / crc / CBOR / flash driver */
+extern void     ble_log_58f0a(const char *fmt, ...);  /* vendor // 0x00058f0a (printf-style logger) */
+extern uint32_t ble_crc16_58d72(const void *data, int len);  /* vendor // 0x00058d72 (CRC-16) */
+extern int      cbor_map_find_6042e(void *map_value, const char *key, void *out_cursor);  /* vendor // 0x0006042e */
+extern int      cbor_read_int_58a12(void *cursor, uint32_t *out);  /* vendor // 0x00058a12 */
+extern int      cbor_get_bstr_len_6041e(void *cursor, uint32_t *len);  /* vendor // 0x0006041e */
+extern int      cbor_copy_bstr_4c1bc(void *cursor, void *dst, uint32_t *len, int flag);  /* vendor // 0x0004c1bc */
+extern void     ble_json_emit_key_58a36(void *writer, const char *key);  /* vendor // 0x00058a36 (distinct from 0x587aa) */
+/* command dispatch: CBOR field readers */
+extern uint32_t cbor_map_get_f64(void *value_ctx, const uint8_t *key, uint32_t out[2]);  /* vendor // 0x00058bf6 */
+extern uint32_t cbor_map_get_bool(void *value_ctx, const uint8_t *key, uint32_t *out);   /* vendor // 0x00058c2c */
+/* comm-port transport primitives */
+extern int  ble_comm_lock_take_4f478(void *lock, uint32_t budget, uint32_t a, uint32_t b);  /* vendor // 0x0004f478 */
+extern int  ble_cobs_encode_61c50(const void *src, uint32_t len, void *dst, uint32_t cap);  /* vendor // 0x00061c50 (COBS framing) */
+extern int  ble_comm_pipe_write_4f7f0(void *pipe, const void *buf, uint32_t n, uint32_t *out, uint32_t min, uint32_t a, uint32_t budget, uint32_t flags);  /* vendor // 0x0004f7f0 */
+extern int  ble_comm_notify_58af4(void *obj, uint32_t mode);  /* vendor // 0x00058af4 */
+
+/* --- VanMoof callees not in this batch (forward decls; carved/declared later) --- */
+void     spi_bridge_unlock(void);                         /* 0x0003ef10 (SPI-bridge lock release) */
+uint32_t ble_msg_publish_clear_59bac(const char *topic);  /* 0x00059bac (publish topic with NULL payload) */
+void     ble_announce_command_id(uint16_t id);            /* 0x00058aa8 (broadcast one command id) */
+
+/* --- prototypes (carved batch 3) --- */
+void     ble_send_signed_connect_payload(const void *data, int data_len, const void *prefix, int prefix_len);  /* 0x0003e5b0 */
+uint32_t ble_connect_state_machine(void *msg);                             /* 0x0003e640 */
+void     ble_advertise_bike_id_payload(const void *src, uint32_t len);     /* 0x0003e6e0 */
+void     ble_advertise_ecu_serial_payload(const void *src, uint32_t len);  /* 0x0003e72c */
+int      ble_secure_session_init(void);                                    /* 0x0003e778 */
+uint32_t ble_build_connect_advert_payload(void);                           /* 0x0003e948 */
+int      ble_char_write_value_26(const void *data, uint32_t len);          /* 0x0003e818 */
+uint32_t ble_build_const_response_13(void *dst);                           /* 0x0003e860 */
+void     ble_send_32byte_value(const void *data);                          /* 0x0003e880 */
+int      ble_char_write_value_13(const void *data, uint32_t len);          /* 0x0003e8c8 */
+int      ble_bike_id_present(void);                                        /* 0x0003e924 */
+void     ble_ftp_command_handler(uint32_t a0, uint32_t a1, uint32_t conn, uint32_t src_a, uint32_t src_b);  /* 0x0003e9a0 */
+void     ble_message_dispatch_by_id(uint32_t a0, uint32_t a1, uint32_t ctx, uint32_t src, uint32_t len);    /* 0x0003edbc */
+int      ble_msg_send(const void *src, uint32_t len);                      /* 0x0003f210 */
+void     ble_uicr_write_init_flag(void);                                   /* 0x0003f2e4 */
 
 #endif /* BLE_H */
