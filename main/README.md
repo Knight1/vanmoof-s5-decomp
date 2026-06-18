@@ -38,7 +38,9 @@ repo); extract it yourself from a FOTA bundle or eMMC dump.
 | [`architecture.md`](docs/architecture.md) | the whole stack — SoC, boot/partitions, the service graph, how data flows bike ↔ cloud |
 | [`hardware.md`](docs/hardware.md) | i.MX8 peripherals — charger/gauge ICs, the two batteries, RTC/IMU, CAN/SPI/serial |
 | [`services.md`](docs/services.md) | per-service / per-binary inventory (the Go `gateway`, the C++ app suite, the bridges) |
+| [`power/`](power/) | **Ghidra reconstruction** of `power` — the battery/charger state machine, OD/CAN telemetry table, MQTT wiring |
 | [`mqtt-bus.md`](docs/mqtt-bus.md) | the internal **MQTT** IPC bus — topic namespace + the BLE role-based ACL |
+| [`can-bus.md`](docs/can-bus.md) | the **CAN** wire protocol (VanMoof `vm` library) — frame format, 29-bit ID encoding, the OD address map (verified) |
 | [`kernel-modules.md`](docs/kernel-modules.md) | the two out-of-tree `.ko`s — cryptodev + Jailhouse (both vendor) |
 | [`update.md`](docs/update.md) | the two OTA paths — i.MX8 A/B self-update + the peripheral (CAN/SMP) updater |
 | [`fota-image.md`](docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
