@@ -70,21 +70,28 @@ animation_theme,bell_sound}/set`, `ux/sound/play`,
 
 | Prefix | Owner service | Examples |
 | --- | --- | --- |
-| `power/…` | `power` | `power/state`, `power/state/set`, `power/battery/primary/info/soc`, `…/soc_app` |
+| `power/state…` | `power` | `power/state` (+ `/set`, `/status`, `/extend_timeout`), `power/deep_sleep`, `power/low_power` (+ `_extend`) — the 8-state machine (INVALID/SHIPPING/STANDBY/OPERATIONAL/CHARGING/UPDATING/ALARM/MAINTENANCE) |
 | `ride/…` | `ride` | ride telemetry / control |
 | `ux/lock/…` | `ux` | `unlock`, `touch_unlock_activate`, `touch_unlock_request`, `info/state`, `locking_while_riding` |
 | `ux/info/…`, `ux/sensor/…`, `ux/sound/play`, `ux/usb/settings/enable/set` | `ux` | UI info, sensors, sounds, USB-C charge enable |
 | `settings/…` | `ux`/config | `assist_level`, `shift_levels`, `light_mode`, `light_auto_threshold`, `bell_sound`, `brake_lights`, `turning_lights`, `ride_animation_right`, `animation_theme`, `region`, `mode` (each `…/set`) |
 | `eshifter/gear`, `eshifter/gear/set` | e-shifter (via CAN) | current / requested gear |
-| `power/battery/{lipo,primary}/info/…` | `power` | per-battery `soc`,`voltage`,`current`,`temp`,`cycles`,`health`,… (LiPo = I²C gauge; primary = CAN) |
-| `power/{state,deep_sleep,low_power,low_power_extend}` | `power` | power-state machine |
+| `power/battery/primary/info/…` | `power` | Panasonic pack (decoder-confirmed, from CAN): `soc`, `soc_app`, `voltage`, `charge_voltage`, `charge_current`, `discharge_current`, `max_current`, `temperature` (JSON: cell 1/2, chg/dsg mos), `power`, `health`, `cycles` |
+| `power/battery/lipo/info/…` | `power` | internal LiPo (I²C bq27542 gauge): `soc`, `voltage`, `current_now`, `temp`, `capacity` (+ `_lvl`), `charge_full` (+ `_design`), `cycles`, `health`, `pwr_avg`, `status` |
+| `device/charger/…` | charger → `power` | external LiteON charger status (via CAN/bridge): `connected`, `voltage`, `current`, `mode`, `finished` |
+| `maintenance/battery/primary/reset` | `power` | reset the primary pack |
 | `device/+/version/{firmware,bootloader,vendor}/#`, `device/+/status` | `update` | per-ECU version/status (drives OTA) |
 | `update/…`, `update/start` | `update` | OTA progress / trigger (see [`update.md`](update.md)) |
 | `ble/…` | BLE side | `ble/proxy`, `ble/proxy/config`, `ble/findmy/report`, `ble/findmy/certified`, `ble/system/version_info`, `ble/vars/update` |
-| `modem/…` | modem side | `modem/info/datetime`, `modem/system/time`, … |
+| `modem/…` | modem side | `modem/info/datetime`, `modem/system/time` (→ RTC), `modem/vars/update`, `modem/config/lte`, `modem/ftp/{command,reply}`, `modem/nordic/{update/config,version_info}`, `modem/system/reboot` |
 | `device/+/status`, `device/ble/#`, `device/modem/#` | per-device status | |
 | `error/#`, `info/#`, `logging/event/…` | logging/monitor | error & event reporting |
 | `ftp_server/command`, `ftp_server/reply` | `mqtt-ftp-service` | file transfer channel |
+
+The `power/…`, `power/battery/…`, `device/charger/…` and `maintenance/…` topics
+above are **decoder-confirmed** from the reversed `power` service — their payload
+formats and the CAN side are in [`../power/`](../power/) and
+[`can-bus.md`](can-bus.md).
 
 ### Find My
 

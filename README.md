@@ -84,7 +84,9 @@ nRF9160 modem, and the CAN fleet. Full analysis under [`main/docs/`](main/docs/)
 | [`architecture.md`](main/docs/architecture.md) | SoC, boot/partitions, service graph, bike ↔ cloud data flow |
 | [`hardware.md`](main/docs/hardware.md) | i.MX8 peripherals — charger/gauge ICs, the two batteries, RTC/IMU, CAN/SPI/serial |
 | [`services.md`](main/docs/services.md) | per-service / per-binary inventory (Go gateway + C++ suite + bridges) |
+| [`power/`](main/power/) | **reconstruction** of `power` — battery/charger state machine + OD/CAN telemetry + MQTT wiring |
 | [`mqtt-bus.md`](main/docs/mqtt-bus.md) | the internal MQTT bus + the BLE role-based ACL |
+| [`can-bus.md`](main/docs/can-bus.md) | the **CAN** wire protocol (`vm` library) — frame format, 29-bit ID encoding, the OD address map (verified) |
 | [`kernel-modules.md`](main/docs/kernel-modules.md) | the two out-of-tree `.ko`s — cryptodev + Jailhouse (both vendor) |
 | [`update.md`](main/docs/update.md) | the two OTA paths — i.MX8 A/B self-update + peripheral (CAN/SMP) updater |
 | [`fota-image.md`](main/docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
