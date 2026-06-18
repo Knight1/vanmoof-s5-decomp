@@ -332,7 +332,7 @@ void auth_handle_disconnect(void *conn, uint8_t reason); /* 0x3e350 */
 void auth_handle_connect(void *conn, int status); /* 0x3e3a8 */
 void *findmy_alloc_work_item(void);                 /* 0x0003d220 */
 void  findmy_send_state_report(void);               /* 0x0003d47c */
-void *findmy_match_provisioning_topic(void);        /* 0x0003d234 (referenced via AUTH_PROV_TOPIC_HANDLER) */
+void *findmy_match_provisioning_topic(const char *topic, uint32_t len);  /* 0x0003d234 (registered as a bus subscriber; also AUTH_PROV_TOPIC_HANDLER) */
 uint32_t auth_handle_connection_command(void *msg); /* 0x0003d6b0 */
 void     auth_send_connection_state(void);          /* 0x0003d840 */
 void auth_parse_certificate_challenge(uint32_t conn_handle, const uint8_t *msg, uint32_t len);  /* 0x0003d920 */
@@ -486,5 +486,96 @@ void     ble_ftp_command_handler(uint32_t a0, uint32_t a1, uint32_t conn, uint32
 void     ble_message_dispatch_by_id(uint32_t a0, uint32_t a1, uint32_t ctx, uint32_t src, uint32_t len);    /* 0x0003edbc */
 int      ble_msg_send(const void *src, uint32_t len);                      /* 0x0003f210 */
 void     ble_uicr_write_init_flag(void);                                   /* 0x0003f2e4 */
+
+
+
+
+/* ====================================================================
+ * spi_bridge + findmy_glue (carved batch 4) — appended declarations
+ * ==================================================================== */
+
+/* --- globals --- */
+/* FindMy connection slot table: 12-byte entries {auth(+0), enc(+1), word4(+4),
+ * conn(+8)} indexed by the connection slot index. // 0x20005268 */
+#define FINDMY_CONN_SLOTS        (0x20005268u)
+/* Static framed-message build buffer used by findmy_handle_conn_rx. // 0x200073c0 */
+#define FINDMY_MSG_BUILD_BUF     (0x200073c0u)
+/* Scratch frame buffer used by findmy_forward_peer_payload. // 0x200070d2 */
+#define FINDMY_FWD_SCRATCH       (0x200070d2u)
+/* Base of the 3 x 0x338-byte FindMy connection records (record base is -0x8 from
+ * this). // 0x20003358 */
+#define FINDMY_CONN_SLOT_BASE    (0x20003358u)
+/* RAM word holding the FindMy message-queue handle. // 0x20001eb0 */
+#define FINDMY_MSG_QUEUE_ADDR    (0x20001eb0u)
+/* Runtime fmna provisioning-topic table: 3 string pointers, populated when the
+ * provisioning subscriptions are registered. // 0x20000830 */
+#define FINDMY_PROV_TOPIC_TABLE  (0x20000830u)
+
+/* FindMy event-class descriptor structs (rodata; each begins with a name ptr). */
+#define FINDMY_EVT_DESC_CONN     (0x00067248u)   /* "conn_event" (== AUTH_EVT_DESC_CONNECTION) // 0x00067248 */
+#define FINDMY_EVT_DESC_AUTH     (0x00067200u)   /* "auth_event" (== addr of BLE_CMD_DISPATCH_TABLE_END) // 0x00067200 */
+#define FINDMY_EVT_DESC_SYNC     (0x00067320u)   /* "sync_event" // 0x00067320 */
+
+/* FindMy JSON field-key strings (device rodata). */
+#define FINDMY_KEY_CID           ((const char *)0x0006416fu)   /* "cid"         */
+#define FINDMY_KEY_RSSI          ((const char *)0x00064173u)   /* "rssi"        */
+#define FINDMY_KEY_ERR           ((const char *)0x00064178u)   /* "err"         */
+#define FINDMY_KEY_INTERVAL      ((const char *)0x0006417cu)   /* "interval"    */
+#define FINDMY_KEY_RX_MAX_TIME   ((const char *)0x00064185u)   /* "rx_max_time" */
+#define FINDMY_KEY_RX_MAX_LEN    ((const char *)0x00064191u)   /* "rx_max_len"  */
+#define FINDMY_KEY_ENC           ((const char *)0x0006419cu)   /* "enc"         */
+#define FINDMY_KEY_LATENCY       ((const char *)0x000640ecu)   /* "latency"     */
+#define FINDMY_KEY_TX_MAX_LEN    ((const char *)0x000640bbu)   /* "tx_max_len"  */
+#define FINDMY_KEY_TX_MAX_TIME   ((const char *)0x000640c6u)   /* "tx_max_time" */
+#define FINDMY_KEY_TIMEOUT       ((const char *)0x000645a4u)   /* "timeout"     */
+#define FINDMY_KEY_AUTH          ((const char *)0x0006434du)   /* "auth"        */
+#define FINDMY_KEY_REASON        ((const char *)0x000644feu)   /* "reason"      */
+
+/* findmy_match_provisioning_topic: rodata "/1" slot-suffix matched at topic tail. // 0x00064267 */
+#define FINDMY_PROV_TOPIC_SUFFIX     ((const char *)0x00064267u)
+/* findmy_send_state_report JSON field keys (rodata). */
+#define FINDMY_STATE_KEY_READY       ((const char *)0x00064287u)  /* "ready"       */
+#define FINDMY_STATE_KEY_ENABLED     ((const char *)0x0006428du)  /* "enabled"     */
+#define FINDMY_STATE_KEY_PAIRED      ((const char *)0x000642a8u)  /* "paired"      */
+#define FINDMY_STATE_KEY_PAIRING     ((const char *)0x00064dd2u)  /* "pairing"     */
+#define FINDMY_STATE_KEY_PROVISIONED ((const char *)0x00064295u)  /* "provisioned" */
+
+/* --- vendor callees (deferred) --- */
+/* SPI-bridge comm-port lock release primitive (Zephyr give/unblock). */
+extern int comm_lock_release_4f568(void *lock);  /* vendor // 0x0004f568 */
+/* k_msgq_put-style enqueue of a fixed-size item (basepri-fenced ring send). Shared
+ * with the (deferred) spi_bridge consumer thread. */
+extern int comm_msgq_put_4f318(void *q, const void *item, uint32_t a, uint32_t b);  /* vendor // 0x0004f318 */
+/* nRF52 POWER->RESETREAS accessors: read+remap the latched reset cause, and clear it. */
+extern uint32_t ble_resetreas_read_5f34e(uint32_t *out);  /* vendor // 0x0005f34e */
+extern uint32_t ble_resetreas_clear_5f388(void);          /* vendor // 0x0005f388 */
+/* JSON writer primitives (same vendor family as ble_json_emit_key_587aa/_5fe92):
+ * key emit, and small-integer field append. */
+extern void ble_json_key_585a2(void *writer, const char *key);   /* vendor // 0x000585a2 */
+extern void ble_json_add_field_5feae(void *writer, uint8_t value); /* vendor // 0x0005feae */
+/* TinyCBOR wrapper: init a reader over (src_a,src_b), require tag 0x60, copy the
+ * byte-string into dst bounded by max; returns the length or 0xffffffff. */
+extern uint32_t findmy_cbor_get_bstr_58cd8(void *dst, uint32_t max, uint32_t src_a, uint32_t src_b);  /* vendor // 0x00058cd8 */
+
+/* --- VanMoof callees not in this batch (forward decls; carved/declared later) --- */
+/* Build a framed FMNA transport message into buf (type/seq/chan/frame_id header,
+ * CRC-16, copied payload); returns the framed length or -1 on overflow. // 0x00058b12 */
+int findmy_build_message(void *buf, uint32_t seq, uint8_t type, uint8_t chan,
+                         uint16_t frame_id, const void *payload, int payload_len);
+/* SPI-bridge consumer thread (0x0003ef1c) — DEFERRED, not yet reconstructed; see
+ * docs/progress.md (vendor k_poll/k_pipe dataflow unresolved). */
+
+/* --- prototypes (carved batch 4) --- */
+void     findmy_handle_conn_rx(uint32_t conn, const uint16_t *buf, uint32_t len);  /* 0x0003c6f4 */
+uint32_t findmy_conn_event_handler(const uint8_t *evt);                            /* 0x0003cabc */
+void     findmy_forward_peer_payload(const uint8_t *rec);                          /* 0x0003cdcc */
+void     findmy_send_status_report(void);                                          /* 0x0003ce20 */
+void     findmy_reset_conn_slots(void);                                            /* 0x0003d134 */
+uint32_t findmy_msg_enqueue(uint32_t tag, uint8_t kind, const void *src, uint16_t len);  /* 0x0003d160 */
+void     findmy_store_provisioning_token(uint32_t a0, uint32_t a1, uint32_t a2,
+                                         uint32_t src_a, uint32_t src_b);          /* 0x0003d29c */
+/* spi_bridge_unlock (0x0003ef10), findmy_alloc_work_item (0x0003d220),
+ * findmy_match_provisioning_topic (0x0003d234) and findmy_send_state_report
+ * (0x0003d47c) are already declared above. */
 
 #endif /* BLE_H */
