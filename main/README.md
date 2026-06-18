@@ -39,14 +39,19 @@ repo); extract it yourself from a FOTA bundle or eMMC dump.
 | [`hardware.md`](docs/hardware.md) | i.MX8 peripherals — charger/gauge ICs, the two batteries, RTC/IMU, CAN/SPI/serial |
 | [`services.md`](docs/services.md) | per-service / per-binary inventory (the Go `gateway`, the C++ app suite, the bridges) |
 | [`mqtt-bus.md`](docs/mqtt-bus.md) | the internal **MQTT** IPC bus — topic namespace + the BLE role-based ACL |
+| [`kernel-modules.md`](docs/kernel-modules.md) | the two out-of-tree `.ko`s — cryptodev + Jailhouse (both vendor) |
 | [`update.md`](docs/update.md) | the two OTA paths — i.MX8 A/B self-update + the peripheral (CAN/SMP) updater |
 | [`fota-image.md`](docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
 | [`progress.md`](docs/progress.md) | analysis tracker |
 
 ## At a glance
 
-- **SoC:** NXP **i.MX8M Nano** (quad Cortex-A53). `jailhouse.ko` present (core
-  partitioning); `imx8_bridge` runs on the Cortex-M co-core as the SPI↔CAN gateway.
+- **SoC:** NXP **i.MX8M Nano** (quad Cortex-A53, LPDDR4) — DTB model *"NXP
+  VanMoof mainECU i.MX8MNano board"*. `jailhouse.ko` partitions the Cortex-M
+  co-core (`imx8_bridge`, SPI↔CAN gateway).
+- **SPI satellites** (`vm,mainecu_spi`): nRF52840 (BLE), nRF9160 (modem),
+  **NXP SR150 UWB**, **LPC55Sxx** secure MCU. I²C: BQ25672 charger, bq27542
+  gauge, ICM-42600 IMU, IST8306 magnetometer, TAS2562 speaker amp.
 - **OS:** NXP i.MX Release Distro **5.4-zeus** (Yocto 3.0 "zeus"), kernel
   **5.4.70**, glibc **2.30**, systemd, BusyBox 1.31, mosquitto **1.6.7**.
 - **IPC:** a loopback **mosquitto** MQTT broker is the internal message bus.
