@@ -85,6 +85,7 @@ nRF9160 modem, and the CAN fleet. Full analysis under [`main/docs/`](main/docs/)
 | [`hardware.md`](main/docs/hardware.md) | i.MX8 peripherals — charger/gauge ICs, the two batteries, RTC/IMU, CAN/SPI/serial |
 | [`services.md`](main/docs/services.md) | per-service / per-binary inventory (Go gateway + C++ suite + bridges) |
 | [`mqtt-bus.md`](main/docs/mqtt-bus.md) | the internal MQTT bus + the BLE role-based ACL |
+| [`kernel-modules.md`](main/docs/kernel-modules.md) | the two out-of-tree `.ko`s — cryptodev + Jailhouse (both vendor) |
 | [`update.md`](main/docs/update.md) | the two OTA paths — i.MX8 A/B self-update + peripheral (CAN/SMP) updater |
 | [`fota-image.md`](main/docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
 
@@ -92,7 +93,7 @@ nRF9160 modem, and the CAN fleet. Full analysis under [`main/docs/`](main/docs/)
 
 | Component | Image | MCU | Size | Status |
 | --- | --- | --- | --- | --- |
-| [`ble`](ble/) | `ble.*.bin` | Nordic **nRF52840** *(tbc)*, Zephyr + SoftDevice Controller | ~273 KB | **active** — base fixed to `0x23000`, 2015 fns; **50 VanMoof fns** (auth/ble/settings/findmy-glue) classified (**38 reconstructed to C**), rest vendor (incl. 118 Apple Find My, deferred) |
+| [`ble`](ble/) | `ble.*.bin` | Nordic **nRF52840** *(tbc)*, Zephyr + SoftDevice Controller | ~273 KB | **active** — base fixed to `0x23000`, 2015 fns; **50 VanMoof fns** (auth/ble/settings/findmy-glue) classified (**49 reconstructed to C**), rest vendor (incl. 118 Apple Find My, deferred) |
 | `modem` | `modem.*.bin` | Nordic **nRF9160** (LTE-M/NB-IoT + GNSS), Zephyr | ~302 KB | pending |
 
 Both carry an MCUboot image header (`0x96f3b83d`); the payload is a Zephyr/nRF
@@ -102,12 +103,19 @@ Connect SDK application. `modem` also ships a vendor modem firmware
 ### Sub-ECUs (ARM Cortex-M, raw vector table)
 
 All start with a Cortex-M vector table (initial SP `0x2000_8000`, except
-`user_ecu` at `0x2001_0000`). Part numbers *(tbc)* via Ghidra.
+`user_ecu` at `0x2001_0000`). Part numbers *(tbc)* via Ghidra. Each in-house
+image carries a **`VMFW` ("VanMoof FirmWare") header at `0x134`** (right after
+the vector table): magic, version/CRC, the image length at `0x140`, and the
+build `__DATE__`/`__TIME__` (`Jan 29 2024 14:50:32` for this release). The
+header is shared by `imx8_bridge`, `elock`, `eshifter`, the lights,
+`motor_sensor`, the power boards, and `user_ecu` — but **not** `ble`/`modem`
+(MCuboot `0x96f3b83d`) or `motor_control` (header `0x000008aa`). The updater's
+per-page CRC flashing keys off it (see [`main/docs/update.md`](main/docs/update.md)).
 
 | Component | Image | Role | Size | Status |
 | --- | --- | --- | --- | --- |
 | [`user_ecu`](user_ecu/) | `user_ecu.*.bin` | handlebar controller — **Cortex-M4F**, **FreeRTOS**; handlebar buttons + cluster LEDs, sensors, USB-C phone-charge monitor; I²C+CRC-8 + CAN comms | ~106 KB | **active** — 192 fns analyzed, **~121 reconstructed to C**; boot/comms/control/FOTA/buttons/LED documented |
-| `imx8_bridge` | `imx8_bridge.*.bin` | gateway between the i.MX8 and the ECU/CAN bus | ~24 KB | pending |
+| [`imx8_bridge`](imx8_bridge/) | `imx8_bridge.*.bin` | SPI(i.MX8)↔CAN(fleet) bridge — **Cortex-M + FreeRTOS** (`CanTX`); discrete MCU (likely the `lpc55sxx` SPI satellite), 61-IRQ NVIC, SP `0x2000_8000` | ~24 KB | **scoped** — static first-look done; Ghidra pending |
 | `motor_control` | `motor_control.*.bin` | motor controller (non-standard header `0x000008aa`) | ~25 KB | pending |
 | `motor_sensor` | `motor_sensor.*.bin` | motor position/torque sensing | ~25 KB | pending |
 | `power_control` | `power_control.*.bin` | power management | ~29 KB | pending |
