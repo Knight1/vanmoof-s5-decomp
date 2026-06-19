@@ -11,6 +11,13 @@ import (
 	"github.com/VanMoof/embedded/gateway/internal/telemetry"
 )
 
+// telemetryConfigField is the desired-state field carrying the telemetry
+// configuration JSON (consumed by Run -> Collector.SetConfig).
+const telemetryConfigField = "telemetry-config"
+
+// bikeIDField is the desired/reported shadow field carrying the bike id.
+const bikeIDField = "bike_id"
+
 // ConfigShadow ties the AWS Device Shadow to the local runtime config: it
 // pushes the initial telemetry configuration to the collector and keeps the
 // bike id in sync between the shadow's desired/reported state and the local
