@@ -31,12 +31,16 @@ type ConfigShadow struct {
 	telemetry telemetry.Config
 }
 
-// NewConfigShadow builds the config shadow. (Inlined into New @0x2b6680.)
-func NewConfigShadow(log *zap.Logger, sc *shadow.Client, c *telemetry.Collector) *ConfigShadow {
+// NewConfigShadow builds the config shadow. bikeID seeds the local bike id
+// (from the provisioning data) so HasBikeID / syncBikeID have the local value
+// to reconcile against the shadow's desired/reported state. (Inlined into New
+// @0x2b6680.)
+func NewConfigShadow(log *zap.Logger, sc *shadow.Client, c *telemetry.Collector, bikeID string) *ConfigShadow {
 	return &ConfigShadow{
 		log:       log,
 		shadow:    sc,
 		collector: c,
+		bikeID:    bikeID,
 	}
 }
 
@@ -60,7 +64,18 @@ func (cs *ConfigShadow) Sync(ctx context.Context) error {
 		return err
 	}
 
-	cs.telemetry = telemetry.ParseShadowConfig(state)
+	// The "telemetry-config" desired field is decoded and stored as the initial
+	// telemetry config. The desired section is opaque JSON (json.RawMessage); a
+	// shadow.Document accessor reads the field, and the embedded JSON is parsed
+	// by telemetry.ParseConfig.
+	desired := shadow.NewDocument(state.Desired, nil)
+	if f := desired.Field(telemetryConfigField); f != nil {
+		cfg, err := telemetry.ParseConfig([]byte(f.Value.Raw))
+		if err != nil {
+			return fmt.Errorf("parse telemetry config: %w", err)
+		}
+		cs.telemetry = cfg
+	}
 
 	if err := cs.syncBikeID(ctx, state); err != nil {
 		return fmt.Errorf("check bike id: %w", err)
@@ -84,9 +99,21 @@ func (cs *ConfigShadow) Sync(ctx context.Context) error {
 // "actual"/"allow", "Bike id is in sync", "Reporting bike id",
 // "Updating bike id", "report bike id: %w", "set bike id in report: %w",
 // "set bike id %q -> %q: %w".
-func (cs *ConfigShadow) syncBikeID(ctx context.Context, state shadow.State) error {
-	desired, hasDesired := state.Desired.Field("bike_id")
-	reported, _ := state.Reported.Field("bike_id")
+func (cs *ConfigShadow) syncBikeID(ctx context.Context, state *shadow.State) error {
+	// The desired/reported sections are opaque JSON (json.RawMessage); a
+	// shadow.Document accessor reads the "bike_id" field out of each.
+	desiredDoc := shadow.NewDocument(state.Desired, nil)
+	reportedDoc := shadow.NewDocument(state.Reported, nil)
+
+	var desired, reported string
+	desiredField := desiredDoc.Field(bikeIDField)
+	hasDesired := desiredField != nil
+	if hasDesired {
+		desired = desiredField.String()
+	}
+	if reportedField := reportedDoc.Field(bikeIDField); reportedField != nil {
+		reported = reportedField.String()
+	}
 
 	if hasDesired && desired == reported && desired == cs.bikeID {
 		cs.log.Info("Bike id is in sync", zap.String("bike_id", cs.bikeID))
@@ -107,11 +134,11 @@ func (cs *ConfigShadow) syncBikeID(ctx context.Context, state shadow.State) erro
 		zap.String("actual", cs.bikeID),
 		zap.String("allow", cs.bikeID))
 
-	doc := shadow.NewDocument()
-	if err := doc.SetField("bike_id", cs.bikeID); err != nil {
+	doc := shadow.NewDocument(nil, nil)
+	if err := doc.SetField(bikeIDField, cs.bikeID); err != nil {
 		return fmt.Errorf("set bike id in report: %w", err)
 	}
-	if err := cs.shadow.Report(ctx, doc); err != nil {
+	if err := cs.shadow.Report(ctx, doc.JSON()); err != nil {
 		return fmt.Errorf("report bike id: %w", err)
 	}
 	return nil

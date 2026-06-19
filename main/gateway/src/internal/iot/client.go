@@ -73,15 +73,16 @@ func NewClient(endpoint string, cert, key []byte, serial string, idle time.Durat
 		Certificates: []tls.Certificate{clientCert},
 		MinVersion:   tls.VersionTLS12, // 0x0303
 	}
-	_ = tlsConfig // consumed by the mTLS transport once the seam below is wired
 
-	// TODO(seam): internal/mqtt exposes no constructor (mqtt.NewClient /
-	// mqtt.New does not exist in the settled mqtt seam) and its Client fields
-	// are unexported, so the mTLS transport cannot be built from here. The OEM
-	// transport (cloud, TLS-pinned) also differs from the loopback mqtt.Client.
-	// Needs mqtt to export a constructor taking (mqtt.Config, *tls.Config,
-	// *zap.Logger) before NewClient can be completed.
-	var transport *mqtt.Client
+	// The cloud transport is the same *mqtt.Client driving a TLS net.Conn: the
+	// provisioned endpoint plus the mTLS tls.Config are threaded through
+	// mqtt.Config (TLSConfig non-nil switches dial to the TLS handshake). The
+	// MQTT ClientID is the device serial / thing name.
+	transport := mqtt.NewClient(mqtt.Config{
+		Endpoint:  endpoint,
+		ClientID:  serial,
+		TLSConfig: tlsConfig,
+	}, log)
 
 	return &Client{
 		mqtt:   transport,
@@ -97,13 +98,27 @@ func NewClient(endpoint string, cert, key []byte, serial string, idle time.Durat
 //
 // OEM 0x2b10a0
 func (c *Client) Publish(batch telemetry.Batch) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	payload, err := batch.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("marshal batch: %w", err)
 	}
+	return c.publish(payload)
+}
+
+// PublishRaw publishes an already-encoded telemetry payload over the modem link
+// (the topic argument is the Router's "telemetry/<bike-id>" key; the AWS rules
+// topic is derived from the device serial, as in Publish). It satisfies the
+// modem side of telemetry.Transport once adapted by the gateway, so the Router
+// can fan an already-flushed batch out without re-marshalling.
+func (c *Client) PublishRaw(_ string, payload []byte) error {
+	return c.publish(payload)
+}
+
+// publish ships an encoded telemetry payload to the AWS IoT rules topic for this
+// device and (re)arms the idle auto-disconnect timer. Caller must not hold c.mu.
+func (c *Client) publish(payload []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	topic := fmt.Sprintf(telemetryTopicFmt, c.serial)
 
@@ -155,30 +170,29 @@ func (c *Client) Disconnect() {
 // that answers on "<topic>/accepted" and "<topic>/rejected". It mints a unique
 // clientToken (a base-36 sequence counter), injects it into the request,
 // subscribes to both reply topics, publishes the request, and waits for the
-// reply whose clientToken matches — delivering it (or an error response) back
-// to the caller. This is the transport beneath the Device Shadow get/update
-// flow.
+// reply whose clientToken matches — delivering the raw reply PUBLISH (its Topic
+// distinguishes accepted vs rejected, its Payload carries the body) back to the
+// caller. This is the transport beneath the Device Shadow get/update and the
+// Jobs request/response flows.
 //
 // OEM 0x2b1910
-func (c *Client) Perform(topic string, request []byte) ([]byte, error) {
+func (c *Client) Perform(ctx context.Context, topic string, payload []byte) (*paho.Publish, error) {
 	token := c.nextClientToken()
 
 	accepted := topic + "/accepted"
 	rejected := topic + "/rejected"
 
-	ctx := context.Background()
-	resp := make(chan response, 1)
+	resp := make(chan *paho.Publish, 1)
 
 	// OEM 0x2b2060  (Perform.func1) — the reply correlator. Both the
-	// "/accepted" and "/rejected" reply topics share this callback; the
-	// rejected topic carries r.Err.
+	// "/accepted" and "/rejected" reply topics share this callback; the caller
+	// distinguishes them by the reply's Topic suffix.
 	handler := func(p *paho.Publish) {
-		r := parseResponse(p)
-		if r.ClientToken != token {
+		if matchClientToken(p) != token {
 			return // not ours
 		}
 		select {
-		case resp <- r:
+		case resp <- p:
 		default:
 		}
 	}
@@ -192,7 +206,7 @@ func (c *Client) Perform(topic string, request []byte) ([]byte, error) {
 	}
 	defer c.mqtt.Unsubscribe(ctx, []string{accepted, rejected})
 
-	body, err := injectClientToken(request, token)
+	body, err := injectClientToken(payload, token)
 	if err != nil {
 		return nil, fmt.Errorf("marshal: %w", err)
 	}
@@ -200,32 +214,34 @@ func (c *Client) Perform(topic string, request []byte) ([]byte, error) {
 		return nil, fmt.Errorf("publish get: %w", err)
 	}
 
-	r := <-resp
-	if r.Err != nil {
-		return nil, r.Err
+	select {
+	case r := <-resp:
+		return r, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return r.Payload, nil
 }
 
-// response is a correlated reply to a Perform request. The clientToken pairs
-// the reply with its request; a non-nil Err marks a "/rejected" reply.
+// Subscribe registers cb for inbound PUBLISHes on topic (QoS 1) and forwards to
+// the underlying MQTT transport. The jobs client uses this for notify-next.
 //
-// OEM: the Perform.func1 closure decodes the inbound payload into this shape.
-type response struct {
-	ClientToken string
-	Payload     []byte
-	Err         error
+// OEM: inlined into job.Client.Start (the c.mqtt.Subscribe call).
+func (c *Client) Subscribe(ctx context.Context, topic string, cb func(*paho.Publish)) error {
+	return c.mqtt.Subscribe(ctx, []mqtt.Subscription{{Topic: topic, QoS: 1, Callback: cb}})
 }
 
-// parseResponse extracts the clientToken from an inbound shadow/job reply and
-// carries the raw payload back to the waiting Perform call. AWS IoT replies are
-// JSON; the clientToken lives at the document root.
-func parseResponse(p *paho.Publish) response {
-	payload := p.Payload
-	return response{
-		ClientToken: gjson.GetBytes(payload, "clientToken").String(),
-		Payload:     payload,
-	}
+// Unsubscribe removes the subscription for topic on the underlying transport.
+//
+// OEM: inlined into job.Client.Stop (the c.mqtt.Unsubscribe call).
+func (c *Client) Unsubscribe(ctx context.Context, topic string) error {
+	return c.mqtt.Unsubscribe(ctx, []string{topic})
+}
+
+// matchClientToken extracts the clientToken from an inbound shadow/job reply so
+// the waiting Perform call can correlate it. AWS IoT replies are JSON; the
+// clientToken lives at the document root.
+func matchClientToken(p *paho.Publish) string {
+	return gjson.GetBytes(p.Payload, "clientToken").String()
 }
 
 // injectClientToken sets the "clientToken" field on a JSON request document so

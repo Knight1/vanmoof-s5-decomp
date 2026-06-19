@@ -71,6 +71,32 @@ type mqttClient interface {
 	Unsubscribe(ctx context.Context, topic string) error
 }
 
+// NewClient constructs the AWS IoT Jobs client. mc is the correlated IoT MQTT
+// wrapper, thingName is the AWS IoT thing name (== bike serial), and log is the
+// sugared logger used by Start/execute. The handler map starts empty; the
+// gateway installs handlers via Register (only "log_upload" in this build).
+//
+// OEM: inlined into gateway.New (0x2b6680); no standalone symbol.
+func NewClient(mc mqttClient, thingName string, log *zap.SugaredLogger) *Client {
+	return &Client{
+		mqtt:      mc,
+		thingName: thingName,
+		handlers:  map[string]handler{},
+		log:       log,
+	}
+}
+
+// Register installs a handler for a job document "type". The public handler
+// takes the raw job-document bytes; Register wraps it into the internal handler
+// shape, forwarding doc.Raw (the raw job document populated in execute).
+//
+// OEM: the inlined wiring does a single mapassign with key "log_upload".
+func (c *Client) Register(jobType string, h func(ctx context.Context, doc []byte) error) {
+	c.handlers[jobType] = func(ctx context.Context, doc document) error {
+		return h(ctx, doc.Raw)
+	}
+}
+
 // Start subscribes to the thing's notify-next topic and then immediately drains
 // any executions already queued in the cloud.
 //
@@ -144,6 +170,9 @@ func (c Client) execute(ctx context.Context, exec executionSummary) (err error) 
 	if uerr := json.Unmarshal(exec.JobDocument, &doc); uerr != nil {
 		return fmt.Errorf("unmarshal job document: %w", uerr) // @0x2d9722
 	}
+	// Preserve the raw job-document bytes so registered handlers (which take the
+	// raw document) can read their own fields directly.
+	doc.Raw = exec.JobDocument
 
 	// Per-job context carrying the job's timeout (timeoutInMinutes, default 1h).
 	ctx, cancel := doc.Context(ctx)

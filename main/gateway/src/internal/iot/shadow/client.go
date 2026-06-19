@@ -42,6 +42,20 @@ type mqttClient interface {
 	Perform(ctx context.Context, topic string, payload []byte) (*paho.Publish, error)
 }
 
+// NewClient constructs a Device Shadow client for one named shadow. It is wired
+// up by the top-level gateway: mc is the correlated IoT MQTT wrapper, thingName
+// is the AWS IoT thing name (== bike serial), and shadowName selects the named
+// shadow ("configshadow"). The token counter starts at zero.
+//
+// OEM: inlined into gateway.New (0x2b6680); no standalone symbol.
+func NewClient(mc mqttClient, thingName, shadowName string) *Client {
+	return &Client{
+		mqtt:       mc,
+		thingName:  thingName,
+		shadowName: shadowName,
+	}
+}
+
 // topic builds a $aws/things/<thing>/shadow/name/<name>/<suffix> topic.
 //
 // OEM 0x... (shadow.(*Client).topic)

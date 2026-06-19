@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/eclipse/paho.golang/paho"
 	"go.uber.org/zap"
 
 	"github.com/VanMoof/embedded/gateway/internal/bike"
@@ -27,6 +28,76 @@ import (
 	"github.com/VanMoof/embedded/gateway/internal/mqtt"
 	"github.com/VanMoof/embedded/gateway/internal/telemetry"
 )
+
+// eventBus adapts the loopback *mqtt.Client to the event.Bus seam. event.Bus
+// wants a single-topic Subscribe whose callback receives (topic, payload);
+// mqtt.Client.Subscribe takes (ctx, []mqtt.Subscription) with a
+// func(*paho.Publish) callback. This shim bridges the two settled seams (the
+// OEM event handlers subscribe through the same bus the collector uses).
+type eventBus struct {
+	ctx    context.Context
+	client *mqtt.Client
+}
+
+// Subscribe satisfies event.Bus, forwarding to the mqtt client's
+// (ctx, []mqtt.Subscription) Subscribe and translating each inbound
+// *paho.Publish into the (topic, payload) callback shape.
+func (b eventBus) Subscribe(topic string, handler func(topic string, payload []byte)) error {
+	return b.client.Subscribe(b.ctx, []mqtt.Subscription{{
+		Topic: topic,
+		QoS:   1,
+		Callback: func(p *paho.Publish) {
+			handler(p.Topic, p.Payload)
+		},
+	}})
+}
+
+// busPublisher adapts the loopback *mqtt.Client to ble.Publisher. ble.Publisher
+// wants Publish(topic, payload, qos, retain) with NO context; mqtt.Client.Publish
+// takes a leading context.Context, so this shim binds a background context in
+// front of the bus publish (the BLE proxy republishes onto the local bus).
+type busPublisher struct {
+	client *mqtt.Client
+}
+
+// Publish satisfies ble.Publisher, prefixing the bound context to the bus
+// publish.
+func (p busPublisher) Publish(topic string, payload []byte, qos byte, retain bool) error {
+	return p.client.Publish(context.Background(), topic, payload, qos, retain)
+}
+
+// modemTransport adapts the AWS *iot.Client to telemetry.Transport. The Router
+// hands an already-flushed (CBOR+zlib-encoded) batch as (topic, payload); the
+// modem link forwards it via PublishRaw (the AWS rules topic is derived from the
+// device serial inside the iot client).
+type modemTransport struct {
+	client *iot.Client
+}
+
+// Publish satisfies telemetry.Transport for the modem link.
+func (t modemTransport) Publish(topic string, payload []byte) error {
+	return t.client.PublishRaw(topic, payload)
+}
+
+// rawBatch wraps an already-encoded telemetry payload so it satisfies ble.Batch
+// (MarshalBinary returns the bytes verbatim); the BLE proxy CBOR-wraps and
+// republishes it onto the relay topic.
+type rawBatch []byte
+
+// MarshalBinary returns the pre-encoded batch bytes unchanged.
+func (b rawBatch) MarshalBinary() ([]byte, error) { return b, nil }
+
+// proxyTransport adapts the *ble.Proxy to telemetry.Transport. The Router hands
+// an already-flushed batch as (topic, payload); the proxy republishes it onto
+// the BLE relay topic when the BLE side is connected.
+type proxyTransport struct {
+	proxy *ble.Proxy
+}
+
+// Publish satisfies telemetry.Transport for the BLE proxy link.
+func (t proxyTransport) Publish(topic string, payload []byte) error {
+	return t.proxy.Publish(rawBatch(payload))
+}
 
 // Gateway is the fully-wired application. It owns the MQTT bus client, the AWS
 // IoT client, the telemetry collector and transport router, the jobs client,
@@ -85,65 +156,37 @@ func New(log *zap.Logger, prov bike.ProvisioningData, fw string, cfg telemetry.C
 	}
 	g.iot = iotClient
 
-	// Loopback bus client.
-	//
-	// TODO(seam): internal/mqtt exposes no exported constructor (no mqtt.New /
-	// mqtt.NewClient) and its Client fields are all unexported, so the loopback
-	// bus client cannot be built from here. The settled mqtt seam needs to
-	// export a constructor taking (mqtt.Config, *zap.Logger). Until then g.mqtt
-	// is left nil; the bus-backed paths (collector subscribe, event handlers,
-	// ble proxy publish) cannot run.
-	g.mqtt = nil
+	// Loopback bus client (mqtt://localhost:1883). KeepAlive 1s; the auto-reconnect
+	// back-off defaults to 1s ("ConnectRetryDelay 1s").
+	g.mqtt = mqtt.NewClient(mqtt.Config{
+		Endpoint:  "mqtt://localhost:1883",
+		ClientID:  "gateway",
+		KeepAlive: time.Second,
+	}, log.Named("mqtt"))
 
-	// Telemetry collector + transport router; seed static metadata.
-	//
-	// TODO(seam): internal/telemetry exposes no exported Collector constructor
-	// (no telemetry.NewCollector) and its Collector fields are unexported, so
-	// the collector cannot be built from here. The settled telemetry seam needs
-	// to export a constructor taking (*zap.Logger, *mqtt.Client, publisher).
-	// Until then g.collector is left nil.
-	g.collector = nil
+	// BLE proxy transport. NewProxy is (ble.Publisher, *zap.Logger); the loopback
+	// bus client is the publisher, adapted to drop the leading context.
+	g.bleProxy = ble.NewProxy(busPublisher{g.mqtt}, log.Named("bleproxy"))
 
-	// BLE proxy transport. NewProxy is (Publisher, *zap.Logger); the loopback
-	// bus client is the Publisher.
-	//
-	// NOTE(seam): ble.NewProxy wants a ble.Publisher whose Publish is
-	// (topic, payload, qos, retain) with NO context; mqtt.Client.Publish takes
-	// a leading context.Context, so *mqtt.Client does not satisfy ble.Publisher.
-	// A nil Publisher is passed for now (g.mqtt is nil anyway — see above).
-	g.bleProxy = ble.NewProxy(nil, log.Named("bleproxy"))
+	// Transport router: modem link is the AWS IoT client, proxy link is the BLE
+	// proxy. Each is adapted to telemetry.Transport's (topic, payload) Publish.
+	// Built before the collector, since the router is the collector's publisher.
+	g.router = telemetry.NewRouter(modemTransport{g.iot}, proxyTransport{g.bleProxy})
 
-	// Transport router: modem link is the AWS IoT client, proxy link is the
-	// BLE proxy.
-	//
-	// NOTE(seam): telemetry.NewRouter wants two telemetry.Transport values
-	// whose Publish is (topic string, payload []byte) error. iot.Client.Publish
-	// is (telemetry.Batch) and ble.Proxy.Publish is (ble.Batch), so neither
-	// satisfies telemetry.Transport directly; nil transports are passed until
-	// the seam exposes (topic, payload) publish adapters.
-	g.router = telemetry.NewRouter(nil, nil)
+	// Telemetry collector + static metadata. The collector subscribes the local
+	// bus and flushes batches through the router; bikeID keys the cloud topic.
+	g.collector = telemetry.NewCollector(log.Named("telemetry"), g.mqtt, g.router, prov.BikeID)
+	g.collector.SetFirmware(fw)
+	g.collector.SetECU(prov.Serial)
 
-	// Device shadow + config shadow.
-	//
-	// TODO(seam): internal/iot/shadow exposes no exported Client constructor
-	// (no shadow.NewClient) and its Client fields are unexported, so the shadow
-	// client cannot be built from here. The settled shadow seam needs to export
-	// a constructor taking (mqttClient, thingName, shadowName). Until then
-	// g.shadow is left nil and ConfigShadow.Sync cannot run.
-	g.shadow = nil
-	g.config = NewConfigShadow(log.Named("config"), g.shadow, g.collector)
+	// Device shadow + config shadow. The shadow rides the correlated IoT client
+	// (Perform); "configshadow" is the named shadow.
+	g.shadow = shadow.NewClient(g.iot, prov.Serial, "configshadow")
+	g.config = NewConfigShadow(log.Named("config"), g.shadow, g.collector, prov.BikeID)
 
 	// Jobs client, with the single registered handler "log_upload".
-	//
-	// TODO(seam): internal/iot/job exposes no exported Client constructor
-	// (no job.NewClient), no (*Client).Register method and no exported job
-	// Document type (handler/document are unexported). So the jobs client cannot
-	// be constructed or have the "log_upload" handler registered from here. The
-	// settled job seam needs to export a constructor and a handler-registration
-	// API. Until then g.jobs is left nil; NewLogJobHandler is retained for when
-	// the seam is wired.
-	g.jobs = nil
-	_ = NewLogJobHandler(log, prov)
+	g.jobs = job.NewClient(g.iot, prov.Serial, log.Named("jobclient").Sugar())
+	g.jobs.Register("log_upload", NewLogJobHandler(log, prov).Handle)
 
 	return g, nil
 }
@@ -174,13 +217,14 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	g.log.Info("Start gateway")
 
-	if err := event.HandleTimezone(g.mqtt, g.setTimezone); err != nil {
+	bus := eventBus{ctx: ctx, client: g.mqtt}
+	if err := event.HandleTimezone(bus, g.setTimezone); err != nil {
 		return fmt.Errorf("handle timezone: %w", err)
 	}
-	if err := event.HandleBLE(g.mqtt, g); err != nil {
+	if err := event.HandleBLE(bus, g); err != nil {
 		return fmt.Errorf("handle BLE: %w", err)
 	}
-	if err := event.HandleProxyConfig(g.mqtt, g.handleProxyConfig); err != nil {
+	if err := event.HandleProxyConfig(bus, g.handleProxyConfig); err != nil {
 		return fmt.Errorf("handle proxy config: %w", err)
 	}
 

@@ -7,6 +7,7 @@ package mqtt
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -36,6 +37,50 @@ type Config struct {
 	// ConnectTimeout bounds dialing + the MQTT CONNECT exchange. Defaults to
 	// 60s when zero.
 	ConnectTimeout time.Duration
+	// ConnectRetryDelay is the fixed back-off between automatic reconnect
+	// attempts after an unexpected disconnect. Defaults to
+	// defaultReconnectDelay (1s) when zero.
+	//
+	// OEM: gateway.New stores 1e9 ns ("ConnectRetryDelay 1s") into the loopback
+	// Client's reconnectDelay field.
+	ConnectRetryDelay time.Duration
+	// TLSConfig, when non-nil, switches the dial step to a TLS handshake over
+	// the TCP socket (the AWS-IoT mTLS transport). When nil the broker is
+	// reached over plain TCP (the loopback transport).
+	//
+	// OEM: dial branches on this field — non-nil performs the TLS client
+	// handshake ("tls handshake: %w"), nil returns the raw TCP conn.
+	TLSConfig *tls.Config
+}
+
+// defaultReconnectDelay is the fixed auto-reconnect back-off applied when a
+// Config does not specify one.
+//
+// OEM: gateway.New seeds the loopback Client's reconnectDelay with 1e9 ns
+// alongside the 1s KeepAlive ("ConnectRetryDelay 1s").
+const defaultReconnectDelay = 1 * time.Second
+
+// NewClient constructs a Client from cfg and log. It wires the configuration
+// and reconnect back-off; the TCP/TLS connection is established lazily on the
+// first Publish/Subscribe (and re-established on demand by the reconnect path).
+//
+// The loopback transport passes a plain Config{Endpoint, ClientID, KeepAlive};
+// the AWS-IoT transport additionally sets Config.TLSConfig to drive the mTLS
+// handshake. conn/handlers/reconnect/reconnectTimer all start at their zero
+// values.
+//
+// OEM 0x2b6680 (gateway.New) / 0x2b0c20 (iot.NewClient) — both inline this
+// allocation; there is no standalone mqtt.NewClient symbol in the image.
+func NewClient(cfg Config, log *zap.Logger) *Client {
+	delay := cfg.ConnectRetryDelay
+	if delay <= 0 {
+		delay = defaultReconnectDelay
+	}
+	return &Client{
+		cfg:            cfg,
+		log:            log,
+		reconnectDelay: delay,
+	}
 }
 
 // handler associates a parsed topic Pattern with the callback to run for every
@@ -74,7 +119,7 @@ func (c *Client) connect(ctx context.Context) error {
 	c.abortReconnect()
 
 	c.log.Info("Dialing TCP endpoint", zap.String("endpoint", c.cfg.Endpoint))
-	conn, err := dial(ctx, c.cfg.Endpoint)
+	conn, err := dial(ctx, c.cfg.Endpoint, c.cfg.TLSConfig)
 	if err != nil {
 		return err
 	}
@@ -115,10 +160,13 @@ func (c *Client) connect(ctx context.Context) error {
 	return nil
 }
 
-// dial parses the broker URL and opens a TCP connection to its host.
+// dial parses the broker URL and opens a TCP connection to its host. When
+// tlsConfig is non-nil it then performs the TLS client handshake over the TCP
+// socket and returns the encrypted connection (the AWS-IoT mTLS transport);
+// otherwise the raw TCP connection is returned (the loopback transport).
 //
 // OEM 0x2612a0
-func dial(ctx context.Context, endpoint string) (net.Conn, error) {
+func dial(ctx context.Context, endpoint string, tlsConfig *tls.Config) (net.Conn, error) {
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("parse endpoint: %w", err)
@@ -129,7 +177,17 @@ func dial(ctx context.Context, endpoint string) (net.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("dial %s: %w", u.Host, err)
 	}
-	return conn, nil
+
+	if tlsConfig == nil {
+		return conn, nil
+	}
+
+	tlsConn := tls.Client(conn, tlsConfig)
+	if err := tlsConn.HandshakeContext(ctx); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("tls handshake: %w", err)
+	}
+	return tlsConn, nil
 }
 
 // Disconnect tears down the connection and disarms auto-reconnect.

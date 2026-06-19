@@ -56,6 +56,21 @@ type Collector struct {
 	timer    *time.Timer
 }
 
+// NewCollector builds a Collector bound to the local-bus client and the cloud
+// publisher (the Router). bikeID keys the cloud publish topic
+// "telemetry/<bikeID>". The message buffer is created lazily on the first
+// handled message, so messages/timer start nil.
+//
+// OEM source: collector.go (inlined into gateway.New @0x2b6680).
+func NewCollector(log *zap.Logger, bus *mqtt.Client, pub publisher, bikeID string) *Collector {
+	return &Collector{
+		log:    log,
+		bus:    bus,
+		pub:    pub,
+		bikeID: bikeID,
+	}
+}
+
 // SetConfig applies a new telemetry Config: it (re)computes the bus
 // subscriptions and stores the retention/interval settings. Subscribe failures
 // are wrapped "set subscriptions: %w".

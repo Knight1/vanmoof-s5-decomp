@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/VanMoof/embedded/gateway/internal/bike"
-	"github.com/VanMoof/embedded/gateway/internal/iot/job"
 )
 
 // maxLogRange caps the time window a log_upload job may request. OEM constant
@@ -52,6 +52,10 @@ func NewLogJobHandler(log *zap.Logger, prov bike.ProvisioningData) *LogJob {
 
 // Handle runs a log_upload job. OEM 0x2b8310.
 //
+// doc is the raw AWS IoT Jobs job-document JSON; the unexported job.document
+// type in the settled job seam is not exported, so the handler receives the raw
+// bytes and decodes its own fields (as the OEM log_upload handler does).
+//
 // Flow:
 //  1. Decode the job document  -> "unmarshal job document: %w".
 //  2. The document must carry an upload URL -> else "missing URL".
@@ -64,9 +68,9 @@ func NewLogJobHandler(log *zap.Logger, prov bike.ProvisioningData) *LogJob {
 //  5. PUT the temp file to the URL ("new request: %w" / "do request: %w");
 //     a 200 is success, anything else reads the body and returns
 //     "unsuccessful response: status %d, body :%s".
-func (j *LogJob) Handle(ctx context.Context, doc job.Document) error {
+func (j *LogJob) Handle(ctx context.Context, doc []byte) error {
 	var d logJobDoc
-	if err := doc.Unmarshal(&d); err != nil {
+	if err := json.Unmarshal(doc, &d); err != nil {
 		return fmt.Errorf("unmarshal job document: %w", err)
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"time"
 
@@ -42,7 +43,7 @@ func runCommand() *ffcli.Command {
 		ShortUsage: "gateway run [flags]",
 		ShortHelp:  "Start gateway",
 		FlagSet:    fs,
-		Options:    []ff.Option{ff.WithEnvVarNoPrefix()},
+		Options:    []ff.Option{ff.WithEnvVars()},
 		// OEM 0x2bf330 (runCommand.func1)
 		Exec: func(ctx context.Context, _ []string) error {
 			return runGateway(ctx, *verbose, *telemetryConfig, *autoDisconnect)
@@ -58,7 +59,15 @@ func runCommand() *ffcli.Command {
 // OEM 0x2bf330 (runCommand.func1)
 func runGateway(ctx context.Context, verbose bool, telemetryConfigPath string, autoDisconnect time.Duration) error {
 	log := gw.NewLogger(verbose) // OEM 0x2b92a0
-	root := os.Getenv(rootDirEnv)
+
+	// ROOT_DIR relocates the read-only device roots; empty = the real "/".
+	// os.DirFS rejects "", so an unset ROOT_DIR maps to "/". The result also
+	// implements fs.ReadFileFS, which FirmwareVersion needs.
+	rootDir := os.Getenv(rootDirEnv)
+	if rootDir == "" {
+		rootDir = "/"
+	}
+	root := os.DirFS(rootDir).(fs.ReadFileFS)
 
 	fw, err := bike.FirmwareVersion(root) // OEM 0x1c69b0
 	if err != nil {
@@ -67,7 +76,7 @@ func runGateway(ctx context.Context, verbose bool, telemetryConfigPath string, a
 
 	log.Info("Starting gateway")
 
-	prov, err := bike.ProvisioningData(root) // OEM 0x1c6bb0 (serial, bike_id, config.cfg, cert, key)
+	prov, err := bike.LoadProvisioningData(root) // OEM 0x1c6bb0 (serial, bike_id, config.cfg, cert, key)
 	if err != nil {
 		return fmt.Errorf("load provisioning: %w", err)
 	}
