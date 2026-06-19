@@ -24,11 +24,7 @@ func init() {
 		"^ble/findmy/fmna_auth$",
 		"^settings/backup_unlock_code$",
 	} {
-		pat, err := mqtt.ParsePattern(p)
-		if err != nil {
-			panic(err)
-		}
-		ignorePatterns = append(ignorePatterns, pat)
+		ignorePatterns = append(ignorePatterns, mqtt.ParsePattern(p))
 	}
 }
 

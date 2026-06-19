@@ -82,15 +82,19 @@ func (c *Client) connect(ctx context.Context) error {
 	c.log.Info("Connecting to MQTT broker", zap.String("client_id", c.cfg.ClientID))
 
 	pc := paho.NewClient(paho.ClientConfig{
-		Conn:               conn,
-		OnPublishReceived:  []func(paho.PublishReceived) (bool, error){},
+		Conn: conn,
+		// Inbound PUBLISH dispatch: every received message is routed through
+		// handleMessage, which fans it out to the topic-pattern handlers.
+		OnPublishReceived: []func(paho.PublishReceived) (bool, error){
+			func(pr paho.PublishReceived) (bool, error) {
+				c.handleMessage(pr.Packet)
+				return true, nil
+			},
+		},
 		OnClientError:      c.handleClientError,
 		OnServerDisconnect: c.handleDisconnectPacket,
-		Router:             paho.NewStandardRouter(),
-		Debug:              debugLogger{c.log},
-		PingHandler:        paho.DefaultPingHandler(),
+		PingHandler:        paho.NewDefaultPinger(),
 	})
-	pc.Router.RegisterHandler("#", c.handleMessage)
 
 	cp := &paho.Connect{
 		ClientID:   c.cfg.ClientID,
@@ -159,7 +163,7 @@ func (c *Client) abortReconnect() {
 // OEM 0x260ea0
 func (c *Client) disconnect() {
 	c.log.Info("Sending DISCONNECT packet")
-	if _, err := c.conn.client.Disconnect(&paho.Disconnect{ReasonCode: 0}); err != nil {
+	if err := c.conn.client.Disconnect(&paho.Disconnect{ReasonCode: 0}); err != nil {
 		c.log.Warn("Could not send DISCONNECT packet", zap.Error(err))
 	}
 
@@ -210,14 +214,14 @@ func (c *Client) Subscribe(ctx context.Context, subscriptions []Subscription) er
 		}
 	}
 
-	subs := make(map[string]paho.SubscribeOptions)
+	subs := make([]paho.SubscribeOptions, 0, len(subscriptions))
 	for _, s := range subscriptions {
 		pattern := ParsePattern(s.Topic)
 		if pattern == nil {
 			return fmt.Errorf("parse pattern: %w", errInvalidTopic)
 		}
 		c.handlers = append(c.handlers, handler{pattern: pattern, callback: s.Callback})
-		subs[s.Topic] = paho.SubscribeOptions{QoS: s.QoS}
+		subs = append(subs, paho.SubscribeOptions{Topic: s.Topic, QoS: s.QoS})
 	}
 
 	if _, err := c.conn.client.Subscribe(ctx, &paho.Subscribe{Subscriptions: subs}); err != nil {

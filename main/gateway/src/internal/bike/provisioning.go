@@ -8,6 +8,7 @@
 package bike
 
 import (
+	"flag"
 	"fmt"
 	"io/fs"
 
@@ -44,12 +45,12 @@ type ProvisioningData struct {
 	PrivateKey  []byte // contents of private.key (PEM)
 }
 
-// ProvisioningData reads the five provisioning files from fsys (the mmcblk2p6
-// filesystem) and returns the assembled identity. Any read failure is wrapped
-// with the name of the field that could not be loaded.
+// LoadProvisioningData reads the five provisioning files from fsys (the
+// mmcblk2p6 filesystem) and returns the assembled identity. Any read failure is
+// wrapped with the name of the field that could not be loaded.
 //
 // OEM 0x1c6bb0  (provisioning_load_from_mmcblk2p6)
-func ProvisioningData(fsys fs.FS) (ProvisioningData, error) {
+func LoadProvisioningData(fsys fs.FS) (ProvisioningData, error) {
 	serial, err := readFile(fsys, fileSerial)
 	if err != nil {
 		return ProvisioningData{}, fmt.Errorf("read serial: %w", err)
@@ -104,7 +105,7 @@ func readEndpoint(fsys fs.FS, name string) (string, error) {
 	}
 
 	var endpoint string
-	flags := ff.NewFlagSet()
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.StringVar(&endpoint, keyExternalEndpoint, "", "AWS IoT endpoint")
 
 	if err := ff.Parse(flags, nil,

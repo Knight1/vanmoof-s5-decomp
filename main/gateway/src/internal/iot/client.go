@@ -6,12 +6,17 @@
 package iot
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/eclipse/paho.golang/paho"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 
 	"github.com/VanMoof/embedded/gateway/internal/iot/ca"
@@ -38,7 +43,7 @@ const idleDisconnectMsg = "Disconnecting idle modem connection"
 //	+0xe0  seq    int64 request counter (source of the clientToken)
 //	       log    *zap.Logger, serial string
 type Client struct {
-	mqtt   mqtt.Client
+	mqtt   *mqtt.Client
 	serial string
 	log    *zap.Logger
 
@@ -68,11 +73,15 @@ func NewClient(endpoint string, cert, key []byte, serial string, idle time.Durat
 		Certificates: []tls.Certificate{clientCert},
 		MinVersion:   tls.VersionTLS12, // 0x0303
 	}
+	_ = tlsConfig // consumed by the mTLS transport once the seam below is wired
 
-	transport, err := mqtt.NewClient(endpoint, tlsConfig, log)
-	if err != nil {
-		return nil, err
-	}
+	// TODO(seam): internal/mqtt exposes no constructor (mqtt.NewClient /
+	// mqtt.New does not exist in the settled mqtt seam) and its Client fields
+	// are unexported, so the mTLS transport cannot be built from here. The OEM
+	// transport (cloud, TLS-pinned) also differs from the loopback mqtt.Client.
+	// Needs mqtt to export a constructor taking (mqtt.Config, *tls.Config,
+	// *zap.Logger) before NewClient can be completed.
+	var transport *mqtt.Client
 
 	return &Client{
 		mqtt:   transport,
@@ -99,7 +108,7 @@ func (c *Client) Publish(batch telemetry.Batch) error {
 	topic := fmt.Sprintf(telemetryTopicFmt, c.serial)
 
 	c.log.Info("Publishing telemetry")
-	if err := c.mqtt.Publish(topic, payload, 1, false); err != nil {
+	if err := c.mqtt.Publish(context.Background(), topic, payload, 1, false); err != nil {
 		return fmt.Errorf("publish telemetry: %w", err)
 	}
 
@@ -157,14 +166,14 @@ func (c *Client) Perform(topic string, request []byte) ([]byte, error) {
 	accepted := topic + "/accepted"
 	rejected := topic + "/rejected"
 
+	ctx := context.Background()
 	resp := make(chan response, 1)
 
-	// OEM 0x2b2060  (Perform.func1) — the reply correlator.
-	handler := func(_ string, payload []byte) {
-		var r response
-		if err := cborUnmarshal(payload, &r); err != nil {
-			return
-		}
+	// OEM 0x2b2060  (Perform.func1) — the reply correlator. Both the
+	// "/accepted" and "/rejected" reply topics share this callback; the
+	// rejected topic carries r.Err.
+	handler := func(p *paho.Publish) {
+		r := parseResponse(p)
 		if r.ClientToken != token {
 			return // not ours
 		}
@@ -174,19 +183,20 @@ func (c *Client) Perform(topic string, request []byte) ([]byte, error) {
 		}
 	}
 
-	if err := c.mqtt.Subscribe(accepted, handler); err != nil {
+	subs := []mqtt.Subscription{
+		{Topic: accepted, QoS: 1, Callback: handler},
+		{Topic: rejected, QoS: 1, Callback: handler},
+	}
+	if err := c.mqtt.Subscribe(ctx, subs); err != nil {
 		return nil, fmt.Errorf("subscribe: %w", err)
 	}
-	if err := c.mqtt.Subscribe(rejected, handler); err != nil {
-		return nil, fmt.Errorf("subscribe: %w", err)
-	}
-	defer c.mqtt.Unsubscribe(accepted, rejected)
+	defer c.mqtt.Unsubscribe(ctx, []string{accepted, rejected})
 
 	body, err := injectClientToken(request, token)
 	if err != nil {
 		return nil, fmt.Errorf("marshal: %w", err)
 	}
-	if err := c.mqtt.Publish(topic, body, 2, false); err != nil {
+	if err := c.mqtt.Publish(ctx, topic, body, 2, false); err != nil {
 		return nil, fmt.Errorf("publish get: %w", err)
 	}
 
@@ -197,9 +207,36 @@ func (c *Client) Perform(topic string, request []byte) ([]byte, error) {
 	return r.Payload, nil
 }
 
+// response is a correlated reply to a Perform request. The clientToken pairs
+// the reply with its request; a non-nil Err marks a "/rejected" reply.
+//
+// OEM: the Perform.func1 closure decodes the inbound payload into this shape.
+type response struct {
+	ClientToken string
+	Payload     []byte
+	Err         error
+}
+
+// parseResponse extracts the clientToken from an inbound shadow/job reply and
+// carries the raw payload back to the waiting Perform call. AWS IoT replies are
+// JSON; the clientToken lives at the document root.
+func parseResponse(p *paho.Publish) response {
+	payload := p.Payload
+	return response{
+		ClientToken: gjson.GetBytes(payload, "clientToken").String(),
+		Payload:     payload,
+	}
+}
+
+// injectClientToken sets the "clientToken" field on a JSON request document so
+// the matching reply can be correlated. sjson returns a fresh buffer.
+func injectClientToken(request []byte, token string) ([]byte, error) {
+	return sjson.SetBytes(request, "clientToken", token)
+}
+
 // nextClientToken returns the next request token: an atomically-incremented
 // counter rendered in base 36 (OEM: strconv.FormatInt(seq, 36)).
 func (c *Client) nextClientToken() string {
-	n := atomicAddInt64(&c.seq, 1)
+	n := atomic.AddInt64(&c.seq, 1)
 	return strconv.FormatInt(n, 36)
 }

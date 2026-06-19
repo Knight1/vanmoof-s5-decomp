@@ -1,10 +1,12 @@
 package telemetry
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/eclipse/paho.golang/paho"
 	"github.com/fxamacker/cbor/v2"
 	"go.uber.org/zap"
 
@@ -59,11 +61,11 @@ type Collector struct {
 // are wrapped "set subscriptions: %w".
 //
 // OEM 0x2ac0d0
-func (c *Collector) SetConfig(cfg Config) error {
+func (c *Collector) SetConfig(ctx context.Context, cfg Config) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if err := c.setSubscriptions(cfg.Subscriptions); err != nil {
+	if err := c.setSubscriptions(ctx, cfg.Subscriptions); err != nil {
 		return fmt.Errorf("set subscriptions: %w", err)
 	}
 	c.interval = time.Duration(cfg.MaxAge) * time.Second
@@ -76,7 +78,7 @@ func (c *Collector) SetConfig(cfg Config) error {
 // mu held.
 //
 // OEM 0x2ac580
-func (c *Collector) setSubscriptions(subs []Subscription) error {
+func (c *Collector) setSubscriptions(ctx context.Context, subs []Subscription) error {
 	want := make([]string, 0, len(subs))
 	for _, s := range subs {
 		if !contains(want, s.Topic) {
@@ -89,13 +91,17 @@ func (c *Collector) setSubscriptions(subs []Subscription) error {
 
 	if len(add) > 0 {
 		c.log.Debug("Subscribing to topics", zap.Strings("topics", add))
-		if err := c.bus.Subscribe(add, c.handleMessage); err != nil {
+		subscriptions := make([]mqtt.Subscription, len(add))
+		for i, topic := range add {
+			subscriptions[i] = mqtt.Subscription{Topic: topic, Callback: c.handleMessage}
+		}
+		if err := c.bus.Subscribe(ctx, subscriptions); err != nil {
 			return fmt.Errorf("subscribe: %w", err)
 		}
 	}
 	if len(remove) > 0 {
 		c.log.Debug("Unsubscribing from topics", zap.Strings("topics", remove))
-		if err := c.bus.Unsubscribe(remove); err != nil {
+		if err := c.bus.Unsubscribe(ctx, remove); err != nil {
 			return fmt.Errorf("unsubscribe: %w", err)
 		}
 	}
@@ -251,7 +257,7 @@ func dropOld(msgs map[string][]Message, maxAge time.Duration) map[string][]Messa
 // reaches the configured size, a flush is scheduled ("Scheduling flush").
 //
 // OEM 0x2ae700
-func (c *Collector) handleMessage(msg mqtt.Message) {
+func (c *Collector) handleMessage(msg *paho.Publish) {
 	now := time.Now()
 
 	if IgnoreTopic(msg.Topic) {
@@ -291,12 +297,12 @@ func (c *Collector) handleMessage(msg mqtt.Message) {
 // messages. A flush error is wrapped "flush: %w".
 //
 // OEM 0x2ac360
-func (c *Collector) Shutdown() error {
+func (c *Collector) Shutdown(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// Clearing the subscription set unsubscribes everything.
-	_ = c.setSubscriptions(nil)
+	_ = c.setSubscriptions(ctx, nil)
 	if err := c.flush(); err != nil {
 		return fmt.Errorf("flush: %w", err)
 	}
