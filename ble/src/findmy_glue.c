@@ -15,6 +15,7 @@
  *   findmy_match_provisioning_topic  @ 0x0003d234  (provisioning topic match)
  *   findmy_store_provisioning_token  @ 0x0003d29c  (store a <=16-byte token)
  *   findmy_send_state_report         @ 0x0003d47c  (state report, cmd 0xe1)
+ *   findmy_build_message             @ 0x00058b12  (frame an FMNA transport message)
  *
  * This is VanMoof's own glue: routing between the BLE connection/peer layer and
  * the FMNA transport, CBOR/JSON serialization onto the comm bus, slot bookkeeping
@@ -476,4 +477,51 @@ void findmy_send_state_report(void)
                              *(uint32_t *)(json_state[0] + 4), 1, 1);
         }
     }
+}
+
+/*
+ * findmy_build_message — frame an FMNA transport message into `buf`. // 0x00058b12
+ *
+ * OEM disassembly (0x00058b12..0x00058b86):
+ *
+ * Rejects payloads whose framed size (payload_len + 10) exceeds 0x400, returning
+ * -1. Otherwise it lays out a 10-byte header followed by the payload:
+ *   +0x0 type, +0x1..2 frame_id, +0x3 chan, +0x4..7 payload_len,
+ *   +0x8..9 CRC-16 (seed 0xffff over the payload), +0xa.. payload.
+ * After copying the payload it byte-swaps the multi-byte header fields
+ * (frame_id, payload_len and the CRC) to big-endian. Returns the framed length.
+ * The `seq` argument is part of the ABI but unused by the body.
+ */
+int findmy_build_message(void *buf, uint32_t seq, uint8_t type, uint8_t chan,
+                         uint16_t frame_id, const void *payload, int payload_len)
+{
+    uint8_t *b = (uint8_t *)buf;
+    uint32_t total = (uint32_t)(payload_len + 10);
+    uint32_t crc;
+    uint32_t plen;
+    uint16_t fid;
+
+    (void)seq;
+
+    if (total >= 0x401) {
+        return -1;
+    }
+
+    b[3] = chan;
+    *(uint16_t *)(b + 1) = frame_id;
+    b[0] = type;
+    *(uint32_t *)(b + 4) = (uint32_t)payload_len;
+    crc = comm_crc16_58d7c(0xffff, payload, (uint32_t)payload_len);
+    *(uint16_t *)(b + 8) = (uint16_t)crc;
+    vm_memcpy_61e20(b + 10, payload, (uint32_t)payload_len);
+
+    /* byte-swap the multi-byte header fields to big-endian */
+    fid = *(uint16_t *)(b + 1);
+    *(uint16_t *)(b + 1) = (uint16_t)((fid << 8) | (fid >> 8));
+    plen = *(uint32_t *)(b + 4);
+    *(uint32_t *)(b + 4) = (plen << 24) | ((plen >> 8 & 0xff) << 16) |
+                           ((plen >> 16 & 0xff) << 8) | (plen >> 24);
+    *(uint16_t *)(b + 8) = (uint16_t)(((crc & 0xff) << 8) | ((crc >> 8) & 0xff));
+
+    return (int)total;
 }

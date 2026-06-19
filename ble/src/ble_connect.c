@@ -149,7 +149,7 @@ uint32_t ble_connect_state_machine(void *msg)
 
         ble_json_writer_init(json_writer, json_buf, 0x40);
         ble_json_begin(json_state, json_writer, 0);
-        ble_json_open_5fe82(json_state);
+        ble_json_open_5fe82(json_state, 0, 1, 0);
         ble_msg_transmit(0x80, 0xfa, json_buf,
                          *(uint32_t *)((uint8_t *)json_state[0] + 4), 0, 0);
     }

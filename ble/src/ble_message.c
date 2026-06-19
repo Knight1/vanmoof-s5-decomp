@@ -5,8 +5,10 @@
  *   ble.20240129.145222.1.5.0.main.v1.5.0-main.bin   (device link base 0x23000)
  *
  * Functions (OEM address order):
- *   ble_ftp_command_handler     @ 0x0003e9a0  ("ftp_command" firmware/flash transfer)
- *   ble_message_dispatch_by_id  @ 0x0003edbc  (parse request, dispatch by command id)
+ *   ble_ftp_command_handler      @ 0x0003e9a0  ("ftp_command" firmware/flash transfer)
+ *   ble_message_dispatch_by_id   @ 0x0003edbc  (parse request, dispatch by command id)
+ *   ble_announce_command_id      @ 0x00058aa8  (broadcast one command id, type 0xe001)
+ *   ble_msg_publish_clear_59bac  @ 0x00059bac  (publish a topic with a NULL payload)
  */
 
 #include "ble.h"
@@ -366,4 +368,44 @@ void ble_message_dispatch_by_id(uint32_t a0, uint32_t a1, uint32_t ctx,
             }
         }
     }
+}
+
+/*
+ * ble_announce_command_id — build and transmit a JSON "announce" message for a
+ * single command id. // 0x00058aa8
+ *
+ * OEM disassembly (0x00058aa8..0x00058ad8):
+ *
+ * Zeroes the body buffer, initialises a JSON writer over it, begins the document,
+ * appends the command id as the value (ble_json_open_5fe82, which serializes the
+ * value via 0x5fe1a -> 0x5fdba), and transmits the buffer as message type
+ * 0x80/0xe001 with both trailing flags set. Used by the request dispatcher (and
+ * the comm-port consumer) to advertise every subscribable command id.
+ */
+void ble_announce_command_id(uint16_t id)
+{
+    uint32_t writer[4];
+    uint8_t  hdr[16];
+    uint8_t  buf[68];
+
+    *(uint32_t *)buf = 0;
+    vm_memset_61e62(buf + 4, 0, 0x3c);
+    ble_json_writer_init(hdr, buf, 0x40);
+    ble_json_begin(writer, hdr, 0);
+    ble_json_open_5fe82(writer, 0, id, 0);
+    ble_msg_transmit(0x80, 0xe001, buf,
+                     *(uint32_t *)((uint8_t *)writer[0] + 4), 1, 1);
+}
+
+/*
+ * ble_msg_publish_clear_59bac — publish a bus/MQTT topic with a NULL payload (a
+ * "clear"), a thin wrapper over the bus publish helper. // 0x00059bac
+ *
+ * OEM disassembly (0x00059bac..0x00059bb2):
+ *
+ * Tail-calls ble_msg_publish_40558(topic, NULL, 0) and returns its result.
+ */
+uint32_t ble_msg_publish_clear_59bac(const char *topic)
+{
+    return ble_msg_publish_40558(topic, 0, 0);
 }

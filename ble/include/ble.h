@@ -446,7 +446,7 @@ extern int      aeabi_d2iz(uint32_t lo, uint32_t hi);  /* vendor // 0x000234e0 (
 extern int  ble_cose_sign_4a7ec(const char *audience, int audience_len, const void *body, int body_len);  /* vendor // 0x0004a7ec (COSE/CWT signer) */
 extern int  ble_msg_reserve_len_59e16(int handle, uint32_t *len);  /* vendor // 0x00059e16 (GATT length-header reserve) */
 extern int  ble_msg_send_51670(int handle, uint32_t len);  /* vendor // 0x00051670 (EXT_API send/commit) */
-extern void ble_json_open_5fe82(void *json_state);  /* vendor // 0x0005fe82 (JSON open-container; -> 0x0005fe1a) */
+extern void ble_json_open_5fe82(void *writer, uint32_t a1, uint32_t value, uint32_t sign);  /* vendor // 0x0005fe82 (append `value` to the writer container; -> 0x0005fe1a -> 0x0005fdba; a1 unused) */
 extern int  ble_secure_session_start_51b0c(void *handler_cb, int arg);  /* vendor // 0x00051b0c (secure-session bring-up) */
 /* ftp_command: logger / crc / CBOR / flash driver */
 extern void     ble_log_58f0a(const char *fmt, ...);  /* vendor // 0x00058f0a (printf-style logger) */
@@ -546,6 +546,9 @@ extern int comm_lock_release_4f568(void *lock);  /* vendor // 0x0004f568 */
 /* k_msgq_put-style enqueue of a fixed-size item (basepri-fenced ring send). Shared
  * with the (deferred) spi_bridge consumer thread. */
 extern int comm_msgq_put_4f318(void *q, const void *item, uint32_t a, uint32_t b);  /* vendor // 0x0004f318 */
+/* CRC16-CCITT with explicit seed over [data, data+len). Used by findmy_build_message
+ * (distinct from the seed-0 wrapper ble_crc16_58d72). */
+extern uint32_t comm_crc16_58d7c(uint32_t seed, const void *data, uint32_t len);  /* vendor // 0x00058d7c */
 /* nRF52 POWER->RESETREAS accessors: read+remap the latched reset cause, and clear it. */
 extern uint32_t ble_resetreas_read_5f34e(uint32_t *out);  /* vendor // 0x0005f34e */
 extern uint32_t ble_resetreas_clear_5f388(void);          /* vendor // 0x0005f388 */
