@@ -565,8 +565,41 @@ extern uint32_t findmy_cbor_get_bstr_58cd8(void *dst, uint32_t max, uint32_t src
  * CRC-16, copied payload); returns the framed length or -1 on overflow. // 0x00058b12 */
 int findmy_build_message(void *buf, uint32_t seq, uint8_t type, uint8_t chan,
                          uint16_t frame_id, const void *payload, int payload_len);
-/* SPI-bridge consumer thread (0x0003ef1c) — DEFERRED, not yet reconstructed; see
- * docs/progress.md (vendor k_poll/k_pipe dataflow unresolved). */
+/* ---- spi_bridge consumer thread (comm-port over spi@40004000) ---- */
+/* Inbound COBS ring object. // 0x200052a0 */
+#define COMM_RING            (0x200052a0u)
+/* Producer notify device, written into *BLE_COMM_NOTIFY_PTR at bring-up. // 0x00062228 */
+#define COMM_NOTIFY_DEVICE   (0x00062228u)
+/* Static TX frame descriptor: +8 CRC, +0xa cfg=7, +0xb cfg=0xcf, +0xc/+0xd pending
+ * length (big-endian), +0xe payload. // 0x200011ca */
+#define COMM_FRAME_DESC      (0x200011cau)
+/* Two 0x7de-byte transmit/receive double-buffer slots. // 0x20008597 */
+#define COMM_TX_BUF_BASE     (0x20008597u)
+/* Active double-buffer slot toggle (0..1). // 0x200052b8 */
+#define COMM_TX_BUF_INDEX    (0x200052b8u)
+/* TX scratch FIFO slid left by window/flow-control frames. // 0x200011d8 */
+#define COMM_TX_SCRATCH      (0x200011d8u)
+/* SPI source device "spi@40004000" the consumer drains. // 0x000622d0 */
+#define COMM_POLL_DEVICE     (0x000622d0u)
+/* Poll/timeout argument constant passed to the SPI poll vector. // 0x000629dc */
+#define COMM_POLL_ARG        (0x000629dcu)
+/* 0xAA55AA55 frame marker checked before the trailing CRC16. // 0x0003f208 literal */
+#define COMM_FRAME_MARKER    (0xaa55aa55u)
+/* Flash-writer message queue; decoded 0x199a-byte chunks are posted here. // 0x20001ee4 */
+#define FLASH_WRITE_MSGQ     (0x20001ee4u)
+
+extern int      comm_ring_init_61b8a(void *ring, void *backing, uint32_t size);          /* vendor // 0x00061b8a */
+extern int      comm_ring_write_61d5a(void *ring, uint32_t src, int len);                /* vendor // 0x00061d5a */
+extern int      comm_ring_frame_ready_61dc8(void *ring);                                 /* vendor // 0x00061dc8 */
+extern int      comm_ring_cobs_decode_61c74(void *ring, void *dst, uint32_t cap, int *out_len);  /* vendor // 0x00061c74 */
+extern int      comm_pipe_read_610e6(void *pipe, void *dst, uint32_t len, int *out, uint32_t min);  /* vendor // 0x000610e6 */
+extern int      comm_sem_take_509c4(void *sem, uint32_t a, uint32_t lo, uint32_t hi);    /* vendor // 0x000509c4 */
+extern uint32_t comm_delay_503f8(uint32_t ms, int arg);                                  /* vendor // 0x000503f8 */
+/* SPI poll/transfer dispatch (via the spi@40004000 device api->poll, 0x5f2cb -> 0x48c64):
+ * arms the next transfer over the two buffer descriptors and reports the received
+ * length into the poll event's +0xc word; returns 0 when a transfer completed. */
+extern int      comm_spi_poll(void *dev, uint32_t arg, void *buf_a, void *buf_b, void *event);  /* vendor // 0x0005f2cb */
+void            spi_bridge_consumer_thread(void);  /* 0x0003ef1c */
 
 /* --- prototypes (carved batch 4) --- */
 void     findmy_handle_conn_rx(uint32_t conn, const uint16_t *buf, uint32_t len);  /* 0x0003c6f4 */
