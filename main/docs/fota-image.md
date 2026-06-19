@@ -133,9 +133,74 @@ paths). In production the image is delivered to `/tmp/download/VM-XS5_FOTA`
 (cloud → `gateway`/`update`), and `runFOTA` is driven by the `update` service's
 `runfota` client — see [`update.md`](update.md).
 
-## Per-ECU device files
+## Per-ECU device files (`/opt/devices_fw`)
 
-The sibling `…/v1.5.0-main_device_files/` and the in-rootfs `/opt/devices_fw`
-hold the sub-ECU images + `manifest.txt` — the set the on-bike `update` service
-flashes over CAN/SMP. Their format and flashing protocol are in
-[`update.md`](update.md); each ECU has its own target dir in this repo.
+The sub-ECU firmware (`ble`, `modem`, `user_ecu`, `battery_primary_*`, …) is **not
+delivered separately** — it is baked into the **main rootfs** at `/opt/devices_fw`
+(alongside `manifest.txt`), and ships in the same FOTA. The build also drops a
+sibling copy at `…/v1.5.0-main_device_files/` (the same bytes). The on-bike
+`update` service reads this dir and flashes each ECU over CAN/SMP; during an OTA
+it reads the *new* set from the freshly-mounted rootfs at
+`/tmp/root.sqfs/opt/devices_fw`.
+
+### Clean extraction from the FOTA
+
+`unsquashfs VM-XS5_FOTA` "works" but is **not clean** — the PEGA image has the
+kernel + bootloader + 2 KiB trailer appended after the rootfs, so the tool reads
+past EOF of the filesystem. Carve `root.sqfs` to its exact header length first:
+
+```sh
+gunzip -c v1.5.0-main | tar -xO > VM-XS5_FOTA
+dd if=VM-XS5_FOTA of=root.sqfs bs=4M iflag=skip_bytes,count_bytes skip=0 count=48914272
+unsquashfs -d rootfs root.sqfs                 # clean, no trailing-data noise
+ls rootfs/opt/devices_fw/                       # the per-ECU .bin + manifest.txt
+```
+
+### Per-ECU `.bin` container formats
+
+Each `.bin` is the **whole flashable image** (the updater streams it page-by-page;
+the header is *inside* the image at a fixed offset, not a wrapper to strip):
+
+| Device(s) | Container | Magic / marker |
+| --- | --- | --- |
+| Cortex-M ECUs — `user_ecu`, `imx8_bridge`, `elock`, `eshifter`, `frontlight`, `rearlight`, `motor_sensor`, `power_control`, `power_pedal` | **`VMFW`** header at file `0x134` (after the vector table) | `"VMFW"` |
+| `ble`, `modem` (Nordic) | **MCUboot** image header at offset 0 | `0x96F3B83D` |
+| `motor_control` | non-standard header | `0x000008AA` |
+| `battery_primary_{panasonic,dynapack}`, `charger_liteon_*` | raw payload; flashed by `ThirdPartyUpdateClient` page-CRC (no internal magic) | — |
+
+### The `VMFW` header (verified — `user_ecu` `0x134`)
+
+```c
+struct vmfw_header {            /* at file offset 0x134, right after the Cortex-M vector table */
+    char     magic[4];         /* 0x134  "VMFW"                                              */
+    uint32_t version;          /* 0x138  packed semver — SAME packing as manifest.txt:       */
+                               /*        (major<<24)|(minor<<16)|patch|(variant<<13)         */
+                               /*        0x01056000 = 1.5.0 main  (major1 minor5 patch0 variant3) */
+    uint32_t crc32;            /* 0x13c  image CRC32 (target validates via its HW CRC engine, */
+                               /*        e.g. user_ecu @0x40095000, seed 0xFFFFFFFF)          */
+    uint32_t image_length;     /* 0x140  total image size in bytes — EXACTLY the file size    */
+                               /*        (0x0001A88C = 108684 for user_ecu)                   */
+    char     build_date[12];   /* 0x144  __DATE__   "Jan 29 2024"                             */
+    char     build_time[9];    /* 0x150  __TIME__   "14:50:32"                                */
+};
+```
+
+Two cross-checks make this authoritative: `image_length` (0x140) equals the file
+size to the byte, and the `version` word (0x138) is byte-for-byte the
+`manifest.txt` packing reconstructed in
+[`../update/src/manifest.c`](../update/src/manifest.c) — so the updater can verify
+each `.bin`'s embedded version against the manifest row before flashing.
+
+Parse/validate one in three lines:
+
+```python
+import struct
+b = open("user_ecu.….bin","rb").read()
+magic, ver, crc, length = struct.unpack_from("<4sIII", b, 0x134)
+assert magic == b"VMFW" and length == len(b)        # clean image
+maj,minr,pat,var = ver>>24 & 0xff, ver>>16 & 0xff, ver & 0x1fff, ver>>13 & 0xff  # 1.5.0 / variant 3=main
+```
+
+Their flashing protocol (page-CRC over CAN / SMP / DFU) is in
+[`update.md`](update.md) and reconstructed in [`../update/src/`](../update/src/);
+each ECU also has its own target dir in this repo.

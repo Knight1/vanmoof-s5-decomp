@@ -51,6 +51,28 @@ version already matches), `-V` (build version).
   request/response; *"Device refused to apply update"*, *"Devices have not all
   come back after update"* are the failure paths.
 
+### Supplier dispatch (Panasonic vs DynaPack vs LiteON)
+
+Each manifest entry is turned into a concrete flashing client by
+`UpdateClientFactory::GetUpdateClient(name)` (decompiled at `update` `0x123220`),
+which matches the device/file-name **token**:
+
+| Name token | Client class | Target |
+| --- | --- | --- |
+| `…_panasonic` | `PanasonicUpdateClient` | primary battery (CAN node `0xA4`) |
+| `…_dynapack` | `DynapackUpdateClient` | primary battery (CAN node `0xA4`) |
+| `charger…` | `LiteonUpdateClient` | external charger (CAN node `0xA7`) |
+| modem/motor tokens | `SmpModemUpdateClient` / `C2000UpdateClient` | nRF modem / TI motor |
+| `battery_primary_*` with neither supplier | — (throws) | *"first token of file name should be battery_primary_panasonic or battery_primary_dynapack"* |
+
+So the **battery supplier is never sensed at runtime** — it is fixed by the FOTA
+package file name (`battery_primary_panasonic` / `battery_primary_dynapack`).
+Panasonic and DynaPack are *different* `ThirdPartyUpdateClient` subclasses with
+different page/timeout constants; Panasonic additionally has a **version gate**
+(firmware > v1.3.0.255 flashes ~3× faster). Full decomp detail:
+[`../update/README.md`](../update/README.md). This is what `power`'s static
+`battery_primary_{panasonic,dynapack}` name registry feeds into.
+
 ### MQTT topics
 
 | Topic | Direction | Use |

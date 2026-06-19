@@ -20,7 +20,7 @@ The self-contained VanMoof *algorithms* are reconstructed to faithful,
 behaviour-oriented C (per-TU compilable, **not** a linkable rebuild — same bar as
 [`../power/src`](../power/src)). The std::string / nlohmann-json / vm-CAN /
 mosquitto framework is *modelled* per-TU (each module declares its own externs +
-struct layouts with OEM offsets); only the VanMoof logic is translated. All **9
+struct layouts with OEM offsets); only the VanMoof logic is translated. All **10
 modules compile clean** with `-Wall -Wextra -Wpedantic` (`make`). Each function
 carries its OEM address.
 
@@ -35,18 +35,12 @@ carries its OEM address.
 | [`background_update.c`](src/background_update.c) | `0x114ed0/113850/1120e0` | the **retry-table worker**: add/trigger/remove devices, the SoC-gated (≥11 %) worker loop, result→string map, `update/background_update/<dev>`. |
 | [`version_client_mqtt.c`](src/version_client_mqtt.c) | `0x12e350/12e670/12e8f0` | the per-device **reported-version store** (`device/+/version/*`) + the u32/u16/u8 version-string parsers. |
 | [`runfota.c`](src/runfota.c) | `0x1d220/1dc80/1b750` | the i.MX8 A/B **boot-control** logic: parse `/tmp/boot_control_flag` (`su_<ver>_<SP>`), `fw_setenv su_state`, FOTA-header version scan. (Install steps are thin `system()` wrappers — shell commands kept verbatim.) |
+| [`update_service.c`](src/update_service.c) | `0x12a6d0/129c90/125040`, `0x129600/124d70` | the orchestrator **spine**: the 2-stage A/B + rollback **state machine**, the per-device update loop, package prepare/verify, progress publishing. The `UpdateService` object is modelled `power`-style — opaque `_raw[0x298]` + `US_*` accessor macros (so embedded `std::string`/mutex sub-objects don't break the layout). |
 
 **Shared:** [`include/update_common.h`](include/update_common.h) (logger, enums,
 crc/json/string/serial model) + [`Makefile`](Makefile). Vendor framework
 (`mqtt_client`, `service_env`, `state_client`, `tp`, STL/json) is **not**
 reconstructed — modelled only.
-
-**Documented-only:** the `update_service.cpp` orchestrator **spine** (the 2-stage
-A/B + rollback state machine, MQTT/thread glue) is mapped function-by-function
-(below + `ghidra/exports/`) but kept as prose — its C++ object embeds modelled
-strings by value with offset-critical layout, so it isn't cleanly per-TU
-modelable; the *logic* is captured in the state-machine description and the
-function map.
 
 ## Headline: how the bike picks Panasonic vs DynaPack (supplier dispatch)
 
@@ -195,5 +189,5 @@ the client ctors, and the 99 mapped `common_logf` callers (~60 `update`-app +
 - [x] `lightweight_update_client` + `smp_modem` transfer loops, the
       `background_update` retry worker, `version_client_mqtt` — **done** (`src/`
       now **9 modules**, clean `-Wall -Wextra -Wpedantic`).
-- [ ] (optional) re-model the `update_service` spine to the `power`-style opaque
-      `_raw[]`+accessor form to bring it into `src/` (currently prose).
+- [x] Re-model the `update_service` spine to the `power`-style opaque
+      `_raw[]`+accessor form — **done** (`src/`, now **10 modules**, clean).
