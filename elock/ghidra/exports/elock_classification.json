@@ -1,0 +1,762 @@
+{
+ "target": "elock",
+ "program": "elock.20240129.145222.1.5.0.main.v1.5.0-main.bin",
+ "image_base": "0x0",
+ "generated_from": "elock-reclassify workflow (5 agents, after recovering the app gap 0x3949-0x5588)",
+ "note": "app code recovered from an undisassembled indirect-dispatch gap; 85->131 functions",
+ "status_legend": {
+  "vanmoof": "VanMoof app code",
+  "vendor-freertos": "FreeRTOS kernel+port",
+  "vendor-hal": "NXP SDK/HAL + CAN-OD middleware",
+  "vendor-libgcc": "libgcc/mem*",
+  "vendor-crypto": "AES/SHA primitive",
+  "vendor-startup": "startup/clock",
+  "unsure": "flagged"
+ },
+ "counts": {
+  "vanmoof": 13,
+  "vendor-freertos": 64,
+  "vendor-hal": 46,
+  "vendor-libgcc": 5,
+  "unsure": 3
+ },
+ "total": 131,
+ "functions": [
+  {
+   "address": "0x000002a0",
+   "class": "vendor-freertos",
+   "note": "Cortex-M FreeRTOS port start-first-task / SVC path: checks privileged mode, loads MSP from a table, enables IRQ+FIQ, DSB/ISB, issues SVC #2 and reads PSP. Classic vPortStartFirstTask / SVC handler glue."
+  },
+  {
+   "address": "0x00000354",
+   "class": "vendor-hal",
+   "note": "CMSIS NVIC_SystemReset: DSB, write SCB->AIRCR (0xE000ED0C) with VECTKEY 0x05FA0004|SYSRESETREQ preserving PRIGROUP, DSB, then spin. System-reset helper."
+  },
+  {
+   "address": "0x00000378",
+   "class": "vendor-hal",
+   "note": "CMSIS NVIC_EnableIRQ: writes NVIC->ISER[n>>5] (base 0xE000E100) with 1<<(n&0x1f) for non-negative IRQ numbers."
+  },
+  {
+   "address": "0x000003cc",
+   "class": "vanmoof",
+   "name": "lock_motor_pwm_set_duty",
+   "note": "Lock-motor PWM duty drive on the LPC SCTimer (base 0x40085000): reads current SCT event/state regs, computes duty = pct*period/100 via the 64-bit divide helper (special-cases pct==100 to +2/-1 on direction bit), then with the SCT halt bit set writes MATCHREL (+0x100) and counterpart (+0x200) for the active output, clears halt. App-level motor speed/duty control."
+  },
+  {
+   "address": "0x00000504",
+   "class": "vendor-hal",
+   "note": "Peripheral status sense reader: returns a flag value if bit6 of MMIO 0x40000A18 is set, else 0. Low-level GPIO/peripheral status accessor (sub-reader of the sense-select dispatch)."
+  },
+  {
+   "address": "0x0000051c",
+   "class": "vendor-hal",
+   "note": "Peripheral status sense reader: decodes bits of two status registers (base+0xB8/+0x98) and returns 0 or 0x8000. Low-level signal-state accessor."
+  },
+  {
+   "address": "0x00000554",
+   "class": "unsure",
+   "name": "board_input_sense_read",
+   "note": "Input/sense-line read dispatcher called from main() init: selects which GPIO/peripheral status bit to test based on hardware-variant selectors at SYSCON 0x40000280/0x40000284, returning a per-variant signal value (delegates to the 0x504/0x51c sub-readers). Borderline app-vs-HAL: app-glue board sense built on raw MMIO; flagging."
+  },
+  {
+   "address": "0x0000064c",
+   "class": "vendor-hal",
+   "note": "NXP Flexcomm I2C master poll/transfer FSM: loops on the decoded I2C STAT (via 0x5994) at control-block +0x804, sets MSTCTL bits (+0x800), returns SDK status codes (0xA2D/0xA30/0xA32/0xA34/0xA35 = NAK/arb-loss/timeout/etc). fsl_i2c driver."
+  },
+  {
+   "address": "0x000006ec",
+   "class": "vendor-hal",
+   "note": "NXP Flexcomm I2C non-blocking transfer state machine: decodes STAT (via 0x5994), drives an 8-state RX/TX/ADDR sequence over the master data regs (+0x820 MSTCTL / +0x828 MSTDAT), advances the transfer descriptor, and invokes the completion callback at desc+0x34. fsl_i2c transactional driver."
+  },
+  {
+   "address": "0x00000aac",
+   "class": "vendor-hal",
+   "note": "Hardware-rev / clock-variant selector: returns whether a config byte (flash config word @0x1301fe06) equals 3. Used by the clock/peripheral-config dispatchers to pick a variant; NXP SDK clock setup glue."
+  },
+  {
+   "address": "0x00000abc",
+   "class": "vendor-hal",
+   "note": "Clock/peripheral config helper: programs a control-block field (+0x28=0x60), calls a driver vtable method (+0x10/+4), and recomputes a divider/timing field (+0x4) from a count field. NXP SDK clock/peripheral bring-up."
+  },
+  {
+   "address": "0x00000ae8",
+   "class": "vendor-hal",
+   "note": "Clock-config dispatch: picks one of three setup function pointers based on the HW-rev (0xaac) and a SYSCON field (0x40000FFC low nibble), then tail-calls it. NXP clock driver variant dispatch."
+  },
+  {
+   "address": "0x00000b2c",
+   "class": "vendor-hal",
+   "note": "Clock-config dispatch: selects a driver vtable method (+0x2c vs +0x38) by HW-rev (0xaac) and tail-calls it. NXP clock driver glue."
+  },
+  {
+   "address": "0x00000b54",
+   "class": "vendor-hal",
+   "note": "Clock-source table lookup: linear search of a 9-entry table for a matching key, returns the index (used to index parallel param/handler tables in 0xb70/0xba0/0xbd0). NXP clock driver."
+  },
+  {
+   "address": "0x00000b70",
+   "class": "vendor-hal",
+   "note": "Clock-config apply: looks up the rate/source index (0xb54) and dispatches the indexed handler with indexed params from parallel tables. NXP clock driver."
+  },
+  {
+   "address": "0x00000ba0",
+   "class": "vendor-hal",
+   "note": "Clock-config apply (second table set): index lookup (0xb54) then indexed handler dispatch with indexed params. NXP clock driver."
+  },
+  {
+   "address": "0x00000bd0",
+   "class": "vendor-hal",
+   "note": "Clock-config apply (third table set): index lookup (0xb54) then indexed handler dispatch with indexed params. NXP clock driver."
+  },
+  {
+   "address": "0x00000d20",
+   "class": "vendor-hal",
+   "note": "Callback/interrupt-handler registration: stores (param,handler) into the first free slot of an 8-entry table. Generic SDK callback registry."
+  },
+  {
+   "address": "0x00000d44",
+   "class": "vendor-freertos",
+   "note": "Increments a global counter (tick/missed-tick or scheduler-suspend counter) pointed to by a global. FreeRTOS kernel bookkeeping helper."
+  },
+  {
+   "address": "0x00000d54",
+   "class": "vendor-freertos",
+   "note": "Reads head item value of a list/queue (via *list ? listGET head item value : -1) into a global. FreeRTOS list accessor (e.g. next-unblock-time)."
+  },
+  {
+   "address": "0x00000d78",
+   "class": "vendor-hal",
+   "note": "Two-flag state classifier returning 0/1/2 from two MMIO/RAM flags. Low-level peripheral state read helper."
+  },
+  {
+   "address": "0x00000dd4",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS heap_4 prvInsertBlockIntoFreeList: walks the free list, coalesces an inserted block with its physical predecessor/successor, links it back in. Kernel heap allocator."
+  },
+  {
+   "address": "0x00000e1c",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS assert/fault stub: raises BASEPRI (vPortRaiseBASEPRI, 0x5a98) and spins forever. configASSERT/vAssertCalled-style trap."
+  },
+  {
+   "address": "0x00000e44",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS vPortEnterCritical: raises BASEPRI to configMAX_SYSCALL_INTERRUPT_PRIORITY (0x5a98), increments the critical-nesting counter, DSB/ISB."
+  },
+  {
+   "address": "0x00000e60",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS vPortExitCritical: asserts nesting>0 (else trap), decrements nesting, and when it reaches 0 restores BASEPRI via vPortSetBASEPRI (0x5acc)."
+  },
+  {
+   "address": "0x00000e88",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS tick/overflow-aware deadline reconciliation inside a critical section (enter/exit via 0xe44/0xe60): adjusts a pending value against current/reference counts, updating the pair of head pointers. Kernel timer/queue helper (e.g. prvReloadTimer/adjust)."
+  },
+  {
+   "address": "0x00000ee0",
+   "class": "vendor-freertos",
+   "note": "Console/UART putchar loop: byte-wise then word-wise copy of a buffer into a peripheral data FIFO at base+8 (debug print). Compiler/runtime-style aligned copy into a fixed MMIO sink."
+  },
+  {
+   "address": "0x00000f28",
+   "class": "vendor-freertos",
+   "note": "ISR-aware dispatch wrapper: calls FUN_00000aac (xPortIsInsideInterrupt) then jumps to vtable slot +0x24 (task ctx) or +0x30 (ISR ctx). FreeRTOS queue-send/give-from-ISR selector."
+  },
+  {
+   "address": "0x00000f4c",
+   "class": "vendor-hal",
+   "note": "Pin-interrupt / INMUX channel allocator: writes MMIO 0x40085100/0x40085200/0x40085300 (LPC546xx PINT/SCT mailbox table), bumps two free indices. NXP SDK HAL."
+  },
+  {
+   "address": "0x00000fb8",
+   "class": "vendor-freertos",
+   "note": "ISR-aware dispatch wrapper (vtable +0x40 / +0x4c) passing extra arg 0x200; FreeRTOS send-from-ISR style selector."
+  },
+  {
+   "address": "0x00000fe8",
+   "class": "vendor-freertos",
+   "note": "ISR-aware dispatch wrapper (default DAT_00001018 vs vtable +0x8) with 0x200 arg; FreeRTOS context-selecting send wrapper."
+  },
+  {
+   "address": "0x0000104c",
+   "class": "vendor-freertos",
+   "note": "xTaskIncrementTick: tick counter increment with overflow-list swap, walks delayed list, unblocks tasks via uxListRemove(+4)/vListInsert (FUN_00005b4c/FUN_00005a40), updates top-ready priority. FreeRTOS kernel."
+  },
+  {
+   "address": "0x00001144",
+   "class": "vendor-freertos",
+   "note": "xTaskResumeAll: decrements scheduler-suspended count, drains pending-ready list, replays missed ticks via FUN_0000104c, yields. FreeRTOS kernel."
+  },
+  {
+   "address": "0x00001208",
+   "class": "vendor-freertos",
+   "note": "prvDeleteTCB / heap_4 free: validates block allocate-bit, coalesces free block, updates xFreeBytesRemaining (DAT_00001260) and free counter, re-runs ResumeAll. FreeRTOS heap+task teardown."
+  },
+  {
+   "address": "0x00001268",
+   "class": "vendor-freertos",
+   "note": "Idle-task TCB reaper: drains a per-task cleanup callback (param[1]/param[2]) then removes TCB from state/event lists and frees it (vTaskDelete completion). FreeRTOS kernel."
+  },
+  {
+   "address": "0x0000131c",
+   "class": "vendor-freertos",
+   "note": "Queue-registry deregister: scans the 8-entry queue registry table (DAT_0000134c, configQUEUE_REGISTRY_SIZE=8) clearing the matching slot, then frees. FreeRTOS kernel."
+  },
+  {
+   "address": "0x00001350",
+   "class": "vendor-freertos",
+   "note": "xTaskRemoveFromEventList: pops head waiter from an event list, removes from delayed list, re-inserts into ready list, flags context switch if higher priority. FreeRTOS kernel."
+  },
+  {
+   "address": "0x000013c4",
+   "class": "vendor-freertos",
+   "note": "Unblock-pending-waiters helper: under critical section drains up to TCB+0x44/+0x45 pending waiters on two event lists via FUN_00001350. FreeRTOS kernel."
+  },
+  {
+   "address": "0x0000148c",
+   "class": "vendor-freertos",
+   "note": "xTaskRemoveFromEventList (notify variant): sets event-item value with 0x80000000 taken-bit, removes waiter (+0x18) and re-readies it. FreeRTOS kernel."
+  },
+  {
+   "address": "0x000014f8",
+   "class": "vendor-freertos",
+   "note": "prvIdleTask cleanup loop / vTaskSwitchContext deferred-free: repeatedly removes terminated TCBs from a pending list and frees them, yielding. FreeRTOS kernel."
+  },
+  {
+   "address": "0x00001550",
+   "class": "vendor-freertos",
+   "note": "prvAddCurrentTaskToDelayedList: removes task from ready list and inserts into delayed or overflow-delayed list by wake time with carry handling; tracks next-unblock time. FreeRTOS kernel."
+  },
+  {
+   "address": "0x000015c0",
+   "class": "vendor-freertos",
+   "note": "vTaskDelay: critical-nesting assert, suspend-all, add current task to delayed list, ResumeAll, yield. FreeRTOS kernel."
+  },
+  {
+   "address": "0x000015ec",
+   "class": "vendor-freertos",
+   "note": "vTaskPlaceOnEventList: append current task event-list item (+0x18) then delay it. FreeRTOS kernel."
+  },
+  {
+   "address": "0x0000160c",
+   "class": "vendor-freertos",
+   "note": "xQueueSemaphoreTake / blocking receive: spins on count (+0xe), handles mutex priority inheritance/disinheritance (5-prio remap, holder +0x4c), blocks on event list with timeout via FUN_00000e88. FreeRTOS queue."
+  },
+  {
+   "address": "0x000018ac",
+   "class": "vendor-freertos",
+   "note": "Task/queue-handle teardown: deregisters from registry, frees waiters, frees storage; also pokes a peripheral handle stored in TCB+0x58 (req/ack spin on +0x18, MMIO 0x40000244=0x80) to quiesce it. FreeRTOS deletion with a CAN-peripheral standby poke."
+  },
+  {
+   "address": "0x00001934",
+   "class": "vendor-freertos",
+   "note": "xQueueGenericSend (back): copies item into tail via FUN_00005d7a, increments count (+0x38), wakes a waiter, blocks with timeout if full. FreeRTOS queue."
+  },
+  {
+   "address": "0x00001a44",
+   "class": "vendor-hal",
+   "note": "M_CAN mailbox/interrupt dispatcher: walks the CAN message-buffer status word (+0x50; TX 0x3800000, RX-FIFO 0x200, std/ext id bits), resolves the message-RAM slot via FUN_00005f24, clears pending bits in +0xd4/+0xe0/+0x54, and invokes the per-buffer callback vtable. NXP M_CAN HAL."
+  },
+  {
+   "address": "0x00001b38",
+   "class": "vendor-hal",
+   "note": "M_CAN controller bring-up (called from main init): configures GLB/INIT regs, computes nominal bit-timing from an 8-entry baud table, programs NBTP/DBTP and the CAN MMIO block (0x40000148/0228/0300/030c/0324/0380/0394/0400), installs ID-filter mux entries via FUN_00005964. NXP M_CAN HAL."
+  },
+  {
+   "address": "0x00001d0c",
+   "class": "vendor-hal",
+   "note": "CAN transmit task body (OD comms middleware): loops receiving queued messages (FUN_00001934, 500-tick), builds an extended 29-bit CAN frame (id & 0x1fffffff | 0x40000000, DLC 8), writes it into the CAN TX buffer (slot+0x200) and sets TX-request bits, releases the OD entry (FUN_00005928). Generic shared comms TX worker."
+  },
+  {
+   "address": "0x00001ea4",
+   "class": "vendor-freertos",
+   "note": "prvCopyDataFromQueue / queue peek: handles recursive-mutex give (+0x4c holder count, 5-prio remap) and ring-buffer read-pointer advance. FreeRTOS queue."
+  },
+  {
+   "address": "0x00002030",
+   "class": "vendor-freertos",
+   "note": "xQueueGenericSend (give/front variant): copies via FUN_00001ea4 while space (+0x38<+0x3c), wakes waiter, blocks with timeout when full. FreeRTOS queue."
+  },
+  {
+   "address": "0x00002140",
+   "class": "vendor-hal",
+   "note": "Peripheral command/transaction primitive: takes two mutexes (FUN_0000160c), fills a command record from the caller's 6-word param block (id/data/len), writes command codes to the peripheral at base+0x804/0x808/0x80c (0x50, 0x03000051), returns comms error codes 0xa28/0xa2b. Generic command driver used by the OD registry and init paths."
+  },
+  {
+   "address": "0x00002228",
+   "class": "vendor-freertos",
+   "name": "FUN_00002228",
+   "note": "FreeRTOS generic queue/semaphore send: op==6 path -> xQueueGenericSend-from-ISR helper (FUN_00005ff2), else task-context send (FUN_00002030); infinite-loop on NULL handle = configASSERT."
+  },
+  {
+   "address": "0x00002598",
+   "class": "vendor-hal",
+   "name": "FUN_00002598",
+   "note": "CAN-OD comms-registry flag set: waits the OD entry semaphore (FUN_00005da6), ORs param bits into registry words +0x10/+0x14 (+0x18/+0x1c mask), releases (FUN_000061d4). Generic OD middleware (callers in lock task pass lock-state event flags)."
+  },
+  {
+   "address": "0x000025d8",
+   "class": "vendor-freertos",
+   "name": "FUN_000025d8",
+   "note": "FreeRTOS event/ready-list insert under critical section (vListInsert-style); updates per-priority list + top-priority bookkeeping, sets yield flag."
+  },
+  {
+   "address": "0x0000266c",
+   "class": "vendor-freertos",
+   "name": "FUN_0000266c",
+   "note": "FreeRTOS list insert variant under taskENTER/EXIT_CRITICAL (FUN_00000e44/FUN_00000e60); updates priority list and requests context switch (FUN_00005ada)."
+  },
+  {
+   "address": "0x00002768",
+   "class": "vendor-freertos",
+   "name": "FUN_00002768",
+   "note": "FreeRTOS timer/daemon command dispatch: invokes a stored callback (param[7]) then posts to the queue at *(*ctx)+0x590 via FUN_0000626c; returns negated status."
+  },
+  {
+   "address": "0x00002898",
+   "class": "vendor-hal",
+   "name": "FUN_00002898",
+   "note": "NXP low-power/clock + SCT-PWM MMIO sequence: edits SYSCON/PMU regs (0x40000048/0x40000380/0x40000400/0x40000704), calls a HAL vtable entry; invoked from the lock task to drive the motor power rail."
+  },
+  {
+   "address": "0x00002acc",
+   "class": "vendor-hal",
+   "name": "FUN_00002acc",
+   "note": "Flash/EEPROM sector driver: programs a 0x200-byte page at (objidx+0x40)*0x200 via FUN_00000aac, fills 0xff on retries, decrements remaining-page count. NXP storage HAL."
+  },
+  {
+   "address": "0x00002b48",
+   "class": "vendor-hal",
+   "name": "FUN_00002b48",
+   "note": "Flash region write: bounds-checks (<=0x7400), erases via FUN_00002acc, writes 0x200-byte blocks from offset 0x8000 (FUN_00000ae8/FUN_00000ee0). NXP storage HAL."
+  },
+  {
+   "address": "0x00002e1c",
+   "class": "vendor-freertos",
+   "name": "FUN_00002e1c",
+   "note": "FreeRTOS heap_4 pvPortMalloc: lazy heap init, free-block list walk/split, 8-byte alignment, block-allocated bit; configASSERT on misalignment."
+  },
+  {
+   "address": "0x00002f50",
+   "class": "vendor-hal",
+   "name": "FUN_00002f50",
+   "note": "Storage object allocator/open: pvPortMalloc(0x3c) descriptor + HAL vtable init (FUN_00000aac/abc), frees on failure. NXP storage HAL glue."
+  },
+  {
+   "address": "0x00002f98",
+   "class": "vendor-hal",
+   "name": "FUN_00002f98",
+   "note": "Flash 0x200-byte sector read-modify-write: reads page (FUN_00000b2c), sets status words 4/5 and ctrl |0x70, programs (FUN_00000f28). NXP storage HAL."
+  },
+  {
+   "address": "0x00003014",
+   "class": "vendor-freertos",
+   "name": "FUN_00003014",
+   "note": "FreeRTOS xTaskCreate: allocates stack+TCB, copies task name, fills stack-init pattern (0x01010101..0x12121212, xPSR 0x01000000, EXC_RETURN 0xfffffffd), inserts into ready list / starts first task."
+  },
+  {
+   "address": "0x00003208",
+   "class": "vendor-freertos",
+   "name": "FUN_00003208",
+   "note": "FreeRTOS lazy init of a recursive-mutex/event object under critical section (FUN_000067c6 create + FUN_00000d20)."
+  },
+  {
+   "address": "0x0000325c",
+   "class": "vendor-freertos",
+   "name": "FUN_0000325c",
+   "note": "FreeRTOS xTimerCreate + xTimerStart: allocates 0x28 timer block, sets period/callback, posts START command to timer queue (FUN_00002228 op 1/6), ISR-safe path pends SVC."
+  },
+  {
+   "address": "0x00003450",
+   "class": "vanmoof",
+   "name": "elock_unlock_retry_arm",
+   "note": "Lock retry/timeout glue: decrements retry counter at +0x50, short delay (FUN_000003cc 100), sets a peripheral enable bit, (re)creates the 0x96ms unlock-retry software timer via FUN_0000325c."
+  },
+  {
+   "address": "0x0000352c",
+   "class": "vanmoof",
+   "name": "elock_log_event",
+   "note": "VanMoof event logger: zeroes a 30-byte record, copies variadic body at +6, src_tag@0/code@4, publishes to the event queue at *(*ctx)+0x590 (FUN_0000626c). Anchor."
+  },
+  {
+   "address": "0x000035c0",
+   "class": "vendor-hal",
+   "name": "FUN_000035c0",
+   "note": "M_CAN message-object configure/transmit: writes message header magic 0xabc, sets ID/DLC fields, arms TX via FUN_00002140 (CAN msg-RAM regs +0x804/+0x808/+0x80c); logs HAL errors through elock_log_event. NXP M_CAN driver."
+  },
+  {
+   "address": "0x0000366c",
+   "class": "vendor-hal",
+   "name": "FUN_0000366c",
+   "note": "CAN-OD RX dispatch + multi-frame reassembly: looks up signal descriptor (FUN_00005910), reassembles <=0x40-byte payload across frame slots, invokes per-signal handler callback, and replies via the framing layer (FUN_00005ce6). Generic OD comms middleware."
+  },
+  {
+   "address": "0x000038f4",
+   "class": "vendor-freertos",
+   "name": "FUN_000038f4",
+   "note": "FreeRTOS vTaskSwitchContext: selects highest-priority ready task by walking the per-priority ready lists, advances the list iterator, updates pxCurrentTCB; sets xYieldPending when suspended."
+  },
+  {
+   "address": "0x0000396a",
+   "class": "vanmoof",
+   "name": "elock_main_init",
+   "note": "main()/app init: clock+pin bring-up, M_CAN bit-timing/ID filters, SCT motor-PWM, 5x ADC FP-rail sense (x5.75), builds event subsystem + FreeRTOS tasks via FUN_00003014, registers CAN-OD signals (node 0xC1, descriptors e.g. 0xc18808), programs SysTick and starts scheduler. Anchor."
+  },
+  {
+   "address": "0x00004eb0",
+   "class": "vanmoof",
+   "name": "elock_lock_task",
+   "note": "Core elock state-machine task: reads sensor/motor-sensor (OD 0x2c1) and angle (0x7c1), drives lock-motor PWM/SCT (regs +0x800/+0x810/+0x814/+0x824), runs tilt/motion alarm detection (FP filter vs 7.0), broadcasts lock-state byte (OD 0x4c1) and status (0xba2), arms motor via FUN_00002898 and CAN msg setup FUN_000035c0; uses elock_log_event codes."
+  },
+  {
+   "address": "0x00005558",
+   "class": "vendor-libgcc",
+   "name": "FUN_00005558",
+   "note": "libgcc __aeabi_uldivmod / ldivmod wrapper: special-cases zero/overflow then tail-calls the 64-bit divmod core FUN_00005588."
+  },
+  {
+   "address": "0x00005588",
+   "class": "vendor-libgcc",
+   "name": "FUN_00005588",
+   "note": "libgcc __udivmoddi4: unsigned 64-bit division/modulo via 32-bit LZCOUNT-normalised long division; writes remainder through param_5."
+  },
+  {
+   "address": "0x00005886",
+   "class": "vendor-hal",
+   "name": "FUN_00005886",
+   "note": "NXP SYSCON peripheral clock/reset enable: writes 1<<(bit&0xff) to register ((sel>>8)+0x88)*4 + 0x40000000 (SYSCON AHBCLKCTRL/PRESETCTRL set-array)."
+  },
+  {
+   "address": "0x0000589c",
+   "class": "unsure",
+   "name": "FUN_0000589c",
+   "note": "Reads a hardware value after a short delay (FUN_000003cc/FUN_00000354) and returns its 1-bit XOR parity; likely a pin/line-sense parity helper (HAL-ish), but too small to attribute confidently."
+  },
+  {
+   "address": "0x000058a8",
+   "class": "unsure",
+   "name": "FUN_000058a8",
+   "note": "Pure 1-bit XOR-fold parity of a 32-bit word (no MMIO); generic bit utility usable for CAN/checksum parity. Too small/generic to attribute to VanMoof vs vendor."
+  },
+  {
+   "address": "0x000058ba",
+   "class": "vendor-hal",
+   "name": "comms_od_key_compare",
+   "note": "CAN-OD registry key comparator: compares record bytes [1]/[0] against descriptor +0xd/+0xc (id/sub). Generic comms middleware."
+  },
+  {
+   "address": "0x000058cc",
+   "class": "vendor-hal",
+   "name": "comms_od_table_walk",
+   "note": "Iterates the OD descriptor table (stride 0x2c) invoking a comparator callback per entry; returns matching index or -1. Generic comms middleware."
+  },
+  {
+   "address": "0x000058f8",
+   "class": "vendor-hal",
+   "name": "comms_od_lookup_entry",
+   "note": "OD lookup: walks table, returns entry pointer (idx*0x2c + base[+0xc]) or 0. Generic comms middleware."
+  },
+  {
+   "address": "0x00005910",
+   "class": "vendor-hal",
+   "name": "comms_od_lookup",
+   "note": "Null-guarded OD lookup wrapper building a 2-word key on stack, delegates to comms_od_lookup_entry. Generic comms middleware."
+  },
+  {
+   "address": "0x00005928",
+   "class": "vendor-hal",
+   "name": "mcan_enter_init",
+   "note": "Bosch M_CAN reset/disable: clears CCCR/IE bits (+0xe0,+0x54,+0xd4), sets INIT (+0x18) and polls. NXP M_CAN driver."
+  },
+  {
+   "address": "0x00005964",
+   "class": "vendor-hal",
+   "name": "iocon_pin_mux_set",
+   "note": "Writes 1-2 IOCON pin-mux registers (0x40000260 base, index*4), each field-1. LPC IOCON HAL."
+  },
+  {
+   "address": "0x00005994",
+   "class": "vendor-hal",
+   "name": "mcan_bit_timing_fixup",
+   "note": "Validates/patches M_CAN nominal+data bit-timing register fields (+0x804): defaults sync-seg/sample-point bits. M_CAN driver."
+  },
+  {
+   "address": "0x00005a00",
+   "class": "vendor-hal",
+   "name": "gpio_pulse_pin",
+   "note": "GPIO drive: set bit (0x40000120) wait-high, clear bit (0x40000140) wait-low via PIN reg 0x40000100. LPC GPIO HAL."
+  },
+  {
+   "address": "0x00005a2a",
+   "class": "vendor-freertos",
+   "name": "vListInitialise",
+   "note": "FreeRTOS list init: sets sentinel value 0xffffffff and self-links head/tail to the end marker."
+  },
+  {
+   "address": "0x00005a40",
+   "class": "vendor-freertos",
+   "name": "vListInsertEnd",
+   "note": "FreeRTOS vListInsertEnd: splice item before index, bump count. List code."
+  },
+  {
+   "address": "0x00005a58",
+   "class": "vendor-freertos",
+   "name": "vListInsert",
+   "note": "FreeRTOS vListInsert: ordered insert by item value (0xffffffff = at end), bump count."
+  },
+  {
+   "address": "0x00005a86",
+   "class": "vendor-freertos",
+   "name": "ring_bytes_used",
+   "note": "Ring/queue fill computation (head+wrap-tail-base, modular). FreeRTOS stream/queue helper."
+  },
+  {
+   "address": "0x00005a98",
+   "class": "vendor-freertos",
+   "name": "port_raise_basepri_save",
+   "note": "Cortex-M port: save BASEPRI then raise mask to 0x20, DSB/ISB. taskENTER_CRITICAL helper."
+  },
+  {
+   "address": "0x00005aae",
+   "class": "vendor-freertos",
+   "name": "ring_bytes_free",
+   "note": "Ring/queue free-space computation (configASSERT on null handle). FreeRTOS stream/queue helper."
+  },
+  {
+   "address": "0x00005acc",
+   "class": "vendor-freertos",
+   "name": "port_restore_basepri",
+   "note": "Cortex-M port: restore BASEPRI from saved value, DSB/ISB. taskEXIT_CRITICAL helper."
+  },
+  {
+   "address": "0x00005ada",
+   "class": "vendor-freertos",
+   "name": "port_yield_pendsv",
+   "note": "Cortex-M port: trigger PendSV via SCB ICSR (0xe000ed04 = 0x10000000), DSB/ISB. portYIELD."
+  },
+  {
+   "address": "0x00005af0",
+   "class": "vendor-freertos",
+   "name": "timer_invoke_callback",
+   "note": "FreeRTOS software-timer dispatch: critical section, read timer callback fn ptr (+4) and arg (+8), call it. Timer service."
+  },
+  {
+   "address": "0x00005b14",
+   "class": "vendor-freertos",
+   "name": "timer_next_expiry",
+   "note": "FreeRTOS timer list: probe both timer lists, pick the earliest next-expiry value into +0x20/+0x24. Timer service."
+  },
+  {
+   "address": "0x00005b4c",
+   "class": "vendor-freertos",
+   "name": "uxListRemove",
+   "note": "FreeRTOS uxListRemove: unlink list item, fix owner index, decrement count."
+  },
+  {
+   "address": "0x00005b6c",
+   "class": "vendor-freertos",
+   "name": "vPortFree_guard",
+   "note": "Null-guarded vPortFree wrapper (heap_4). FreeRTOS memory."
+  },
+  {
+   "address": "0x00005b74",
+   "class": "vendor-freertos",
+   "name": "port_yield_within_api",
+   "note": "Conditional portYIELD: if a context-switch-pending flag is set, set PendSV (ICSR). FreeRTOS port."
+  },
+  {
+   "address": "0x00005b98",
+   "class": "vendor-freertos",
+   "name": "xTaskIncrementTick",
+   "note": "FreeRTOS tick handler: critical section, increment tick, handle overflow/pended counter, signal need-for-switch. Kernel."
+  },
+  {
+   "address": "0x00005c3a",
+   "class": "vendor-freertos",
+   "name": "event_group_clear_bits",
+   "note": "FreeRTOS event-group / task-notify: walk waiting-task list testing AND/OR bit masks, wake matched tasks, clear bits. Kernel."
+  },
+  {
+   "address": "0x00005ca4",
+   "class": "vendor-hal",
+   "name": "comms_od_dispatch_frame",
+   "note": "OD per-entry callback: reassembles 29-bit CAN id (& 0x1fffffff) + length/type from descriptor, copies payload, dispatches via entry vtable[0]. Generic comms middleware."
+  },
+  {
+   "address": "0x00005ce6",
+   "class": "vanmoof",
+   "name": "can_send_multiframe",
+   "note": "VanMoof CAN multi-frame framing (known anchor): splits buffer into <=8-byte frames with header/sequence byte (+3) and length (+4), per-frame wrapping seq nibble (0xf or 0x7 by mode +0x10), dispatch each via vtable +0x10."
+  },
+  {
+   "address": "0x00005d42",
+   "class": "vendor-hal",
+   "name": "comms_od_register",
+   "note": "OD registry insert: if absent (table-walk miss) copy a 0x2c-byte descriptor into the next slot and bump count. Generic comms middleware."
+  },
+  {
+   "address": "0x00005d7a",
+   "class": "vendor-freertos",
+   "name": "prvReloadTimer",
+   "note": "FreeRTOS software-timer reload helper: advances expire time by period (+0x10), wraps, re-inserts via FUN_00006bc0 (list insert)"
+  },
+  {
+   "address": "0x00005da6",
+   "class": "vendor-freertos",
+   "name": "xTimerGenericCommand",
+   "note": "FreeRTOS timer command (privileged/ISR split, timer command queue send via FUN_0000160c); ICSR PendSV poke at 0xe000ed04"
+  },
+  {
+   "address": "0x00005e5c",
+   "class": "vendor-freertos",
+   "name": "prvWriteBytesToBuffer",
+   "note": "FreeRTOS stream-buffer ring write with head wrap + double memcpy (FUN_00006bc0)"
+  },
+  {
+   "address": "0x00005eca",
+   "class": "vendor-freertos",
+   "name": "prvWriteMessageToBuffer",
+   "note": "FreeRTOS stream-buffer ring write at tail (+4/+8/+0x18) with wraparound"
+  },
+  {
+   "address": "0x00005f24",
+   "class": "vendor-hal",
+   "name": "mcan_read_msg_ram_element",
+   "note": "NXP M_CAN HAL: reads Rx/Tx message-RAM element using filter/buffer config registers (+0xa0..+0xbc), copies 8 bytes; called from low-level CAN driver FUN_00001a44"
+  },
+  {
+   "address": "0x00005faa",
+   "class": "vendor-freertos",
+   "name": "prvWriteOrCheckMessageLength",
+   "note": "FreeRTOS message/stream-buffer send: length-prefixed vs byte mode (+0x1c flag), bounds checks, writes via FUN_00005eca"
+  },
+  {
+   "address": "0x00005ff2",
+   "class": "vendor-freertos",
+   "name": "prvReadMessageFromBuffer",
+   "note": "FreeRTOS stream-buffer receive: reads at tail (+0x38/+0x3c), notifies sender task waiting on +0x24"
+  },
+  {
+   "address": "0x000060c2",
+   "class": "vendor-hal",
+   "name": "mcan_set_baudrate_simple",
+   "note": "NXP M_CAN HAL: derives nominal bit-timing from register at +0 and writes config struct, programs via FUN_00002140"
+  },
+  {
+   "address": "0x000060fc",
+   "class": "vendor-hal",
+   "name": "mcan_config_bit_timing",
+   "note": "NXP M_CAN HAL: builds data/nominal bit-timing config (+0xc..+0xf), CRC/parity fixup, programs controller via FUN_00002140; called from CAN bring-up FUN_000035c0"
+  },
+  {
+   "address": "0x00006192",
+   "class": "vendor-hal",
+   "name": "mcan_set_can_mode",
+   "note": "NXP M_CAN HAL: selects CAN classic/FD frame mode (mode byte +0x10 -> control bits +0xd) then re-applies bit timing via FUN_000060fc"
+  },
+  {
+   "address": "0x000061b6",
+   "class": "vendor-freertos",
+   "name": "vEventGroupDelete",
+   "note": "FreeRTOS event-group delete: unblocks waiters (FUN_00002228 cmd 5) and frees handle (*param=0)"
+  },
+  {
+   "address": "0x000061d4",
+   "class": "vendor-freertos",
+   "name": "xEventGroupSetBitsFromISR",
+   "note": "FreeRTOS event-group set-bits (task vs ISR/privileged split via FUN_00002030 / FUN_00005b98); ICSR PendSV poke"
+  },
+  {
+   "address": "0x0000620c",
+   "class": "vanmoof",
+   "name": "od_signal_write_u16",
+   "note": "CAN object-dictionary write of a 16-bit signal (descriptor id 0x3c1): registry-lookup (FUN_00005910), wait, store the u16, re-register, release"
+  },
+  {
+   "address": "0x0000626c",
+   "class": "vendor-freertos",
+   "name": "xStreamBufferSend",
+   "note": "FreeRTOS stream/message-buffer send: copies header+payload (FUN_00006bc0) into ring, task/ISR split, wakes receiver task at +0x10"
+  },
+  {
+   "address": "0x000065b2",
+   "class": "vendor-hal",
+   "name": "nvm_storage_erase_program_pages",
+   "note": "Storage/flash backend: erases and programs 0x200-byte pages of an NVM object (+0x18), fills page with 0xff (FUN_00006bda), via low-level FUN_00000fe8"
+  },
+  {
+   "address": "0x00006644",
+   "class": "vanmoof",
+   "name": "elock_can_send_signal",
+   "note": "Builds a 13-byte CAN frame from an OD record (id/data @+0xc, mode @+0x10, len/payload @+0x20/+0x24) and dispatches single frame via vtable (+0x5a4) or multi-frame via FUN_00005ce6 on the CAN port object +0x594"
+  },
+  {
+   "address": "0x000066ca",
+   "class": "vanmoof",
+   "name": "elock_od_signal_8808_send",
+   "note": "Reads OD signal (descriptor 0x8808, matches main-init 0xc18808), copies its 8-byte value, re-registers and broadcasts it on CAN via elock_can_send_signal (FUN_00006644)"
+  },
+  {
+   "address": "0x000067c6",
+   "class": "vendor-freertos",
+   "name": "prvInitStreamBufferStruct",
+   "note": "FreeRTOS stream-buffer allocate+init (heap_4 FUN_00002e1c): sets head/tail/length, init notify lists (FUN_00005a2a)"
+  },
+  {
+   "address": "0x00006836",
+   "class": "vendor-freertos",
+   "name": "xMessageBufferCreate",
+   "note": "FreeRTOS message-buffer create wrapper around prvInitStreamBufferStruct, zeroes fields, init task-notify (FUN_00002030)"
+  },
+  {
+   "address": "0x0000685a",
+   "class": "vanmoof",
+   "name": "elock_load_secret_to_od_87",
+   "note": "Reads a 14-byte persisted secret from NVM (FUN_00002f50/FUN_00000b2c, max value 1), publishes it to OD descriptor 0x87xx and copies into caller buffer; called from main() init"
+  },
+  {
+   "address": "0x0000695a",
+   "class": "vanmoof",
+   "name": "elock_load_aeskey_to_od_91",
+   "note": "Reads the 16-byte (128-bit) AES key from NVM and publishes it to OD descriptor 0x91xx, copies to caller buffer; called from main() init (key-material load glue)"
+  },
+  {
+   "address": "0x00006a44",
+   "class": "vendor-hal",
+   "name": "nvm_record_write_verify",
+   "note": "Storage middleware: reads a 0x200 record, patches payload at offset (FUN_00006bc0), writes it back (FUN_00000f28) and verifies via re-read + memcmp (FUN_00006ba0)"
+  },
+  {
+   "address": "0x00006ac2",
+   "class": "vanmoof",
+   "name": "elock_store_secret_87",
+   "note": "Persists a 14-byte secret to NVM record (tag byte 1, via nvm_record_write_verify) and reloads it into OD via elock_load_secret_to_od_87 (FUN_0000685a)"
+  },
+  {
+   "address": "0x00006b22",
+   "class": "vanmoof",
+   "name": "elock_store_aeskey_91",
+   "note": "Persists the 16-byte AES key to NVM record and reloads it into OD via elock_load_aeskey_to_od_91 (FUN_0000695a)"
+  },
+  {
+   "address": "0x00006ba0",
+   "class": "vendor-libgcc",
+   "name": "memcmp",
+   "note": "Compiler/libc memcmp: byte-wise compare of two buffers over length param_3"
+  },
+  {
+   "address": "0x00006bc0",
+   "class": "vendor-libgcc",
+   "name": "memcpy",
+   "note": "Compiler/libc forward byte-copy helper used throughout buffer/frame code"
+  },
+  {
+   "address": "0x00006bda",
+   "class": "vendor-libgcc",
+   "name": "memset",
+   "note": "Compiler/libc byte-fill helper (param_2 over param_3 bytes)"
+  }
+ ]
+}
