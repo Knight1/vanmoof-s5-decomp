@@ -95,7 +95,7 @@ nRF9160 modem, and the CAN fleet. Full analysis under [`main/docs/`](main/docs/)
 
 | Component | Image | MCU | Size | Status |
 | --- | --- | --- | --- | --- |
-| [`ble`](ble/) | `ble.*.bin` | Nordic **nRF52840** *(tbc)*, Zephyr + SoftDevice Controller | ~273 KB | **active** — base fixed to `0x23000`, 2015 fns; **50 VanMoof fns** (auth/ble/settings/findmy-glue) classified (**49 reconstructed to C**), rest vendor (incl. 118 Apple Find My, deferred) |
+| [`ble`](ble/) | `ble.*.bin` | Nordic **nRF52840** *(tbc)*, Zephyr + SoftDevice Controller | ~273 KB | **active** — base fixed to `0x23000`, 2015 fns; **53 VanMoof fns** (auth/ble/settings/findmy-glue) **all reconstructed to C**, rest vendor (incl. 116 Apple Find My, deferred) |
 | `modem` | `modem.*.bin` | Nordic **nRF9160** (LTE-M/NB-IoT + GNSS), Zephyr | ~302 KB | pending |
 
 Both carry an MCUboot image header (`0x96f3b83d`); the payload is a Zephyr/nRF
@@ -120,7 +120,7 @@ per-page CRC flashing keys off it (see [`main/docs/update.md`](main/docs/update.
 | [`imx8_bridge`](imx8_bridge/) | `imx8_bridge.*.bin` | SPI(i.MX8)↔CAN(fleet) bridge — **Cortex-M + FreeRTOS** (`CanTX`); discrete MCU (likely the `lpc55sxx` SPI satellite), 61-IRQ NVIC, SP `0x2000_8000` | ~24 KB | **scoped** — static first-look done; Ghidra pending |
 | `motor_control` | `motor_control.*.bin` | motor controller (non-standard header `0x000008aa`) | ~25 KB | pending |
 | `motor_sensor` | `motor_sensor.*.bin` | motor position/torque sensing | ~25 KB | pending |
-| `power_control` | `power_control.*.bin` | power management | ~29 KB | pending |
+| [`power_control`](power_control/) | `power_control.*.bin` | power management — **NXP Cortex-M4F**, **FreeRTOS**; power-mode state machine, rail sequencing, NTC sensing, Bosch M_CAN comms | ~29 KB | **active** — 84 fns classified, **15 VanMoof fns reconstructed to C**; rest vendor (FreeRTOS / NXP HAL / libgcc) |
 | `power_pedal` | `power_pedal.*.bin` | pedal-assist sensing | ~28 KB | pending |
 | `elock` | `elock.*.bin` | electronic frame lock | ~27 KB | pending |
 | `eshifter` | `eshifter.*.bin` | e-shifter (auto gearbox) | ~29 KB | pending |
