@@ -24,7 +24,7 @@
  */
 void eshifter_log_event(uint32_t src_tag, uint16_t code, int argc, ...)
 {
-    int **ctx = *(int ***)0x2000077cu;   /* publisher context pointer (RAM global) */
+    int **ctx = *(int ***)ESH_LOG_CTX;   /* publisher context pointer (RAM global) */
     uint8_t record[30];
     int i;
     /* first variadic word lives just past the named args */
@@ -41,7 +41,7 @@ void eshifter_log_event(uint32_t src_tag, uint16_t code, int argc, ...)
     *(uint16_t *)(record + 4) = code;
 
     message_buffer_send(*(void **)((char *)*ctx + 0x590),
-                        (void *)0x387du, 0, record, 0x1e);
+                        (void *)ESH_LOG_MSG_HANDLE, 0, record, 0x1e);
 }
 
 /* eshifter_od_signal_send_51 — OD block-write of descriptor 0x51 (position /
@@ -61,7 +61,7 @@ int eshifter_od_signal_send_51(void *dev, uint32_t offset, uint16_t *buf, uint32
 
     rc = nvm_record_block_write(dev, 0x51, offset, buf, len, offset);
     if (rc == 0) {
-        eshifter_log_event(0x3a36c02au, 0xa7, 3,
+        eshifter_log_event(ESH_LOG_TAG, 0xa7, 3,
                            offset,
                            (uint32_t)buf[0],
                            (uint32_t)buf[(len >> 1) + 0x7fffffff]);
@@ -80,7 +80,7 @@ int eshifter_od_signal_send_51(void *dev, uint32_t offset, uint16_t *buf, uint32
  * Clears ctx->sel_index (+0x8c), seeds ctx->position (+0x8a) to the 0x8000
  * sentinel, and reads OD descriptor 0x51 into a 0xfe-byte frame buffer
  * (od_descriptor_read). On read error returns the sentinel. Otherwise sets
- * ctx->valid (+8). If frame.magic == the 0x3a36c02a 'VMFW' tag:
+ * ctx->valid (+8). If frame.magic == the 0x57464d56 'VMFW' magic (literal @0x3aa0):
  *   - type 2: scan up to 124 samples for the first != 0xffff; store
  *     (sample-0x8000) into ctx->position and ((index&0x7f)<<1) into sel_index.
  *   - type 1: log code 0x146 (subcode), then emit a VMFW header.
@@ -103,7 +103,7 @@ int eshifter_read_position_status(uint32_t *ctx)
         return *(int16_t *)((char *)ctx + 0x8a);
     *(volatile uint8_t *)((char *)ctx + 8) = 1;            /* valid = 1 */
 
-    if (fr->magic == 0x57464d56u) {   /* 'VMFW' magic (literal @0x3aa0) */
+    if (fr->magic == ESH_VMFW_MAGIC) {   /* 'VMFW' magic (literal @0x3aa0) */
         if (fr->frame_type == 2) {
             unsigned int i;
             *(volatile uint16_t *)((char *)ctx + 0x8a) = 0x8000;
@@ -120,13 +120,13 @@ int eshifter_read_position_status(uint32_t *ctx)
             return *(int16_t *)((char *)ctx + 0x8a);
         }
         if (fr->frame_type != 1) {
-            eshifter_log_event(0x3a36c02au, 0x14a, 1, (uint32_t)fr->frame_type);
+            eshifter_log_event(ESH_LOG_TAG, 0x14a, 1, (uint32_t)fr->frame_type);
             *(volatile uint8_t *)((char *)ctx + 9) = 1;    /* err = 1 */
             return *(int16_t *)((char *)ctx + 0x8a);
         }
-        eshifter_log_event(0x3a36c02au, 0x146, 1, (uint32_t)fr->subcode);
+        eshifter_log_event(ESH_LOG_TAG, 0x146, 1, (uint32_t)fr->subcode);
     } else {
-        eshifter_log_event(0x3a36c02au, 0x14f, 0);
+        eshifter_log_event(ESH_LOG_TAG, 0x14f, 0);
     }
     eshifter_emit_vmfw_header(ctx, recbuf);
     return *(int16_t *)((char *)ctx + 0x8a);

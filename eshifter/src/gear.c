@@ -20,12 +20,12 @@
  * starts at cfg+0x6a and is pre-incremented by one halfword before each read,
  * so the first read is at cfg+0x6c; it sums *p (low table) and p[4] (the partner
  * 8 bytes ahead), arithmetic-shifts the 17-bit sum right by one and stores the
- * 32-bit result to the RAM table at 0x200001b8. Three iterations (offsets 0x6c,
+ * 32-bit result to the RAM table at ESH_REF_SAMPLES. Three iterations (offsets 0x6c,
  * 0x6e, 0x70).
  */
 void eshifter_sensor_pair_average(int cfg)
 {
-    int *out = (int *)0x200001b8;                  /* averaged-result table (RAM) */
+    int *out = (int *)ESH_REF_SAMPLES;                  /* averaged-result table (RAM) */
     unsigned short *p = (unsigned short *)(cfg + 0x6a);
 
     do {
@@ -39,16 +39,16 @@ void eshifter_sensor_pair_average(int cfg)
  *
  * OEM disassembly (0x00000444..0x0000045c):
  *
- * Forms base - (coarse*3600 + fine), where coarse (0x20000758) is a 32-bit
- * counter, fine (0x20000f76) is a SIGN-EXTENDED 16-bit term (OEM uses SXTAH),
- * and base (0x20000e54) is a 32-bit base value. Consumed by the run state of
+ * Forms base - (coarse*3600 + fine), where coarse (ESH_TIME_COARSE) is a 32-bit
+ * counter, fine (ESH_TIME_FINE) is a SIGN-EXTENDED 16-bit term (OEM uses SXTAH),
+ * and base (ESH_TIME_BASE) is a 32-bit base value. Consumed by the run state of
  * eshifter_position_sensor_task_step as the actuator target.
  */
 int eshifter_calc_time_offset(void)
 {
-    int   coarse = *(volatile int *)0x20000758;
-    short fine   = *(volatile short *)0x20000f76;   /* signed 16-bit */
-    int   base   = *(volatile int *)0x20000e54;
+    int   coarse = *(volatile int *)ESH_TIME_COARSE;
+    short fine   = *(volatile short *)ESH_TIME_FINE;   /* signed 16-bit */
+    int   base   = *(volatile int *)ESH_TIME_BASE;
 
     return base - (coarse * 0xe10 + (int)fine);
 }
@@ -63,25 +63,25 @@ int eshifter_calc_time_offset(void)
  * last commanded position); target = commanded target.
  *  1. delta = target - state.pos. If (delta+9U) < 0x13 (the -9..+9 on-target
  *     dead-band) it parks the drive (phase=1, clear motor-enable bytes at
- *     0x4008c000+2/+0x19), sets the stop flag (0x20000f7c=1), clears the torque
- *     command (0x200001cc=0) and returns.
- *  2. Otherwise it shifts the prev/cur delta pair (0x200006c8), resets the
- *     position accumulator (0x200006c4) when state.pos changed (0x200006d8).
+ *     ESH_MOTOR_BASE+2/+0x19), sets the stop flag (ESH_DRIVE_RAMP=1), clears the torque
+ *     command (ESH_MOTOR_CMD=0) and returns.
+ *  2. Otherwise it shifts the prev/cur delta pair (ESH_POS_DELTA_PAIR), resets the
+ *     position accumulator (ESH_POS_ACCUM) when state.pos changed (ESH_ACTUATOR_LASTPOS).
  *  3. pos_acc += (prev+delta)/2, clamped to [-20000, 19999].
  *  4. Feed-forward iq from the velocity term (acc*50 >> 8, clamped 3000), plus
  *     (delta*200)/12, clamped to [-8000, 8000].
  *  5. Phase machine selects motor direction/enables per sign of iq and the
- *     phase byte, using the dir flags at 0x20000f7e (reverse) / 0x20000f80
+ *     phase byte, using the dir flags at ESH_DIR_FLAG_REV (reverse) / ESH_DIR_FLAG_FWD
  *     (forward).
- *  6. Drive output: soft-start ramp via the dwell counter (0x20000f7c), clamp
- *     |iq| to 9999, write torque command (0x200001cc = iq*dir) and PWM duty
- *     ((iq*0x12bf)/10000 -> 0x40028000+0x7c).
+ *  6. Drive output: soft-start ramp via the dwell counter (ESH_DRIVE_RAMP), clamp
+ *     |iq| to 9999, write torque command (ESH_MOTOR_CMD = iq*dir) and PWM duty
+ *     ((iq*0x12bf)/10000 -> ESH_PWM_BASE+0x7c).
  */
 void eshifter_actuator_drive_step(unsigned char *state, int target)
 {
-    int  *pos_pair = (int *)0x200006c8;     /* [0]=cur delta, [1]=prev */
-    int  *last_pos = (int *)0x200006d8;
-    int  *pos_acc  = (int *)0x200006c4;
+    int  *pos_pair = (int *)ESH_POS_DELTA_PAIR;     /* [0]=cur delta, [1]=prev */
+    int  *last_pos = (int *)ESH_ACTUATOR_LASTPOS;
+    int  *pos_acc  = (int *)ESH_POS_ACCUM;
     int   statepos = *(int *)(state + 4);
     int   delta;
     int   prev;
@@ -90,17 +90,17 @@ void eshifter_actuator_drive_step(unsigned char *state, int target)
     int   iq;
     int   dir;
     unsigned char phase;
-    unsigned short *ramp = (unsigned short *)0x20000f7c;
+    unsigned short *ramp = (unsigned short *)ESH_DRIVE_RAMP;
 
     delta = target - statepos;
     if ((unsigned)(delta + 9) < 0x13) {
         if (*state != 1) {
-            *(volatile unsigned char *)(0x4008c000 + 2)    = 0;
-            *(volatile unsigned char *)(0x4008c000 + 0x19) = 1;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 2)    = 0;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 0x19) = 1;
         }
         *state = 1;
-        *(volatile unsigned short *)0x20000f7c = 1;   /* stop flag */
-        *(volatile int *)0x200001cc = 0;
+        *(volatile unsigned short *)ESH_DRIVE_RAMP = 1;   /* stop flag */
+        *(volatile int *)ESH_MOTOR_CMD = 0;
         return;
     }
 
@@ -145,34 +145,34 @@ void eshifter_actuator_drive_step(unsigned char *state, int target)
         switch (phase) {
         case 0:
         case 1:
-            *(volatile unsigned char *)(0x4008c000 + 3)    = 0;
-            *(volatile unsigned char *)(0x4008c000 + 2)    = 1;
-            *(volatile unsigned char *)(0x4008c000 + 0x19) = 1;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 3)    = 0;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 2)    = 1;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 0x19) = 1;
             *state = 2;
             break;
         case 2:
             *state = 2;
             break;
         case 3:
-            *(volatile unsigned char *)(0x4008c000 + 2) = 0;
-            *(volatile short *)0x20000f7e = 0;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 2) = 0;
+            *(volatile short *)ESH_DIR_FLAG_REV = 0;
             *state = 4;
             break;
         case 4:
-            if (*(volatile short *)0x20000f7e == 0) {
-                *(volatile unsigned char *)(0x4008c000 + 2) = 0;
-                *(volatile short *)0x20000f7e = 0;
+            if (*(volatile short *)ESH_DIR_FLAG_REV == 0) {
+                *(volatile unsigned char *)(ESH_MOTOR_BASE + 2) = 0;
+                *(volatile short *)ESH_DIR_FLAG_REV = 0;
                 *state = 4;
             } else {
-                *(volatile unsigned char *)(0x4008c000 + 3)    = 0;
-                *(volatile unsigned char *)(0x4008c000 + 2)    = 1;
-                *(volatile unsigned char *)(0x4008c000 + 0x19) = 1;
-                *(volatile unsigned short *)0x20000f7c = 1;
+                *(volatile unsigned char *)(ESH_MOTOR_BASE + 3)    = 0;
+                *(volatile unsigned char *)(ESH_MOTOR_BASE + 2)    = 1;
+                *(volatile unsigned char *)(ESH_MOTOR_BASE + 0x19) = 1;
+                *(volatile unsigned short *)ESH_DRIVE_RAMP = 1;
                 *state = 2;
             }
             break;
         default:
-            *(volatile unsigned char *)(0x4008c000 + 0x19) = 0;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 0x19) = 0;
             *state = 0;
             break;
         }
@@ -181,33 +181,33 @@ void eshifter_actuator_drive_step(unsigned char *state, int target)
         switch (phase) {
         case 0:
         case 1:
-            *(volatile unsigned char *)(0x4008c000 + 3)    = 1;
-            *(volatile unsigned char *)(0x4008c000 + 2)    = 1;
-            *(volatile unsigned char *)(0x4008c000 + 0x19) = 1;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 3)    = 1;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 2)    = 1;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 0x19) = 1;
             *state = 3;
             break;
         case 2:
-            *(volatile unsigned char *)(0x4008c000 + 2) = 0;
-            *(volatile int *)0x20000f80 = 0;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 2) = 0;
+            *(volatile int *)ESH_DIR_FLAG_FWD = 0;
             *state = 4;
             break;
         case 3:
             *state = 3;
             break;
         case 4:
-            if (*(volatile int *)0x20000f80 == 0) {
-                *(volatile int *)0x20000f80 = 1;
+            if (*(volatile int *)ESH_DIR_FLAG_FWD == 0) {
+                *(volatile int *)ESH_DIR_FLAG_FWD = 1;
                 *state = 4;
             } else {
-                *(volatile unsigned char *)(0x4008c000 + 3)    = 1;
-                *(volatile unsigned char *)(0x4008c000 + 2)    = 1;
-                *(volatile unsigned char *)(0x4008c000 + 0x19) = 1;
-                *(volatile unsigned short *)0x20000f7c = 1;
+                *(volatile unsigned char *)(ESH_MOTOR_BASE + 3)    = 1;
+                *(volatile unsigned char *)(ESH_MOTOR_BASE + 2)    = 1;
+                *(volatile unsigned char *)(ESH_MOTOR_BASE + 0x19) = 1;
+                *(volatile unsigned short *)ESH_DRIVE_RAMP = 1;
                 *state = 3;
             }
             break;
         default:
-            *(volatile unsigned char *)(0x4008c000 + 0x19) = 0;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 0x19) = 0;
             *state = 0;
             break;
         }
@@ -227,8 +227,8 @@ void eshifter_actuator_drive_step(unsigned char *state, int target)
     }
     if (iq > 9950)
         iq = 9999;
-    *(volatile int *)0x200001cc = iq * dir;
-    *(volatile unsigned int *)(0x40028000 + 0x7c) =
+    *(volatile int *)ESH_MOTOR_CMD = iq * dir;
+    *(volatile unsigned int *)(ESH_PWM_BASE + 0x7c) =
         (unsigned)(iq * 0x12bf) / 10000;     /* PWM duty */
 }
 
@@ -237,23 +237,23 @@ void eshifter_actuator_drive_step(unsigned char *state, int target)
  *
  * OEM disassembly (0x000025a4..0x00002a1a):
  *
- * (a) Read six signed ADC samples (0x400a0000+0x300), storing the value as u16
+ * (a) Read six signed ADC samples (ESH_ADC_BASE+0x300), storing the value as u16
  *     when negative else 0.
  * (b) Ratiometric difference: diff[i] = (samp[i] - ref[i]) / ref[i] over the
- *     four reference samples at 0x200001b8.
+ *     four reference samples at ESH_REF_SAMPLES.
  * (c) Inline rational atan2 (poly coeff 0.28) of (diff0+diff2, diff1+diff3) ->
  *     a 14-bit electrical angle/position (scaled by 65536/2pi, biased 0x2000).
- * (d) Position-delta wrap counter at 0x20000f8a (clamped 0..14).
+ * (d) Position-delta wrap counter at ESH_POS_WRAP_IDX (clamped 0..14).
  * (e) Tick helper (eshifter_tick_update) + a second wrap tracker over
- *     0x20000f7a/0x20000f78 into the 32-bit counter 0x20000758; pushes the
- *     wrapped delta into the 128-entry ring at 0x200001d0; writes the fine time
- *     term (0x20000f76) consumed by eshifter_calc_time_offset.
+ *     ESH_POS_RAW_CUR/ESH_POS_RAW_PREV into the 32-bit counter ESH_TIME_COARSE; pushes the
+ *     wrapped delta into the 128-entry ring at ESH_DELTA_RING; writes the fine time
+ *     term (ESH_TIME_FINE) consumed by eshifter_calc_time_offset.
  * (f) Single-pole IIR (b0=0.01546, a1=0.96906) on samp[5] into the float ring
- *     at 0x2000049c (u16 input ring at 0x20000e68).
- * (g) Calibration FSM (enable byte 0x20000f89, state byte 0x20000158):
+ *     at ESH_IIR_FILT_RING (u16 input ring at ESH_IIR_INPUT_RING).
+ * (g) Calibration FSM (enable byte ESH_CALIB_ENABLE, state byte ESH_CALIB_FSM):
  *     case 0 collects per-channel max/min calibration accumulators until 1200
  *     samples; case 1 stores the calibration into the config record (magic
- *     0x8550) and persists it; case 2 runs the actuator; default resets.
+ *     ESH_CALIB_MAGIC) and persists it; case 2 runs the actuator; default resets.
  *
  * The decompiler's coprocessor_function2/NAN/in_fpscr terms are VFP-compare
  * (vcmpe/vmrs) artifacts and carry no logic.
@@ -266,14 +266,14 @@ void eshifter_position_sensor_task_step(void)
 
     /* (a) read six ADC samples */
     for (i = 0; i < 6; ++i) {
-        int adc = *(volatile int *)(0x400a0000 + 0x300);
+        int adc = *(volatile int *)(ESH_ADC_BASE + 0x300);
         samp[i] = (adc < 0) ? (unsigned short)adc : 0;
     }
 
     /* (b) ratiometric differences */
     mem_set(diff, 0, 0x10);
     {
-        const int *ref = (const int *)0x200001b8;
+        const int *ref = (const int *)ESH_REF_SAMPLES;
         for (i = 0; i < 4; ++i) {
             float r = (float)ref[i];
             float x = (float)(unsigned)samp[i];
@@ -324,8 +324,8 @@ void eshifter_position_sensor_task_step(void)
 
             /* (d) position delta / wrap counter */
             {
-                unsigned short *poscell = (unsigned short *)0x20000f68;
-                signed char    *widx    = (signed char *)0x20000f8a;
+                unsigned short *poscell = (unsigned short *)ESH_POS_LAST14;
+                signed char    *widx    = (signed char *)ESH_POS_WRAP_IDX;
                 unsigned short  prev    = *poscell;
                 int d;
                 *poscell = (unsigned short)pos14;
@@ -345,14 +345,14 @@ void eshifter_position_sensor_task_step(void)
     /* (e) tick helper + second wrap tracker + delta ring buffer */
     eshifter_tick_update();
     {
-        unsigned short *cur   = (unsigned short *)0x20000f7a;
-        unsigned short *old   = (unsigned short *)0x20000f78;
-        int            *wrapc = (int *)0x20000758;
+        unsigned short *cur   = (unsigned short *)ESH_POS_RAW_CUR;
+        unsigned short *old   = (unsigned short *)ESH_POS_RAW_PREV;
+        int            *wrapc = (int *)ESH_TIME_COARSE;
         unsigned short  v     = *cur;
         unsigned short  o     = *old;
         int             d2;
-        unsigned char  *ridx  = (unsigned char *)0x20000f88;
-        int            *ring  = (int *)0x200001d0;
+        unsigned char  *ridx  = (unsigned char *)ESH_DELTA_RING_IDX;
+        int            *ring  = (int *)ESH_DELTA_RING;
         unsigned char   bi;
 
         *old = v;
@@ -361,7 +361,7 @@ void eshifter_position_sensor_task_step(void)
             *wrapc = *wrapc + 1;
         else if (d2 > 0x8000)
             *wrapc = *wrapc - 1;
-        *(volatile unsigned short *)0x20000f76 =
+        *(volatile unsigned short *)ESH_TIME_FINE =
             (unsigned short)((unsigned)v * 0xe10 >> 16);
         if (d2 < -0x8000)
             d2 += 0x10000;
@@ -376,9 +376,9 @@ void eshifter_position_sensor_task_step(void)
     {
         const float b0 = 0x1.facc22p-7f;   /* OEM 0x3c7d6611 */
         const float a1 = 0x1.f0299ep-1f;   /* OEM 0x3f7814cf */
-        unsigned char  *fidx  = (unsigned char *)0x20000f82;
-        unsigned short *ring2 = (unsigned short *)0x20000e68;
-        float          *filt  = (float *)0x2000049c;
+        unsigned char  *fidx  = (unsigned char *)ESH_IIR_RING_IDX;
+        unsigned short *ring2 = (unsigned short *)ESH_IIR_INPUT_RING;
+        float          *filt  = (float *)ESH_IIR_FILT_RING;
         unsigned        idx   = *fidx;
         unsigned        pidx  = (idx == 0) ? 0x7f : ((idx - 1) & 0xff);
         float           x     = (float)(unsigned)samp[4];
@@ -390,21 +390,21 @@ void eshifter_position_sensor_task_step(void)
 
     /* (g) calibration FSM */
     {
-        signed char    enable = *(signed char *)0x20000f89;
-        unsigned char *fsm    = (unsigned char *)0x20000158;
+        signed char    enable = *(signed char *)ESH_CALIB_ENABLE;
+        unsigned char *fsm    = (unsigned char *)ESH_CALIB_FSM;
         if (enable == 0)
             return;
-        mem_copy((void *)0x20000f6a, samp, 0xc);
+        mem_copy((void *)ESH_SAMPLE_COPY, samp, 0xc);
 
         switch (*fsm) {
         case 0: {
-            unsigned short *countA = (unsigned short *)0x20000e58;
-            unsigned short *countB = (unsigned short *)0x20000e60;
-            unsigned short *endA   = (unsigned short *)0x20000e60;
-            int *maxA = (int *)0x20000130;
-            int *minB = (int *)0x20000140;
-            int *accA = (int *)0x2000010c;
-            int *accB = (int *)0x2000011c;
+            unsigned short *countA = (unsigned short *)ESH_CALIB_COUNT_A;
+            unsigned short *countB = (unsigned short *)ESH_CALIB_COUNT_B;
+            unsigned short *endA   = (unsigned short *)ESH_CALIB_COUNT_B;
+            int *maxA = (int *)ESH_CALIB_MAX_A;
+            int *minB = (int *)ESH_CALIB_MIN_B;
+            int *accA = (int *)ESH_CALIB_ACC_A;
+            int *accB = (int *)ESH_CALIB_ACC_B;
             unsigned short *s     = samp;
             unsigned short  total = 0;
             unsigned char   next  = *fsm;
@@ -459,19 +459,19 @@ void eshifter_position_sensor_task_step(void)
             break;
         }
         case 1: {
-            int   *actuator = (int *)0x200006a0;
+            int   *actuator = (int *)ESH_ACTUATOR_PTR;
             int    act = *actuator;
             int    rec;
-            const int *srcA = (const int *)0x2000010c;
-            const int *srcB = (const int *)0x2000011c;
+            const int *srcA = (const int *)ESH_CALIB_ACC_A;
+            const int *srcB = (const int *)ESH_CALIB_ACC_B;
             unsigned short *p;
 
             eshifter_actuator_dead_stop((unsigned char *)act);
             *(int *)(act + 4) = 0;
-            *(int *)0x200001cc = 0;
+            *(int *)ESH_MOTOR_CMD = 0;
             eshifter_calib_reset();
 
-            rec = *(int *)0x2000069c;            /* config record */
+            rec = *(int *)ESH_CONFIG_REC_PTR;            /* config record */
             p = (unsigned short *)(rec + 0x74);
             do {
                 ++p;
@@ -479,14 +479,14 @@ void eshifter_position_sensor_task_step(void)
                 p[4] = (unsigned short)*srcB;
                 ++srcA; ++srcB;
             } while ((unsigned short *)(rec + 0x7c) != p);
-            *(unsigned short *)(rec + 0x88) = 0x8550;   /* calibration magic */
+            *(unsigned short *)(rec + 0x88) = ESH_CALIB_MAGIC;   /* calibration magic */
             eshifter_write_config_record((uint8_t *)rec);
             eshifter_sensor_pair_average(rec + 0xa);
             *fsm = 2;
             break;
         }
         case 2: {
-            int act = *(int *)0x200006a0;
+            int act = *(int *)ESH_ACTUATOR_PTR;
             int tgt = eshifter_calc_time_offset();
             eshifter_actuator_drive_step((unsigned char *)act, tgt);
             break;
@@ -494,8 +494,8 @@ void eshifter_position_sensor_task_step(void)
         case 3:
             break;
         default: {
-            int act = *(int *)0x200006a0;
-            *(volatile unsigned char *)(0x4008c000 + 0x19) = 0;
+            int act = *(int *)ESH_ACTUATOR_PTR;
+            *(volatile unsigned char *)(ESH_MOTOR_BASE + 0x19) = 0;
             *(int *)(act + 4) = 0;
             *(unsigned char *)act = 0;
             break;

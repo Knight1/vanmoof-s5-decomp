@@ -21,6 +21,65 @@
 #include <stddef.h>
 #include "compiler.h"
 
+/* ---------------------------------------------------- device addresses ----
+ * Named MMIO peripheral bases and RAM globals. These are plain literal-address
+ * constants — substituting the name for the hex changes nothing in the emitted
+ * code (the compiler folds them identically), it only makes the reconstruction
+ * readable. Addresses are the OEM absolute values. */
+
+/* MMIO peripherals */
+#define ESH_MOTOR_BASE        0x4008c000u   /* lock/gear actuator motor driver block (+2/+3/+0x19 enable/dir) */
+#define ESH_PWM_BASE          0x40028000u   /* SCTimer/PWM block (+0x7c duty) */
+#define ESH_ADC_BASE          0x400a0000u   /* position-sensor ADC (+0x300 sample register) */
+
+/* RAM globals — position/drive control */
+#define ESH_REF_SAMPLES       0x200001b8u   /* 4x signed reference samples / averaged result table */
+#define ESH_MOTOR_CMD         0x200001ccu   /* motor torque/current command output */
+#define ESH_DELTA_RING        0x200001d0u   /* 128-entry signed position-delta ring buffer */
+#define ESH_DELTA_RING_IDX    0x20000f88u   /* position-delta ring write index */
+#define ESH_IIR_FILT_RING     0x2000049cu   /* 128-entry float IIR-filter ring buffer */
+#define ESH_POS_ACCUM         0x200006c4u   /* signed position accumulator */
+#define ESH_POS_DELTA_PAIR    0x200006c8u   /* [cur delta, prev delta] pair */
+#define ESH_ACTUATOR_PTR      0x200006a0u   /* pointer to actuator state struct */
+#define ESH_ACTUATOR_LASTPOS  0x200006d8u   /* actuator last-position snapshot */
+#define ESH_CONFIG_REC_PTR    0x2000069cu   /* pointer to calibration config record */
+#define ESH_POS_LAST14        0x20000f68u   /* last 14-bit electrical position */
+#define ESH_POS_RAW_PREV      0x20000f78u   /* prior raw position */
+#define ESH_POS_RAW_CUR       0x20000f7au   /* current raw position */
+#define ESH_DRIVE_RAMP        0x20000f7cu   /* drive ramp/dwell counter + stop flag */
+#define ESH_DIR_FLAG_REV      0x20000f7eu   /* reverse-direction phase flag */
+#define ESH_DIR_FLAG_FWD      0x20000f80u   /* forward-direction phase flag */
+#define ESH_POS_WRAP_IDX      0x20000f8au   /* position-wrap index (clamped 0..14) */
+
+/* RAM globals — time/tick */
+#define ESH_TIME_COARSE       0x20000758u   /* 32-bit coarse time / wrap counter */
+#define ESH_TIME_BASE         0x20000e54u   /* 32-bit base time value */
+#define ESH_TIME_FINE         0x20000f76u   /* 16-bit fine time term (feeds calc_time_offset) */
+
+/* RAM globals — IIR filter */
+#define ESH_IIR_INPUT_RING    0x20000e68u   /* 128-entry u16 IIR input ring */
+#define ESH_IIR_RING_IDX      0x20000f82u   /* IIR ring write index */
+
+/* RAM globals — calibration */
+#define ESH_CALIB_ACC_A       0x2000010cu   /* A-side calibration accumulator table */
+#define ESH_CALIB_ACC_B       0x2000011cu   /* B-side calibration accumulator table */
+#define ESH_CALIB_MAX_A       0x20000130u   /* A-side per-channel max tracker */
+#define ESH_CALIB_MIN_B       0x20000140u   /* B-side per-channel min tracker */
+#define ESH_CALIB_FSM         0x20000158u   /* calibration FSM state byte */
+#define ESH_CALIB_COUNT_A     0x20000e58u   /* A-side calibration counters */
+#define ESH_CALIB_COUNT_B     0x20000e60u   /* B-side calibration counters / A-loop end */
+#define ESH_CALIB_ENABLE      0x20000f89u   /* calibration enable byte */
+#define ESH_SAMPLE_COPY       0x20000f6au   /* live-sample copy destination */
+
+/* RAM globals + constants — event log / CAN-OD signalling */
+#define ESH_LOG_CTX           0x2000077cu   /* ptr-to-ptr event-publisher context */
+#define ESH_LOG_MSG_HANDLE    0x387du       /* message-buffer handle for log records */
+#define ESH_LOG_TAG           0x3a36c02au   /* source tag for eshifter log events */
+#define ESH_VMFW_MAGIC        0x57464d56u   /* 'VMFW' frame magic (position-frame tag) */
+
+/* Calibration record magic */
+#define ESH_CALIB_MAGIC       0x8550u       /* valid-calibration marker (config record +0x88) */
+
 /* ------------------------------------------------------------------ types */
 /* CAN Object-Dictionary message descriptor (only the touched fields named). */
 typedef struct od_msg_desc {
