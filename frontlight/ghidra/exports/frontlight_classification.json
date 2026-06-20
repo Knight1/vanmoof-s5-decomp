@@ -1,0 +1,39 @@
+{
+  "target": "frontlight",
+  "image": "frontlight.20240129.145222.1.5.0.main.v1.5.0-main.bin",
+  "mcu": "NXP LPC546xx Cortex-M4F",
+  "image_base": "0x0",
+  "function_count": 106,
+  "note": "App layer recovered from undisassembled indirect-dispatch gap 0x34c6-0x4a2b (main_init + handlers). Classified via 8-agent workflow. Rearlight is the same firmware family.",
+  "buckets": {
+    "vanmoof": 7,
+    "vendor-freertos": 59,
+    "vendor-hal": 34,
+    "vendor-libgcc": 5,
+    "unsure": 1
+  },
+  "vanmoof": [
+    {"address": "0x28f8", "name": "frontlight_render_frame", "role": "core LED frame/animation renderer: gamma-LUT expand of packed 4-bit channels, master-brightness scale (val*master/0xff), drives per-LED + PWM"},
+    {"address": "0x40c",  "name": "frontlight_pwm_set_duty", "role": "LED PWM duty writer (brightness -> SCTimer match regs 0x40085100/200; special-case 100%)"},
+    {"address": "0x27f8", "name": "frontlight_led_channel_write", "role": "per-channel LED PWM/SCTimer register write (core driver primitive)"},
+    {"address": "0x582e", "name": "frontlight_led_set_brightness", "role": "set LED channel (0..15) brightness via led_channel_write"},
+    {"address": "0x31a4", "name": "frontlight_frame_table_store", "role": "store an LED frame into the 300-entry frame table (bounds-checked)"},
+    {"address": "0x313c", "name": "frontlight_log_event", "role": "30-byte event-record emitter (== elock 0x352c / eshifter 0x332c)"},
+    {"address": "0x5b3e", "name": "frontlight_od_signal_register", "role": "build a node-0x87 CAN-OD descriptor + register/publish (from main_init)"}
+  ],
+  "deferred_vendor_anchors": {
+    "0x34dc": "main_init — SDK bring-up + FreeRTOS task creation + OD signal registration (deferred)",
+    "0x1d04": "xTaskCreate (freertos)",
+    "0x26d0": "xTimerCreate (freertos)",
+    "0x1b0c": "pvPortMalloc heap_4 (freertos)",
+    "0x15e0": "LED/SCTimer driver callback (hal) used by led_channel_write",
+    "0x4d9a/0x4d6e": "OD registry lookup/iterate (OD middleware)",
+    "0x555c/0x5120": "OD send dispatch / multiframe (OD middleware)",
+    "0x58b2": "OD signal send (OD middleware)",
+    "0x5ebe": "memset (libgcc)", "0x5ea4": "memcpy (libgcc)", "0x5e84": "memcmp (libgcc)",
+    "0x4a2c": "__aeabi 64-bit div helper (libgcc)", "0x4a5c": "__udivmoddi4 (libgcc)"
+  },
+  "unsure": [
+    {"address": "0xb94", "role": "reads two globals, returns 0/1/2 status code (possible light-state/ready query; low confidence)"}
+  ]
+}
