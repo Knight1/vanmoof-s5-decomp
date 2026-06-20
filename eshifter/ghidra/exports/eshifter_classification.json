@@ -1,0 +1,46 @@
+{
+  "target": "eshifter",
+  "image": "eshifter.20240129.145222.1.5.0.main.v1.5.0-main.bin",
+  "mcu": "NXP LPC546xx Cortex-M4F",
+  "image_base": "0x0",
+  "function_count": 146,
+  "note": "App layer recovered from undisassembled indirect-dispatch gap 0x3f62-0x599b (106 -> 146 fns). Classified via 8-agent workflow.",
+  "buckets": {
+    "vanmoof": 14,
+    "vendor-freertos": 65,
+    "vendor-hal": 62,
+    "vendor-libgcc": 5,
+    "unsure": 1
+  },
+  "vanmoof": [
+    {"address": "0x25a4", "name": "eshifter_position_sensor_task_step", "role": "core: position-sensor processing + drive FSM (angle calc, position delta, calibration magic 0x8550, config persist)"},
+    {"address": "0x5f0",  "name": "eshifter_actuator_drive_step", "role": "gear-actuator motor drive sequencing (target pos/vel/current, 0..4 phase machine)"},
+    {"address": "0x420",  "name": "eshifter_sensor_pair_average", "role": "average adjacent 16-bit position-sensor samples (helper for 0x25a4)"},
+    {"address": "0x444",  "name": "eshifter_calc_time_offset", "role": "time/offset calc base-(a+b*3600) (feeds 0x25a4)"},
+    {"address": "0x332c", "name": "eshifter_log_event", "role": "30-byte event-record emitter (== elock 0x352c / power_control 0x3980)"},
+    {"address": "0x3988", "name": "eshifter_od_signal_send_51", "role": "OD signal send (descriptor 0x51) + fallback fill + log_event"},
+    {"address": "0x39ec", "name": "eshifter_read_position_status", "role": "read OD desc 0x51, parse sensor array, log codes 0x146/0x14a/0x14f"},
+    {"address": "0x700e", "name": "eshifter_send_position_signal", "role": "position/telemetry send; deadband +-3, 0x8000 position encode"},
+    {"address": "0x6a74", "name": "eshifter_encode_status_frame", "role": "13-byte status record + dispatch (== elock can_send_signal)"},
+    {"address": "0x6afa", "name": "eshifter_od_signal_8808_send", "role": "OD signal 0x8808 send (8-byte payload)"},
+    {"address": "0x6ca4", "name": "eshifter_od_id_exchange", "role": "14-byte device-id OD exchange (opcode 0x87)"},
+    {"address": "0x6f0c", "name": "eshifter_od_send_signal_13b", "role": "OD send/recv, 13-byte payload (descriptor 0x87xx)"},
+    {"address": "0x68c0", "name": "eshifter_write_config_record", "role": "XOR-checksummed 0x80-byte config/calibration persist"},
+    {"address": "0x6fd0", "name": "eshifter_emit_vmfw_header", "role": "VanMoof VMFW magic-header emitter (version 2)"}
+  ],
+  "deferred_vendor_anchors": {
+    "0x3f98": "main_init — SDK peripheral bring-up + FreeRTOS task creation + OD signal registration (deferred)",
+    "0x3014": "xTaskCreate (freertos)",
+    "0x3254": "software-timer arm (freertos)",
+    "0x5eac": "od_signal_register (OD middleware)",
+    "0x59e0/0x59c8": "od_registry_lookup (OD middleware)",
+    "0x5f10": "od_registry_wait (OD middleware)",
+    "0x656e": "od_registry_release (OD middleware)",
+    "0x5e50": "can_send_multiframe (OD middleware)",
+    "0x70f2": "memset (libgcc)", "0x70d8": "memcpy (libgcc)", "0x70b8": "memcmp (libgcc)",
+    "0x2e1c": "pvPortMalloc heap_4 (freertos)", "0x5918": "fabsf (libgcc)"
+  },
+  "unsure": [
+    {"address": "0xac4", "role": "indirect jump-table dispatch stub; no xrefs, reached indirectly"}
+  ]
+}
