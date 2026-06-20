@@ -1,0 +1,33 @@
+{
+  "target": "rearlight",
+  "image": "rearlight.20240129.145222.1.5.0.main.v1.5.0-main.bin",
+  "mcu": "NXP LPC546xx Cortex-M4F",
+  "image_base": "0x0",
+  "function_count": 101,
+  "note": "Same firmware family as frontlight (node 0x87), recompiled for node 0x88. App layer recovered from undisassembled gap 0x340a-0x4835. Classified via 8-agent workflow with frontlight fingerprints.",
+  "buckets": { "vanmoof": 9, "vendor-freertos": 65, "vendor-hal": 24, "vendor-libgcc": 3 },
+  "vanmoof": [
+    {"address": "0x2798", "name": "rearlight_render_frame", "role": "LED frame/animation renderer (gamma LUT, master brightness, drives 20 LEDs)", "carve": true},
+    {"address": "0x2698", "name": "rearlight_led_channel_write", "role": "per-channel LED PWM/SCTimer write (mutex + callback 0x15e0 + output enable)", "carve": true},
+    {"address": "0x5318", "name": "rearlight_led_set_brightness", "role": "tail-call brightness setter", "carve": true},
+    {"address": "0x30e8", "name": "rearlight_frame_table_store", "role": "store an LED frame (overflow log code 0xb2)", "carve": true},
+    {"address": "0x3080", "name": "rearlight_log_event", "role": "30-byte event-record emitter (== elock/eshifter/frontlight)", "carve": true},
+    {"address": "0x5628", "name": "rearlight_od_signal_register", "role": "NVM record 0x30 -> OD descriptor 0x87 (secret)", "carve": true},
+    {"address": "0x572a", "name": "rearlight_od_signal_register_91", "role": "NVM record -> OD descriptor 0x91 (key)", "carve": true},
+    {"address": "0x539c", "name": "rearlight_od_signal_8808_send", "role": "OD signal 0x8808 send", "carve": true},
+    {"address": "0x2988", "name": "rearlight_led_task", "role": "LED driver task body (SCTimer/PWM HW bring-up + frame loop); borderline-vendor", "carve": false, "deferred": true}
+  ],
+  "differences_from_frontlight": {
+    "no_pwm_set_duty": "rearlight render does not call a pwm_set_duty (confirmed via callees); LED duty is per-channel only",
+    "led_count": "drives 20 LEDs (frontlight 16)",
+    "overflow_log_code": "0xb2 (frontlight 0x9e)",
+    "od_trio": "exposes secret(0x87)/key(0x91)/8808 OD functions (like elock); frontlight flagged only the secret"
+  },
+  "deferred_vendor_anchors": {
+    "0x3420": "main_init (deferred)",
+    "0x1ba0": "xTaskCreate (freertos)", "0x19a8": "pvPortMalloc heap_4 (freertos)",
+    "0x4836/0x4862/0x487a": "OD registry lookup (middleware)",
+    "0x5046/0x4c0a": "OD send dispatch / multiframe (middleware)",
+    "0x59a6": "memset (libgcc)", "0x598c": "memcpy (libgcc)", "0x596c": "memcmp (libgcc)"
+  }
+}
