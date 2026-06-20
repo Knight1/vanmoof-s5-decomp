@@ -101,6 +101,32 @@ glue: the nRF52 BLE app (see [`ble/`](../../ble/)) runs the Find My accessory
 network role, and the report/certified state is surfaced on the bus for the
 Owner/Shared roles and forwarded to the cloud by `gateway`.
 
+## Gateway ↔ AWS IoT bridge (binary-confirmed)
+
+The `gateway` ACL line above is the broker-side *permission* envelope. What the
+service actually bridges is now pinned from its Go symbol table (the
+`internal/*` packages — see [`../gateway/README.md`](../gateway/README.md)).
+Direction, package and topics:
+
+| Dir | Local bus (mosquitto `lo:1883`) | gateway path | AWS IoT (mTLS, `$aws/things/<thing>/…`) |
+| --- | --- | --- | --- |
+| **bus → cloud** | reads metric topics (`telemetry.Collector.setSubscriptions` / `handleMessage`, gated by `ParseConfig`/`IgnoreTopic`) | buffer → `telemetry.Batch.MarshalBinary` (**CBOR**) → `telemetry.Router.Publish`, routed over **modem (LTE-M)** or **BLE proxy** per `TransportMode` → `iot.Client.Publish` | telemetry rule topic (`$aws/rules/…`) |
+| **bus → cloud** | bike/device reported state | `iot/shadow.Client.Report` (reported state, `State.MarshalJSON`) | `…/shadow/name/<n>/update` (named shadow) |
+| **bus → cloud** | `bike_id` (`/run/media/mmcblk2p6/bike_id`) | `gateway.ConfigShadow.syncBikeID` / `setBikeID` ("Reporting/Updating bike id", "Bike id is in sync") | shadow (named) |
+| **cloud → bus** | telemetry-config + bike_id only | desired shadow → `iot.Client.DeviceShadow` / `shadow.Client.State` → `gateway.ConfigShadow.Sync` → `telemetry.Collector.SetConfig` (`telemetry-config`, "set initial telemetry config") | `…/shadow/name/<n>/get|update/accepted` |
+| **cloud → bus** | **none beyond the above** via Jobs | `iot/job` → single op **`log_upload`** (HTTP file upload, does **not** publish to the bus) — see gateway README | `…/jobs/notify-next`, `…/jobs/<id>/update` |
+| **bus ↔ local** | `ble/proxy(/config)`, BLE-auth, timezone | `event.HandleBLE` / `HandleProxyConfig` / `HandleTimezone`, `ble.Proxy` — also feeds `TransportMode` (`prefer-modem`/`prefer-proxy`/`auto-disconnect`) | (not forwarded) |
+
+So in this build the gateway's cloud→bus surface is **declarative** (shadow
+desired → telemetry config + bike id) plus the single `log_upload` job — it does
+**not** translate cloud messages into the `power/state/set` / `settings/*/set` /
+`eshifter/gear/set` / `update/start` **command** writes. Those `…/set` topics are
+*granted* to `gateway` by the ACL (the designed control envelope) but are driven
+on-bike by the BLE/app roles (Owner/Shared) and the `update` service; the gateway
+holds the write permission without exercising it here. The AWS endpoint + device
+identity come from `mmcblk2p6/config.cfg` (`bike.readEndpoint`), trust-anchored to
+two Amazon roots (`iot/ca.CertPool`).
+
 ## Security posture (notes)
 
 - The broker has **no passwords/auth** — anonymous + ACL-by-claimed-username.
