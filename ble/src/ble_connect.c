@@ -61,12 +61,12 @@ void ble_connect_set_ready_flag(void)
  * prefix_len + data_len) and the composed string "prefix||data" is built in it
  * (prefix copied first, data after). The vendor EXT_API COSE signer is invoked
  * with the audience string "nl.samsonit.vanmoofapp" (and its strlen), the
- * composed buffer, and the total length; it writes the signed blob into the
- * message slot identified by BLE_CONNECT_MSG_HANDLE. On success the GATT
- * length-header reserve and the EXT_API send/commit helpers are called against
- * (handle - 2) with a length word seeded to 0x100; when all three succeed the
- * advertising-ready flag is re-armed. (The OEM also stages a dead 2-word scratch
- * descriptor the signer never consumes; omitted here.)
+ * composed buffer, the total length, the connect message-slot handle
+ * (BLE_CONNECT_MSG_HANDLE, used directly as the slot id) and a length word
+ * (seeded to 0x100) — six args in all; it writes the signed blob into that slot.
+ * On success the GATT length-header reserve and the EXT_API send/commit helpers
+ * are called against (handle - 2) with that length word; when all three succeed
+ * the advertising-ready flag is re-armed.
  */
 void ble_send_signed_connect_payload(const void *data, int data_len,
                                      const void *prefix, int prefix_len)
@@ -93,10 +93,11 @@ void ble_send_signed_connect_payload(const void *data, int data_len,
     len    = 0x100;
     handle = BLE_CONNECT_MSG_HANDLE;
 
-    /* sign "prefix||data" into the message slot, audience = the app id */
+    /* sign "prefix||data" into the message slot, audience = the app id; the slot
+     * handle and the length word (seeded to 0x100) are passed as the 5th/6th args */
     rc = ble_cose_sign_4a7ec(BLE_COSE_AUDIENCE,
                              (int)vm_strlen_36d1c(BLE_COSE_AUDIENCE),
-                             buf, (int)total);
+                             buf, (int)total, handle, &len);
     if (rc == 0 &&
         (rc = ble_msg_reserve_len_59e16(handle - 2, &len)) == 0 &&
         (rc = ble_msg_send_51670(handle - 2, len)) == 0) {

@@ -385,7 +385,7 @@ typedef void (*ble_cmd_handler_fn)(uint32_t arg, uint16_t id, uint32_t ctx);
 
 /* --- globals --- */
 /* connect / advertise */
-#define BLE_CONNECT_MSG_HANDLE   (*(volatile int *)0x20007df7u)      /* EXT_API connect message slot id // 0x20007df7 */
+#define BLE_CONNECT_MSG_HANDLE   (0x20007df7)                        /* EXT_API connect message slot id — the address is used directly as the id // 0x20007df7 */
 #define BLE_CONNECT_FSM_MODE     (*(volatile uint8_t *)0x20007ed5u)  /* pairing FSM mode (0 idle,1 begin,2 ready) // 0x20007ed5 */
 #define BLE_CONNECT_PAYLOAD_BUF  ((void *)0x20007dd5u)               /* 32-byte staged connect payload // 0x20007dd5 */
 #define BLE_CONNECT_PAYLOAD_LEN  (*(volatile uint32_t *)0x200008b8u) /* staged connect payload length // 0x200008b8 */
@@ -443,7 +443,7 @@ extern void    *vm_memcpy_61e20(void *dst, const void *src, uint32_t len);  /* v
 extern int      vm_memcmp_61e00(const void *a, const void *b, uint32_t n);  /* vendor // 0x00061e00 (memcmp) */
 extern int      aeabi_d2iz(uint32_t lo, uint32_t hi);  /* vendor // 0x000234e0 (__aeabi_d2iz) */
 /* connect / secure-session / EXT_API */
-extern int  ble_cose_sign_4a7ec(const char *audience, int audience_len, const void *body, int body_len);  /* vendor // 0x0004a7ec (COSE/CWT signer) */
+extern int  ble_cose_sign_4a7ec(const char *audience, int audience_len, const void *body, int body_len, int handle, uint32_t *len);  /* vendor // 0x0004a7ec (COSE/CWT signer; writes the signed blob into the message slot `handle`) */
 extern int  ble_msg_reserve_len_59e16(int handle, uint32_t *len);  /* vendor // 0x00059e16 (GATT length-header reserve) */
 extern int  ble_msg_send_51670(int handle, uint32_t len);  /* vendor // 0x00051670 (EXT_API send/commit) */
 extern void ble_json_open_5fe82(void *writer, uint32_t a1, uint32_t value, uint32_t sign);  /* vendor // 0x0005fe82 (append `value` to the writer container; -> 0x0005fe1a -> 0x0005fdba; a1 unused) */
