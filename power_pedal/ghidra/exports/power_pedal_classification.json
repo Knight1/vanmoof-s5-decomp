@@ -1,0 +1,59 @@
+{
+  "target": "power_pedal",
+  "image": "power_pedal.20240129.145222.1.5.0.main.v1.5.0-main.bin",
+  "image_base": "0x0",
+  "function_count": 144,
+  "method": "8-agent classification workflow over 144 defined functions; one batch (18 fns) re-classified by hand after a subagent session-limit; borderline OD-accessor twins resolved by inspection",
+  "counts": {
+    "vanmoof": 4,
+    "vendor-freertos": 58,
+    "vendor-hal": 74,
+    "vendor-libgcc": 8
+  },
+  "vanmoof": [
+    {
+      "addr": "0x3cb4",
+      "name": "power_pedal_log_event",
+      "role": "30-byte event-record emitter; publishes via message-buffer send to *(*ctx+0x590); src_tag@0, code@4 (u16), argc body words@6; single-deref null guard. == elock/eshifter/frontlight/rearlight log_event.",
+      "verify": "behaviour-eq"
+    },
+    {
+      "addr": "0x6978",
+      "name": "power_pedal_od_signal_register",
+      "role": "Reads NVM blob 0x30 (14 B), validity gate (staging[0] > 1), registers OD descriptor 0x87 (secret); 13-byte body copy. nvm_record_read is 4-arg (handle, buf, blob_id, len).",
+      "verify": "behaviour-eq"
+    },
+    {
+      "addr": "0x6a78",
+      "name": "power_pedal_od_signal_register_91",
+      "role": "Reads NVM blob 0x40 (16 B), registers OD descriptor 0x91 (key); 16-byte body copy. == elock_load_aeskey_to_od_91.",
+      "verify": "behaviour-eq"
+    },
+    {
+      "addr": "0x65b8",
+      "name": "power_pedal_od_signal_8808_send",
+      "role": "Builds OD descriptor 0x8808, lookup/wait(100)/2-word copy/re-lookup/send/release. == elock/rearlight od_signal_8808_send.",
+      "verify": "behaviour-eq"
+    }
+  ],
+  "deferred": [
+    { "addr": "0x42ac", "name": "main_init", "bucket": "vendor-hal", "note": "Monolithic SDK bring-up + FreeRTOS task creation + CAN-OD signal registration (0x42ac-0x53f7), ends in reset loop." },
+    { "addr": "0x3434", "name": "app_init_task", "bucket": "vanmoof-deferred", "note": "Large (~58 KB decompile) VanMoof app-init/task orchestrator: 26 mallocs + OD-signal registration + 15 log_event calls; alloc/register/log glue, deferred like the light task bodies." },
+    { "addr": "0x588c", "name": "od_value_accessor_get", "bucket": "vendor-hal", "note": "Generic OD-framework flag-clear + tail-call handler at +0x10 trampoline." },
+    { "addr": "0x58b8", "name": "od_value_accessor_set", "bucket": "vendor-hal", "note": "Twin of 0x588c (clears flag byte 1 instead of 0)." },
+    { "addr": "0x2988", "name": "command_dispatch", "bucket": "vendor-hal", "note": "Comms-middleware dispatch wrapper (selector param_2==6 -> 0x63d2 else 0x2878)." }
+  ],
+  "callee_map": {
+    "mem_set_memset": "0x6cf8",
+    "mem_compare_memcmp": "0x6cbe",
+    "mem_copy_memcpy": "0x6cde",
+    "message_buffer_send": "0x6728",
+    "nvm_record_open": "0x1fa8",
+    "nvm_record_read": "0xa88",
+    "nvm_record_release": "0x5c7a",
+    "od_registry_lookup": "0x59fe",
+    "od_resource_wait": "0x5e72",
+    "od_signal_release": "0x64a2",
+    "od_signal_send": "0x6226"
+  }
+}
