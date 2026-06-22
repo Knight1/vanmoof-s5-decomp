@@ -56,7 +56,9 @@ void backup_unlock_start(BackupUnlock *self, uint32_t conn_id)
         bu_free_code(&code);
         if (empty) {
             common_logf(BACKUP_CPP, 0x35, LOG_WARN, "Backup unlock code not set");
-            bu_effect(bu_sound_mgr(self->mgr), BU_SND_DENY, BU_SND_DENY,
+            /* OEM deny tone FUN_00147cd0(mgr, key=3, effect=0x2fb, 0xc, 1, 1):
+             * the sound-key arg is the literal 3, not the effect id. */
+            bu_effect(bu_sound_mgr(self->mgr), 3, BU_SND_DENY,
                       BU_SND_DENY_DUR, 1, 1, 0);
             return;
         }
@@ -65,6 +67,7 @@ void backup_unlock_start(BackupUnlock *self, uint32_t conn_id)
     /* Code exists: enter backup mode. */
     bu_light_routine(self->mgr, 10);
     self->active = 1;
+    self->enabled = 0;         /* OEM +0xb1 zero-write (one-shot entry) */
     self->fail_count = 0;      /* OEM clears the +0xb0..+0xb3 word's low bytes */
     self->locked_out = 0;
     self->conn_id = conn_id;

@@ -367,13 +367,12 @@ void storage_manager_init(storage_manager *sm, mqtt_client *bus,
         mqtt_publish_str(sm->bus, "info/sku", fld, 1, 1);
     sm_str_free(&fld);
 
-    /* the certificate public key is published on the bus directly */
-    {
-        char *pk = NULL;
-        if (storage_manager_load_field_120(sm, &pk))    /* this+0x120 */
-            mqtt_publish_str(sm->bus, "ble/certificate_public_key", pk, 1, 1);
-        sm_str_free(&pk);
-    }
+    /* The certificate public key is NOT loaded from disk: the OEM publishes a
+     * compiled-in default 64-char hex constant (DAT_001b1258) unconditionally,
+     * qos 1 retain 1 (init never calls load_field_120 / 0x118330). */
+    mqtt_publish_str(sm->bus, "ble/certificate_public_key",
+                     "29b1f31c07d1c63b124057ebe75a0bc0796259722e5dd9a9a9302ae2061184a0",
+                     1, 1);
 
     /* --- register every setting key with its category ----------------------- *
      * (default values modelled; categories verbatim from the ctor)            */

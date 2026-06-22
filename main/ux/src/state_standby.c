@@ -23,6 +23,9 @@
 #include "state_standby.h"
 
 extern unsigned FUN_theft_flags(void *bike_mgr);
+/* standby shipping-cue sub-gate (FUN_0014fc70) + cue player (FUN_00147f00). */
+extern char standby_subgate(void *bike_mgr);
+extern void standby_play_cue(void *sound_mgr, int mode);
 
 /* event subscription helpers (the std::function manager call sites). */
 extern void standby_sub_bike_event(void *bike_mgr, void *self);          /* FUN_00170260 + db_80 chain */
@@ -131,13 +134,18 @@ state_standby_strategy *state_standby_strategy_ctor(state_standby_strategy *self
         if (standby_consume_shipping_flag(svc)) {
             state_standby_direct_power_on(self);
         } else {
+            /* shipping flag not set (OEM 0x133d50): the theft-flag word gates
+             * the branch. NOT theft -> if the sub-gate (FUN_0014fc70) is clear,
+             * play the standby cue (FUN_00147f00(snd,3)). THEFT -> arm the normal
+             * power-button path (state_standby_on_power_button). */
             void *bike = ux_bike2(svc);
-            unsigned f = (unsigned)FUN_theft_flags(bike);
+            unsigned f = (unsigned)FUN_theft_flags(bike);   /* FUN_0014fc80 */
             if ((f & 0xff00) == 0) {
-                /* not theft-flagged: arm normal power-button path */
+                if (standby_subgate(bike) == 0)             /* FUN_0014fc70 */
+                    standby_play_cue(ux_sound(svc), 3);     /* FUN_00147f00(snd, 3) */
+            } else {
                 state_standby_on_power_button(self, 0);
             }
-            /* (theft-flagged path throws in OEM; modelled as no-op) */
         }
     } else if (prev_state == UX_OPERATIONAL || prev_state == UX_ALARM) {
         /* play the shutdown sound: id 0x783 when alarm reason==1 else 0x624 */
