@@ -1,0 +1,228 @@
+{
+  "program": "power",
+  "path": "/S5-v1.5/OS/power",
+  "executable": "/usr/bin/power",
+  "package": "vmxs5-embedded-power",
+  "arch": "AARCH64:LE:64:v8A",
+  "image_base": "0x100000",
+  "function_count": 512,
+  "note": "Stripped C++ service. Addresses are Ghidra VAs (file_offset + 0x100000). Named via decompilation + an adversarially-verified workflow (see main/docs/can-bus.md, main/power/README.md).",
+  "named_functions": {
+    "spine": {
+      "0x10a220": "main",
+      "0x116350": "PowerService_ctor",
+      "0x116e50": "PowerService_Run",
+      "0x116e10": "PowerService_Stop",
+      "0x129520": "Monitor_ctor",
+      "0x158f60": "common_logf"
+    },
+    "state_manager": {
+      "0x11acb0": "StateManager_ChangeState",
+      "0x11b520": "StateManager_OnStateRequest",
+      "0x142670": "StateManager_StateName",
+      "0x11ac70": "StateManager_CurrentState (+0x40)",
+      "0x11ac80": "StateManager_RequestedState (+0x44)",
+      "0x11c2c0": "StateManager_StateRequestTimeout (state_manager.cpp:99; was uncarved)",
+      "0x11a760": "StateManager_ExtendStateTimeout (state_manager.cpp:0x6b; was uncarved)"
+    },
+    "vm_can_transport": {
+      "0x1582e0": "vm_init",
+      "0x158d30": "vm_can_open",
+      "0x158c30": "vm_can_rx_thread",
+      "0x158b60": "vm_can_tx",
+      "0x157d30": "vm_tp_handle_frame",
+      "0x157b80": "vm_tp_publish",
+      "0x157ca0": "vm_tp_publish_retry (vm_tp_publish x N, status-checked; battery-command send path)",
+      "0x1582a0": "vm_can_dispatch_enqueue (LAB - thunk, not renamed)",
+      "0x158a30": "vm_mailbox_enqueue",
+      "0x1589b0": "vm_mailbox_create",
+      "0x158900": "vm_mailbox_worker",
+      "0x158290": "vm_can_rx_worker_cb (LAB - thunk)"
+    },
+    "vm_od_table": {
+      "0x158410": "vm_od_register",
+      "0x158670": "vm_od_table_add",
+      "0x158440": "vm_od_table_find",
+      "0x158860": "vm_od_table_scan",
+      "0x158260": "vm_od_key_cmp (LAB - thunk)",
+      "0x158770": "vm_od_table_remove",
+      "0x157af0": "vm_od_table_alloc"
+    },
+    "battery_decoders": {
+      "0x1268d0": "battery_status_decode",
+      "0x128730": "battery_charging_decode",
+      "0x1289c0": "battery_health_decode",
+      "0x12d150": "battery_capacity_decode",
+      "0x12da90": "battery_temperature_decode",
+      "0x1285c0": "battery_voltage_decode",
+      "0x1275a0": "battery_warning_decode",
+      "0x12cf80": "soc_to_soc_app",
+      "0x12e2a0": "battery_cell_decode (no-op stub)"
+    },
+    "od_register_thunks": {
+      "0x13bdc0": "reg_thunk_battery_status",
+      "0x13bff0": "reg_thunk_battery_health",
+      "0x13bc40": "reg_thunk_battery_capacity",
+      "0x13bf40": "reg_thunk_battery_temperature",
+      "0x13be80": "reg_thunk_battery_voltage",
+      "0x13bd00": "reg_thunk_battery_warning",
+      "0x13bb80": "reg_thunk_battery_cell (also a runtime-a0 thunk; not renamed)",
+      "0x13c7f0": "reg_thunk_battery_state_init"
+    },
+    "power_control": {
+      "0x133620": "power_control_clear_charger_test_burnin",
+      "0x133c20": "PowerControl_ctor",
+      "0x1387d0": "vm_register_power_state"
+    },
+    "state_handlers": {
+      "0x112720": "PowerService_OnShipping",
+      "0x112980": "PowerService_OnStandby",
+      "0x112d30": "PowerService_OnOperational",
+      "0x1127c0": "PowerService_OnCharging",
+      "0x112e40": "PowerService_OnUpdating",
+      "0x112f10": "PowerService_OnAlarm",
+      "0x112440": "PowerService_OnMaintenance",
+      "0x112c40": "PowerService_TurnOn"
+    },
+    "battery_power_on": {
+      "_note": "power_service.cpp battery power-on/buck/charging supervisor virtuals (primary vtable &DAT_00184a88 slots 0x184af0..0x184b08, AFTER the 7 state slots). MISSED by Ghidra auto-analysis - reached only via the vtable (ADRP+ADD-to-data raw pointers, no string xref); recovered by walking the vtable by hand. Reconstructed in src/battery_power_on.c.",
+      "0x112560": "battery_power_supervise (buck/fault watchdog; 'BUCK ENABLED'; fault flag +0x121, ts +0x370)",
+      "0x112fc0": "battery_charging_poll (charger-mode evaluator; power_service.cpp:0x29d)",
+      "0x113130": "battery_power_on_recovery ('Battery error!'; power_service.cpp:0x335)",
+      "0x113280": "battery_power_on_sequence (power-on/charger-state supervisor; power_service.cpp:0x2ba-0x2ee; 2-NOP pad @0x113278)",
+      "0x113580": "battery_enter_charging (enter-charging; power_service.cpp:0x322)",
+      "0x113270": "thunk_battery_power_on_recovery (C++ adjustor thunk this-0x50; vendor)",
+      "0x113570": "thunk_battery_power_on_sequence (C++ adjustor thunk this-0x50; vendor)",
+      "0x1332f0": "power_control_buck_needed (charger present & +0x30<+0x4a; was uncarved)",
+      "0x133410": "power_control_retry_pending (+0x30<+0x4a; was uncarved)",
+      "0x00142900": "buck_drive_on (buck GPIO toggle; called by battery_power_supervise)"
+    },
+    "eshifter_calibration": {
+      "_note": "e-shifter auto-calibration FSM (eshifter_calibration.cpp), run only while charging; kicked by battery_power_on_sequence. Reconstructed in src/eshifter_calibration.c. 0x11fee0 + 0x120680/0x120a40 were uncarved (found via string xrefs).",
+      "0x120030": "eshifter_calibration_ctor (subscribe eshifter/state + eshifter/last_calibrated)",
+      "0x120a40": "eshifter_on_last_calibrated (restore retained last-calibrated day)",
+      "0x120680": "eshifter_request_calibration (charge-entry rate-limiter, >30 days; was uncarved)",
+      "0x120ac0": "eshifter_on_state_update (FSM: idle->request->sent->in_progress via current_gear)",
+      "0x11fee0": "eshifter_calibration_timeout (watchdog: retry <4, else block till next charge; was uncarved)",
+      "0x120310": "eshifter_calibration_dtor"
+    },
+    "service_env": {
+      "_note": "devices/main/common/src/service_env.cpp shared bootstrap (all main-module C++ services).",
+      "0x1409f0": "service_env_ctor (vm_init + MQTT + vm_can_open + install signal handlers)",
+      "0x140370": "service_env_signal_handler (SIGINT/SIGQUIT/SIGTERM/SIGSEGV; SIGSEGV -> /run/media/mmcblk2p6/SEGFAULT_<ts> backtrace dump -> exit(1))",
+      "0x109ba0": "signal (libc PLT)",
+      "0x116e00": "PowerService_dtor (deleting dtor; vtable slot 0)",
+      "0x11c410": "IStateTransitions_default_stub (one of 7 default state virtuals 0x11c410-0x470)"
+    },
+    "rtc_handler": {
+      "_note": "devices/main/power/src/rtc_handler.cpp - /dev/rtc0 ioctl wrapper.",
+      "0x119f90": "rtc_handler_ctor (open /dev/rtc0; 'RTC open error')",
+      "0x11a020": "rtc_read_time (RTC_RD_TIME 0x80247009)",
+      "0x11a370": "rtc_read_wake_alarm (RTC_WKALM_RD 0x80287010)",
+      "0x11a3d0": "rtc_set_wake_alarm (RTC_WKALM_SET 0x4028700f)"
+    },
+    "wake_on_motion": {
+      "_note": "devices/main/power/src/wake_on_motion_handler.cpp + imu-lib - IMU motion wake.",
+      "0x11fa70": "wom_enable (writes event_wom_enable; retries detect if IMU unknown)",
+      "0x11f780": "wom_detect_imu (find IMU device index in /sys; 'Can't find IMU device index')",
+      "0x11f500": "wom_set_threshold (write wom_thr_icm42600/icm43600)",
+      "0x13ccb0": "imu_determine_type (imu-lib/utils.cpp: kICM42607/kICM42652)"
+    },
+    "named_helpers": {
+      "_note": "VanMoof logging helpers named from common_logf xrefs (already modeled in src/ modules).",
+      "0x112870": "powerservice_refresh_clock_file (power_service.cpp:0x2b)",
+      "0x112b20": "powerservice_enter_shipping (power_service.cpp:0x137 'Entering shipping mode')",
+      "0x11dc20": "switch_control_ctor (switch_control.cpp:0x2d 'Detect rear carrier')",
+      "0x11e430": "switch_control_set_state",
+      "0x122810": "bq25672_refresh",
+      "0x122cb0": "bq25672_read_register (lipo_control.cpp:0xfc; /sys 2-006b/registers)",
+      "0x123c30": "low_power_suspend_system",
+      "0x001238c0": "low_power_request_standby_nrf",
+      "0x124660": "low_power_system_poweroff (/sbin/poweroff; low_power.cpp:0x9d)",
+      "0x127ec0": "monitor_standalone",
+      "0x12cde0": "monitor_charger_disconnected (monitor.cpp:0x70)",
+      "0x12d3d0": "monitor_on_update_finished (monitor.cpp:0xa9 '%s update finished')",
+      "0x12d790": "monitor_on_charger_update (monitor.cpp:0x84/0x88 background update status)",
+      "0x12d950": "monitor_on_update_started (monitor.cpp:0x9b '%s update started')",
+      "0x11a080": "state_manager_set_clock",
+      "0x1232c0": "sysfs_write_node (common/inc/sysfs_utils.h)",
+      "0x140080": "service_env_destroy"
+    },
+    "_vtable_sweep_note": "Diffed all .data.rel.ro (0x184318-0x1853b7) .text pointers (172) vs defined functions: 126 uncarved, but ALL non-substantive (adjustor thunks, deleting dtors, default-virtual stubs, vendor library vtables). No further substantive missed VanMoof logic beyond the battery cluster + eshifter timeout.",
+    "_naming_completeness_note": "All VanMoof functions that call common_logf are now named (cross-ref of get_xrefs_to common_logf 0x158f60). Remaining FUN_ loggers (0x1576d0, 0x14a4e0) are vendor (vm library / mosquitto wrapper).",
+    "mqtt_handlers": {
+      "0x11c3a0": "on_mqtt_state_set (power/state/set)",
+      "0x11c320": "on_mqtt_state_extend_timeout (power/state/extend_timeout)",
+      "0x116280": "on_mqtt_low_power_extend (power/low_power_extend)",
+      "0x115ad0": "on_mqtt_modem_time (modem/system/time)",
+      "0x133820": "power_control_on_state (power_control_state CAN status callback)",
+      "0x12ba60": "lipo_publish_info (bq27542 -> power/battery/lipo/info/*)",
+      "0x120ac0": "eshifter_on_state_update (eshifter/state)",
+      "note": "Full MQTT catalog (19 sub / 42 pub) in main/power/mqtt.md"
+    },
+    "battery_commands": {
+      "0x133590": "battery_send_command (OD opcode -> power-control node 0xA3, id 0x14603040)",
+      "0x138f90": "battery_stamp_command (writes opcode into frame[0])",
+      "0x133730": "battery_cmd0_off",
+      "0x1335d0": "battery_cmd1_on",
+      "0x133660": "charger_cmd5_identify",
+      "0x133ac0": "battery_cmd6_reset",
+      "0x133780": "battery_cmd8_shipping",
+      "0x1337d0": "battery_cmd9_clear_fault",
+      "0x133620": "power_control_clear_charger_test_burnin (cansend 14E232xx, node 0xA7)",
+      "0x112a50": "on_mqtt_battery_reset (maintenance/battery/primary/reset)",
+      "0x133450": "get_is_primary_inserted (power_control+0x49 = frame[2]&1)",
+      "0x128170": "get_battery_ins_det (monitor+0x8f = frame[6]>>5&1)",
+      "0x128190": "get_battery_ins_det_fail (monitor+0x90 = frame[6]>>4&1)",
+      "0x1436c0": "read_bike_model (/run/media/mmcblk2p6/bike_id)"
+    },
+    "charge_control_timers": {
+      "0x115a10": "timer_4000ms_charge_supervisor",
+      "0x115140": "charge_supervisor_worker",
+      "0x1146d0": "timer_50ms_poll",
+      "0x1136e0": "lipo_buck_enable_pgood (carved; 0x1136e0-0x1145ff)",
+      "0x11d920": "switch_control_set_buck (not renamed)",
+      "0x1220e0": "bq25672_write_shipping_profile (not renamed)",
+      "0x122290": "bq25672_write_standby_profile (not renamed)",
+      "0x11fed0": "charge_counters_reset (PowerService_OnCharging)",
+      "0x13bac0": "reg_thunk_battery_charging (uncarved; imm 0x02008203 -> a1=0x03)"
+    },
+    "low_power": {
+      "0x125030": "low_power_publish_low_power (CAN power/low_power)",
+      "0x123940": "low_power_request_can_low_power"
+    },
+    "lipo_gauge": {
+      "0x1214c0": "bq27542_read_charge_now (/sys/class/power_supply/bq27542-0/charge_now)"
+    }
+  },
+  "bms": {
+    "type_detection": "NONE in power. _panasonic/_dynapack/_liteon_* are static-init device-firmware-name fragments (registry built by main + _INIT_7/11/12 via std::string ctor 0x112100 + operator+ 0x111fb0); all registered unconditionally, no runtime vendor/chemistry branch. Supplier ID is a FOTA/version-matching concern (update service / BMS firmware), not sensed here.",
+    "command_channel": "node 0xA3 (power-control board), OD index 0x1a3, id 0x14603040; opcode in frame[0]; relayed to battery node 0xA4.",
+    "opcodes": { "0": "off", "1": "on", "5": "IdentifyCharger", "6": "reset", "8": "shipping", "9": "clear-fault-flags" },
+    "reset": "MQTT maintenance/battery/primary/reset -> cmd6 -> 16s -> Standby. Auto fault-recovery in lipo_buck_enable_pgood when monitor+0x121==1 (charger mode 2: 'Battery has generic fault bit set, need to reset battery'): clear-flags(9) -> on(1) -> reset(6) -> on(1).",
+    "insertion": "CAN status bits (not GPIO): IsPrimaryInserted=power_control_frame[2]&1; BatteryINS-DET=battery_frame[6]>>5&1; FAIL=battery_frame[6]>>4&1."
+  },
+  "state_machine": {
+    "vtable": "PowerService primary vtable &DAT_00184a88; per-state IStateTransitions slots +0x10..+0x40 (states 1..7), all real overrides",
+    "states": "1 SHIPPING, 2 STANDBY, 3 OPERATIONAL, 4 CHARGING, 5 UPDATING, 6 ALARM, 7 MAINTENANCE (0 INVALID)",
+    "lipo_charger": "BQ25672 @ I2C 2-006b; buck via GPIO (switch_control); PGOOD-gated 5-retry; reg writes 01/02/0A (shipping 02=0x7A,0A=0x20; standby 02=0xAE,0A=0x23)"
+  },
+  "can_address_map": {
+    "encoding": "can_id(29-bit ext) = (a0<<21)|(a1<<13)|(a2<<5)|(a3&0x1F) | 0x80000000(EFF)  [VERIFIED]",
+    "battery_node_a0": "0xA4",
+    "charger_node": "a0=0xA7, a1=0x11",
+    "signals": {
+      "battery_charging":    { "a0": "0xA4", "a1": "0x03", "a2": "0x82", "a3": "0x00", "can_id": "0x14807040", "verified": true },
+      "battery_cell":        { "a0": "0xA4", "a1": "0x04",  "a2": "0x82", "a3": "0x00", "can_id": "0x14809040" },
+      "battery_capacity":    { "a0": "0xA4", "a1": "0x05",  "a2": "0x82", "a3": "0x00", "can_id": "0x1480B040" },
+      "battery_warning":     { "a0": "0xA4", "a1": "0x06",  "a2": "0x82", "a3": "0x00", "can_id": "0x1480D040" },
+      "battery_status":      { "a0": "0xA4", "a1": "0x07",  "a2": "0x82", "a3": "0x00", "can_id": "0x1480F040" },
+      "battery_voltage":     { "a0": "0xA4", "a1": "0x08",  "a2": "0x82", "a3": "0x00", "can_id": "0x14811040" },
+      "battery_temperature": { "a0": "0xA4", "a1": "0x09",  "a2": "0x82", "a3": "0x00", "can_id": "0x14813040" },
+      "battery_health":      { "a0": "0xA4", "a1": "0x0A",  "a2": "0x82", "a3": "0x00", "can_id": "0x14815040" },
+      "battery_state_init":  { "a0": "0xA7", "a1": "0x11",  "a2": "0x82", "a3": "0x00", "can_id": "0x14E23040" },
+      "charger_clear_test_a": { "a0": "0xA7", "a1": "0x11", "a2": "0x90", "a3": "0x14", "can_id": "0x14E23214", "data": "A5 5A 00" },
+      "charger_clear_test_b": { "a0": "0xA7", "a1": "0x11", "a2": "0x90", "a3": "0x10", "can_id": "0x14E23210", "data": "A5 5A 00" }
+    }
+  }
+}
