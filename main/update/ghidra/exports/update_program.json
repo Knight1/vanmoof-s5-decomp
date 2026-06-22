@@ -1,0 +1,186 @@
+{
+  "program": "update",
+  "path": "/S5-v1.5/OS/update",
+  "executable": "/usr/bin/update",
+  "package": "vmxs5-embedded-update",
+  "arch": "AARCH64:LE:64:v8A",
+  "image_base": "0x100000",
+  "function_count": 1951,
+  "note": "Peripheral-OTA orchestrator. Retains RTTI (C++ class names survive as typeinfo strings); functions are FUN_* and named via the common_logf anchor (0x16c9a0) + a fan-out over the ~99 logging functions. See main/update/README.md and main/docs/update.md.",
+  "logger": "0x16c9a0 common_logf(file,line,level,msg,...)",
+  "source_modules": [
+    "main", "update_service", "background_update", "manifest", "runfota",
+    "version_client_mqtt", "lightweight_update_client", "thirdparty_update_client",
+    "smp_modem_update_client", "c2000_update_client", "mqtt_update_client",
+    "(linked) devices/main/mqtt-ftp/mqtt_ftp_client", "(linked) devices/main/common/*", "(linked) lib/tp"
+  ],
+  "supplier_dispatch": {
+    "function": "0x123220 UpdateClientFactory::GetUpdateClient(name)",
+    "mechanism": "std::string::find on the OTA device/file-name token; supplier is NOT runtime-sensed.",
+    "matches": {
+      "_panasonic": "PanasonicUpdateClient (node 0xA4); version-gated: version>0x010300ff (v1.3.0.255) -> fast 100/10/10/360s, else 300/30/30/900s",
+      "_dynapack": "DynapackUpdateClient (node 0xA4); timing 50/1, mode 0",
+      "charger": "LiteonUpdateClient (node 0xA7)",
+      "<token code>": "SmpModemUpdateClient (nRF modem) or LightweightUpdateClient (CAN flash, e.g. motor) per parsed device code",
+      "battery_primary w/o supplier": "throws invalid_argument 'first token of file name should be battery_primary_panasonic or battery_primary_dynapack'"
+    },
+    "rodata_tokens": { "0x16fd10": "battery_primary", "0x16fd20": "_panasonic", "0x16fd30": "_dynapack", "0x16fd40": "charger" }
+  },
+  "named_functions": {
+    "factory_and_ctors": {
+      "0x123220": "UpdateClientFactory_GetUpdateClient",
+      "0x13b6a0": "PanasonicUpdateClient_ctor (battery 0xA4; version-gated timing)",
+      "0x13b620": "DynapackUpdateClient_ctor (battery 0xA4)",
+      "0x13b750": "LiteonUpdateClient_ctor (charger 0xA7; registers charger_status OD)",
+      "0x133370": "LightweightUpdateClient_ctor (CAN flash; OD regs flash/ErasePage/write/reboot)",
+      "0x1f2e0":  "SmpModemUpdateClient_ctor (nRF modem; stops PPP)"
+    },
+    "main": {
+      "0x10c0e0": "update_service_main (argv -f/--force -e/--exit; opens CAN /dev/ttymxc3; builds UpdateService graph; /tmp/download/VM_XS5_FOTA)"
+    },
+    "manifest": {
+      "0x119210": "manifest_parse (open manifest.txt, skip header, parse rows)",
+      "0x118920": "manifest_parse_row (CSV split; >=14 fields; device-name '-'->'_'; semver; allowed_to_skip/skip_rollback)"
+    },
+    "runfota": {
+      "0x1c250": "runfota_ctor",
+      "0x1b660": "runfota_create_dir (mkdir 0755)",
+      "0x1d220": "runfota_read_boot_control_flag ('Boot control version: %s, partition: %d, stage: %d'; version match)",
+      "0x1afb0": "runfota_is_root_mounted_from_fota",
+      "0x1b000": "runfota_split_fota_file",
+      "0x1b080": "runfota_mount_root_from_fota",
+      "0x1b100": "runfota_extract_scripts_from_fota_root",
+      "0x1b180": "runfota_unmount_root_from_fota",
+      "0x1b200": "runfota_exec_preinstall",
+      "0x1b280": "runfota_exec_install",
+      "0x1b300": "runfota_exec_verify",
+      "0x1b380": "runfota_exec_rollback",
+      "0x1b400": "runfota_exec_postinstall",
+      "0x1b480": "runfota_reboot_system",
+      "0x1b500": "runfota_remove_fota_file",
+      "0x1b750": "runfota_read_fota_version_from_header",
+      "0x1bcd0": "runfota_read_current_firmware_version",
+      "0x1c340": "runfota_delete_parked_delta",
+      "0x1c4f0": "runfota_move_file_to_fota_dir",
+      "0x1c6c0": "runfota_park_delta_file",
+      "0x1ca40": "runfota_extract_metadata_from_root",
+      "0x1cd30": "runfota_restore_parked_delta",
+      "0x1d000": "runfota_parked_delta_exists",
+      "0x1dc80": "runfota_set_boot_command_flag (fw_setenv stage+partition; reject UNKNOWN; partition<2)"
+    },
+    "update_service": {
+      "0x125790": "update_service_publish_current_version (update/current_version retained)",
+      "0x125ff0": "update_service_check_update_finished_flag (update/{progress,finished,ux/finished}; power/low_power_extend)",
+      "0x124210": "update_service_to_updating_state (spawn worker FUN_0012a6d0)",
+      "0x124500": "update_service_wait_for_devices (poll 60s 'Waiting for %zu devices')",
+      "0x124ac0": "update_service_write_finished_flag",
+      "0x124d70": "update_service_prepare_and_verify_package (move/verify/mount/extract-metadata/umount)",
+      "0x125040": "update_service_handle_device_update (compare current vs wanted; get client; update x3)",
+      "0x125600": "update_service_to_operational_state (restore rearlight/LED)",
+      "0x126d60": "update_service_on_update_package_available (update/update_available; power/low_power_extend=60)",
+      "0x127920": "update_service_on_manifest_message (OD/MQTT manifest cb; basename+ext check; notify runfota)",
+      "0x1294b0": "update_service_enter_updating_state (state 5 guard + retries)",
+      "0x129600": "update_service_run_fota_install_sequence (split/mount/scripts/umount/pre/install/post/reboot + progress)",
+      "0x129c90": "update_service_run_device_updates (per-device manifest loop; stage2; skip/rollback; background-update enqueue)",
+      "0x12a6d0": "update_service_run_state_machine (2-stage + rollback; boot-control vtable 0x70 commit/0x78 rollback/0x88 reboot; battery gate)",
+      "0x12ae00": "update_service_on_force_rollback_message (force boot flag=2; rollback; execute-reboot)",
+      "0x12b4c0": "update_service_on_modem_version_message (detect nordic_stack; enqueue update/background_update/modem_nordic_stack)",
+      "0x1241b0": "update_service_enter_standby_state",
+      "0x1241d0": "update_service_enter_service_state",
+      "0x1241f0": "update_service_state_to_charging"
+    },
+    "background_update": {
+      "0x1114c0": "background_update_log_device_states",
+      "0x1120e0": "background_update_trigger_update (enqueue device to bg queue + notify worker)",
+      "0x112c40": "background_update_remove_device (erase from table; publish update/background_update/...)",
+      "0x113850": "background_update_add_device ('Add %s to background update table...')",
+      "0x113c10": "background_update_on_mqtt_message (parse maxTries/add/remove)",
+      "0x114ed0": "background_update_worker_loop (gate on SoC>=11% & +0x12c>=31; run client; remove on terminal)"
+    },
+    "smp_modem_update_client": {
+      "0x1f2e0":  "smp_modem_update_client_ctor (stop PPP)",
+      "0x1e600": "smp_modem_update_client_abort (restart spi-mqtt-bridge@modem)",
+      "0x1e690": "smp_modem_update_client_start_ppp",
+      "0x1f370": "smp_modem_system_execute_with_timeout (600s watchdog; ps|grep + kill on timeout)",
+      "0x120320": "smp_modem_update_client_run_update (clear nordic/version_info; disconnect LTE; init; SMP transfer; restart bridge)"
+    },
+    "lightweight_update_client": {
+      "0x133370": "lightweight_update_client_ctor (OD regs flash/ErasePage/write/reboot)",
+      "0x131850": "lightweight_client_set_update_result (state 6 terminal)"
+    },
+    "c2000_update_client": {
+      "0x130320": "c2000_flash_kernel_stream (byte-stream SCI kernel + echo verify, 300ms)",
+      "0x130580": "c2000_flash_application_image (DFU; running checksum; footer magic 0x1be4/0xe41b; status 0x1000)",
+      "0x130bd0": "c2000_flash_motor_controller (TMS320F40049C; GPIO reset gpio12/125/126; auto-baud; flash kernel+app)"
+    },
+    "thirdparty_update_client": {
+      "_note": "Shared page-CRC-over-CAN flash base for Panasonic/Dynapack/Liteon. FSM state @obj+0xf4: 2 SIZE_INFO -> 3 PAGE_CRC -> 4 IMAGE_CRC -> 5 UPDATE_REQ -> 7 TERMINAL. OD ops on target node a0 (0xA7 charger / 0xA4 battery), group a1=0x8A, op = OD-key high byte. See main/docs/update.md 'Page-CRC-over-CAN flash protocol'. NOTE: exact on-wire a1/low CAN-id bits per op are runtime-resolved from the libvm OD descriptor table (not literal in the binary).",
+      "0x139660": "ThirdPartyUpdateClient_ctor (base; wires OD senders flash/ErasePage/write/crc/image-crc/reboot)",
+      "0x138940": "thirdparty_StartUpdate (VM-call 'Initial flash size request' 3s -> state 2)",
+      "0x138bd0": "thirdparty_PerformUpdate (load image; StartAction; StartUpdate)",
+      "0x138d80": "thirdparty_validate_charger_type (Liteon: 'charger type is matched with max current')",
+      "0x1378d0": "thirdparty_request_flash_size (state=2; sends flash op 0x81)",
+      "0x1383e0": "thirdparty_on_flash_size_info (byteswap page size/count BE16; 'Flash file too large'; state 3)",
+      "0x1382c0": "thirdparty_advance_page (VM-call 'AdvancePage' 5s)",
+      "0x137d30": "thirdparty_advance_page_cb (write page + ErasePage)",
+      "0x137580": "thirdparty_write_page (pad 0xFF; CRC32 -> expected; stream 8B/frame via write 0x83)",
+      "0x139000": "thirdparty_on_crc_response (per-page CRC 3-retry + full-image CRC; 'Progress: %d %%')",
+      "0x137790": "thirdparty_set_update_result (state 7 terminal; notify_all)",
+      "0x1379f0": "thirdparty_abort_update (vtable: 'Update aborted' -> TERMINAL)",
+      "0x137060": "thirdparty_StartAction (OD set helper; 100ms retry)",
+      "0x137fb0": "thirdparty_post_vm_call (async libvm call by name; timeout = arg*1000 ms)",
+      "0x13d940": "od_send_flash_0x81 (size-info request; DLC4; reply page_size||page_count BE16)",
+      "0x13d9f0": "od_send_erasepage_0x82 (DLC4; {swap16(pageIdx), 0x0100})",
+      "0x13daa0": "od_send_write_0x83 (DLC8; one 8-byte image chunk)",
+      "0x13db50": "od_send_pagecrc_0x84 (DLC4; 2-byte CRC reply)",
+      "0x13dc20": "od_send_imagecrc_0x85 (DLC1; 4-byte CRC reply)",
+      "0x13def0": "od_send_status_reboot_0x90 (DLC1)",
+      "0x13e090": "od_reboot_charger (fire OD entry {node,0x90} reboot pulse)",
+      "0x16bfa0": "od_route_rebind (bind reply routes from source {0xA3,0x8A} onto the client; new_sig>=0x65)",
+      "0x16ee70": "crc32_ieee (CRC-32 poly 0xEDB88320, init 0xFFFFFFFF, final XOR; page + whole-image)"
+    },
+    "mqtt_update_client": {
+      "0x136a70": "mqtt_client_transfer_and_reboot (transfer image + RebootAndUpdate)"
+    },
+    "mqtt_ftp_client": {
+      "_note": "devices/main/mqtt-ftp/src/mqtt_ftp_client.cpp (linked) - JSON-over-MQTT file transfer RPC (op codes).",
+      "0x1408a0": "mqtt_ftp_client_transfer_finish (op5; crc; wait PUBACK/status)",
+      "0x141690": "mqtt_ftp_client_transfer_chunk (op2; <=0x2000; silent flag)",
+      "0x142250": "mqtt_ftp_client_start_transfer (op5; size; filename basename)",
+      "0x1433d0": "mqtt_ftp_client_send_file (start->chunk loop w/ CRC->finish; 'chunk_size')",
+      "0x1435e0": "mqtt_ftp_client_send_file_from_path (open file; app_update.bin)"
+    },
+    "version_client_mqtt": {
+      "0x12e350": "version_client_get_device_version_u32",
+      "0x12e670": "version_client_get_device_field_u16",
+      "0x12e8f0": "version_client_get_device_field_u8"
+    },
+    "common_framework_vendor": {
+      "_note": "devices/main/common + lib (shared across all main-module services; vendor - named for navigation only, not reconstructed).",
+      "0x153e80": "service_env_ctor (vm_init; MQTT localhost:5000; CAN open; signal handlers)",
+      "0x153510": "service_env_dtor",
+      "0x153800": "service_env_signal_handler (SIGSEGV -> /run/media/mmcblk2p6/SEGFAULT_<ts> backtrace + exit(1))",
+      "0x155d60": "state_client_start (subscribe power/state{,/status,/extend_timeout})",
+      "0x156870": "state_client_request_state (publish power/state/set)",
+      "0x156480": "state_client_dispatch_state (core; validate 1..7; per-state handler)",
+      "0x155bb0": "state_client_on_request_timeout",
+      "0x155c80": "state_client_extend_timeout ('Extend state timeout with: %d ms')",
+      "0x156760": "state_client_on_request_status",
+      "0x152a00": "serial_port_configure (raw 8N1 termios)",
+      "0x152b30": "serial_port_open (O_RDWR; TIOCEXCL)",
+      "0x15ca50": "clock_update_time_from_string (clock_settime if >2s drift)",
+      "0x15f600": "mqtt_client_reload_mosquitto (pidof + SIGUSR1)",
+      "0x15f890": "mqtt_client_on_disconnect",
+      "0x15f940": "mqtt_client_on_connect (re-subscribe)",
+      "0x15fa10": "mqtt_client_publish_wait_puback",
+      "0x15fe00": "mqtt_client_subscribe",
+      "0x15ffd0": "mqtt_client_unsubscribe",
+      "0x160690": "mqtt_client_dtor",
+      "0x160dd0": "mqtt_client_on_message (CBOR decode)",
+      "0x1615b0": "mqtt_client_dispatch_loop (topic_matches_sub)",
+      "0x161c50": "mqtt_client_publish_throttled_wait_puback (per-topic coalescing)",
+      "0x16b110": "od_registration_deinit",
+      "0x16b770": "tp_handle_received_frame (lib/tp.c CAN transport RX; multiframe reassembly)"
+    }
+  }
+}
