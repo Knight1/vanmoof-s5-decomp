@@ -8,10 +8,15 @@ one file per OEM `.go` source where known. See [`../progress.md`](../progress.md
 for the function inventory + addresses and [`../README.md`](../README.md) for the
 service overview.
 
-It does **not** build as-is — the vendor deps (`paho.golang`, `cbor`, `zap`,
-`ff`/`ffcli`, `gjson`, `x509`, …) are imported and *modelled*, not vendored — it
-is a *reading* reconstruction, so a few constructor signatures differ across
-package seams (e.g. `iot.NewClient`). `gofmt`-clean throughout.
+The module **compiles and vets clean** against the real, pinned vendor deps
+(`go build ./...` and `go vet ./...` both exit 0; `go.mod` pins
+`eclipse/paho.golang v0.23.0`, `fxamacker/cbor/v2`, `peterbourgon/ff/v3`,
+`tidwall/gjson`+`sjson`, `uber/zap`). `gofmt`-clean throughout. `gateway.New`
+wires real objects (no stubs) through reconstructed constructors
+(`mqtt.NewClient`, `telemetry.NewCollector`/`NewRouter`, `shadow.NewClient`,
+`job.NewClient`, `ble.NewProxy`) — these were inlined in the OEM binary, so they
+were rebuilt from `gateway.New` (`0x2b6680`) / `iot.NewClient` (`0x2b0c20`). It is
+behaviour-faithful but not bit-exact, and not runtime-tested against a real bike.
 
 ## Conventions
 

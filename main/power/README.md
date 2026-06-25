@@ -276,9 +276,12 @@ gauge over sysfs (`/sys/class/power_supply/bq27542-0/…`, `bq27542_read_charge_
 CAN status/health decoders expose **no** vendor/manufacturer/model field (a
 whole-binary scan finds `panasonic`/`dynapack`/`liteon` only as those fragments).
 **The supplier-selection logic is not in this `power` service** — it lives in the
-BMS firmware or another host service (the `update` service matches the reported
-device version against the per-supplier firmware names). *(Confirming the exact
-matcher is the natural next step — the `update` binary is already in Ghidra.)*
+`update` service. **Confirmed** by reversing `update`: `UpdateClientFactory::
+GetUpdateClient` (`0x123220`) matches the OTA package's file-name token
+(`battery_primary_panasonic` / `battery_primary_dynapack`) and builds a dedicated
+`PanasonicUpdateClient` or `DynapackUpdateClient` (distinct flashing
+implementations) — the supplier is a **package-name fact, never runtime-sensed**.
+See [`../update/README.md`](../update/README.md).
 
 ### Battery / charger CAN command set
 
@@ -534,8 +537,11 @@ recording (the broker side is in [`../docs/mqtt-bus.md`](../docs/mqtt-bus.md)):
 - [x] **Naming pass** — every VanMoof `common_logf` caller is now named in Ghidra
       (~25 final helpers incl. `rtc_handler` + `wake_on_motion_handler`); only
       vendor `vm`/mosquitto loggers remain `FUN_*`.
-- [ ] Confirm the **supplier matcher** (Panasonic vs DynaPack) in the `update`
-      binary (already in Ghidra) — it's not in `power`.
+- [x] Confirm the **supplier matcher** (Panasonic vs DynaPack) in the `update`
+      binary — **done**: `UpdateClientFactory::GetUpdateClient` (`update` `0x123220`)
+      picks `PanasonicUpdateClient` / `DynapackUpdateClient` / `LiteonUpdateClient`
+      purely from the OTA file-name token (`_panasonic` / `_dynapack` / `charger`),
+      never runtime-sensed. See [`../update/README.md`](../update/README.md).
 - [ ] Cross-reference the CAN node map against the other ECU targets (see
       `can-bus.md` §6).
 

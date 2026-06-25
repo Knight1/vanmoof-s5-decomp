@@ -1,0 +1,51 @@
+{
+  "program": "monitor",
+  "path": "/S5-v1.5/OS/monitor",
+  "executable": "/usr/bin/monitor",
+  "arch": "AARCH64:LE:64:v8A",
+  "image_base": "0x100000",
+  "function_count": 748,
+  "note": "i.MX8 component health/version supervisor. MonitorService polls sub-ECU components (BLE, LPC devices, modem) for aliveness/heartbeat + firmware versions, resets via GPIO sysfs, publishes status. Per-component bodies inlined under -O2. See main/docs/monitor.md.",
+  "logger": "common_logf (named) \u2014 (file,line,level{1=DBG,2=INFO,3=WARN,4=ERR},fmt,...)",
+  "key": {
+    "main": "0x109a98",
+    "monitor_service_ctor": "0x120ac0",
+    "monitor_service_run": "0x120fe0",
+    "supervise_components": "0x1204c0",
+    "on_heartbeat": "0x1208f0",
+    "print_status_table": "0x1221f0",
+    "gpio_export_configure": "0x138bd0",
+    "gpio_set_value": "0x139180",
+    "reset_lines_ctor": "0x120310"
+  },
+  "named_functions": {
+    "core": {
+      "0x00109a98": "main  // monitor/src/main.cpp entrypoint (already named). Builds service config (role string 'service', argv vector, config map from DAT_0014cb08), logs 'MonitorService starting' (main.cpp:0x22), constructs MonitorService (operator-new 0x100 + monitor_service_ctor), logs 'MonitorService started' (0x2f), runs it via monitor_service_run, destroys it, logs 'MonitorService shut down' (0x33). Stack-guard protected.",
+      "0x00120ac0": "monitor_service_ctor  // MonitorService constructor (already named). Sets vtable @0x170fd0; stores component-graph build args at obj offsets 0x12..0x1a (transport@0x16, config@0x17, flag@0x18, fn-ptr@0x19, builder@0x1a); inits build-ctx via monitor_service_build_ctx_init at 0x1b; registers heartbeat std::function (manager FUN_00120480, callback target monitor_service_on_heartbeat) on the transport (vtable+0x18) with QoS 0x7d0=2000; registers topic handler keyed by 1-char token @0x14e600 into the registry, throwing std::runtime_error on duplicate-key.",
+      "0x001208f0": "monitor_service_on_heartbeat  // Heartbeat callback for an unexpected/unregistered device. Logs WARN (level 2) 'Unexpected device is giving heartbeats %d.' at monitor_service.cpp:0x3e, device id read from heartbeat struct+2. Reached only via the registered std::function thunk (no direct callers).",
+      "0x00120fe0": "monitor_service_run  // Public run/start. Acquires the pthread mutex at obj+0x60 (pthread_key guarded), then invokes virtual vtable+0x18 of the runner sub-object at obj+0xf8 to start the supervise loop; releases the mutex. Called from main between 'started' and 'shut down'.",
+      "0x00120530": "monitor_service_poll_tick  // Service vtable+0x18 virtual. Polls runner 'should-run' (obj+0xf8 vtable+0x28); if true and enable flag obj+0xc0 set, runs monitor_service_supervise_components.",
+      "0x001204e0": "monitor_service_poll_tick2  // Service vtable+0x10 virtual; identical poll-tick body to monitor_service_poll_tick (compiler-duplicated vtable slot / second tick entry).",
+      "0x001204c0": "monitor_service_supervise_components  // Per-tick component supervise sweep. Indirect tail-jump into runner (obj+0xf8) vtable+0x10 \u2014 the dispatch jumptable that fans out to each registered component's poll/version/status handler (presence/aliveness, version reads, status publish).",
+      "0x00120770": "monitor_service_dtor  // MonitorService destructor. Restores vtable; tears down runner sub-object at obj+0x1f (vtable+0x10 then release vtable+0x8); destroys the component registry vector obj+0x13..0x14 (0x40-byte elements via per-component dtor FUN_00147b20), frees the backing storage, then base.",
+      "0x00120800": "monitor_service_deleting_dtor  // Deleting destructor (vtable+0x8): calls monitor_service_dtor then operator delete of the 0x100-byte object.",
+      "0x001215d0": "monitor_service_build_ctx_init  // Trivial 4-field build-context initializer (stores transport/config/builder/fn pointers into a contiguous struct for the component-graph builder).",
+      "0x00120480": "monitor_service_heartbeat_fn_manager  // std::function manager/clone-or-destroy thunk for the heartbeat callback (op 0=get_type_info,1=clone,2=move,3=destroy). Borderline vendor STL glue but specific to the heartbeat std::function, kept for completeness."
+    },
+    "component_lpc": {
+      "0x138bd0": "gpio_export_and_configure  // Build '/sys/class/gpio/gpio<N>' path; export pin via '/sys/class/gpio/export'; set '/direction' to out/in. Errors via common_logf gpio.cpp.",
+      "0x139180": "gpio_set_value  // Open '/sys/class/gpio/gpio<N>/value' and write 1/0 \u2014 the reset-line assert/deassert toggle.",
+      "0x139950": "gpio_write_file  // Generic sysfs ofstream writer; throws runtime_error('Error, unable to open file ...') on failure.",
+      "0x134bf0": "component_gpio_reset_line_ctor  // GpioResetLine/Component ctor (vtable DAT_001704e0): export+configure pin as output, store active level, drive initial reset state.",
+      "0x120310": "component_reset_lines_ctor  // Reset-line bank ctor (vtable DAT_00170340): instantiate 4 GPIO reset lines on pins 1,0,10,11 for the sub-ECUs.",
+      "0x13a8d0": "component_mqtt_client_ctor  // Mosquitto-connected component base ctor: vtables DAT_00170620/DAT_001706b8, ring buffers, spawns mosquitto loop pthread (FUN_0013bdd0), throws runtime_error('Mosquitto connect error: ...').",
+      "0x1371e0": "component_format_version_string  // Format 'maj.min.patch' version string (ints joined by '.'); shared version formatter.",
+      "0x133030": "json_get_number  // DEFERRED vendor: json value->int extractor, throws type_error('type must be number, but is <type>'). Do not reconstruct.",
+      "0x1304d0": "main_parse_args  // getopt_long CLI parser (vVb:h = verbose/version/broker/help); prints build version. Listed for context, belongs to main module."
+    },
+    "ble_modem": {
+      "0x001221f0": "monitor_print_component_status_table  // Renders the supervisor's component status table to std::cout: prints GLOBAL STATE banner + SYSTEM HEALTH line + separator rule, then iterates the IComponent* vector (at this+0x18) and emits one row per component via monitor_print_component_row. This is the primary reachable consumer of the IComponent interface that the ble/modem components implement.",
+      "0x00121ac0": "monitor_print_component_row  // Prints one component's status row: presence marker, heartbeat id, name (vtable +0x30), type (+0x38), status (+0x40), alive flag (+0x48), a float rate/uptime with 's' suffix (+0x50), and an extra string (+0x58). Generic over any IComponent subclass including the BLE and modem components."
+    }
+  }
+}
