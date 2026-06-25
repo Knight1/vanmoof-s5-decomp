@@ -1,0 +1,988 @@
+{
+  "program": "user_ecu.20240129.145222.1.5.0.main.v1.5.0-main.bin",
+  "image_base": "00000000",
+  "language": "ARM:LE:32:Cortex",
+  "core": "Cortex-M4F (ARMv7-M, VFPv4 single-precision, hard-float ABI)",
+  "rtos": "FreeRTOS (Cortex-M4F port)",
+  "build_stamp": "Jan 29 2024 14:50:32 (string @0x144)",
+  "generated_note": "Auto-exported from the Ghidra program (batch 27). Prose per-function roles live in docs/progress.md (the source of truth); this file is the name/address/status sync.",
+  "status_legend": {
+    "decomp-c": "reconstructed to C in src/ (compiles clean for Cortex-M4F)",
+    "named": "renamed in Ghidra, role identified, no C yet (or vendor left extern)",
+    "vendor": "third-party (FreeRTOS / libgcc / CMSIS) - deferred, never reconstructed",
+    "pending-vendor": "still FUN_* but identified as FreeRTOS vendor (rename pending exact symbol)",
+    "pending": "still FUN_*",
+    "flagged": "do-not-reconstruct (borderline vendor / bad-data trap) - see progress.md batch 27"
+  },
+  "counts": {
+    "decomp-c": 119,
+    "flagged": 2,
+    "named": 5,
+    "pending-vendor": 5,
+    "vendor": 61,
+    "total": 192
+  },
+  "functions": [
+    {
+      "address": "000001d4",
+      "name": "Reset_Handler",
+      "status": "named"
+    },
+    {
+      "address": "00000370",
+      "name": "vPortStartFirstTask_ControlTask",
+      "status": "vendor"
+    },
+    {
+      "address": "00000820",
+      "name": "NVIC_SystemReset",
+      "status": "vendor"
+    },
+    {
+      "address": "00000884",
+      "name": "int_pair_to_float",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00000b04",
+      "name": "q16_exp",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00000b60",
+      "name": "ledParams_Init",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00000c64",
+      "name": "ledEasing_ControlUpdate",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00000dd4",
+      "name": "Reset_Handler",
+      "status": "named"
+    },
+    {
+      "address": "00000f98",
+      "name": "sensors_task",
+      "status": "named"
+    },
+    {
+      "address": "0000110c",
+      "name": "clock_div_program",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00001170",
+      "name": "Adc_ReadCh_LPO1MHz",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00001188",
+      "name": "GetClock_32k",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000011c0",
+      "name": "GetSystemCoreClockSource",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00001244",
+      "name": "SystemClock_PllFlashInit",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000159c",
+      "name": "gpio_irq_register",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000015e0",
+      "name": "FUN_000015e0",
+      "status": "pending-vendor"
+    },
+    {
+      "address": "00001884",
+      "name": "xfer_state_log_notify",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00001914",
+      "name": "xfer_waiter_notify",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000193c",
+      "name": "xfer_waiter_post_frame",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000019f8",
+      "name": "timer_remaining_ticks",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00001a34",
+      "name": "i2c_reg_write_53",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00001a70",
+      "name": "i2c_reg_read_153",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00001bdc",
+      "name": "vTaskDelay",
+      "status": "vendor"
+    },
+    {
+      "address": "00001e1c",
+      "name": "sensor_read_sht_temp_humidity",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00001ee0",
+      "name": "controlTask_CmdHandler",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00001ffc",
+      "name": "gpio_base_to_bank",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002018",
+      "name": "gpio_irq_dispatch",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000020e4",
+      "name": "irqn_to_gpio_index",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002100",
+      "name": "gpio_bank_irq_trampoline_0",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002130",
+      "name": "gpio_bank_irq_trampoline_1",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002160",
+      "name": "gpio_bank_irq_trampoline_2",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002190",
+      "name": "commport_irq_dispatch_inst3",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000021c0",
+      "name": "gpio_bank_irq_trampoline_4",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000021f0",
+      "name": "gpio_bank_irq_trampoline_5",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002220",
+      "name": "gpio_bank_irq_trampoline_6",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002250",
+      "name": "gpio_bank_irq_trampoline_7",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002280",
+      "name": "gpio_bank_irq_trampoline_8",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000022b0",
+      "name": "peripheral_clock_mux_select",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000024f4",
+      "name": "commport_registry_index",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002510",
+      "name": "commport_fifo_isr",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002754",
+      "name": "commport_uart_config",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000288c",
+      "name": "bus_variant_b",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000289c",
+      "name": "bus_session_init",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000028c8",
+      "name": "bus_session_open",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002910",
+      "name": "bus_transfer",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002938",
+      "name": "bus_session_commit",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000029b4",
+      "name": "bus_page_read",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000029f8",
+      "name": "fota_image_write",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002acc",
+      "name": "fota_image_verify",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002c20",
+      "name": "commport_base_to_index",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002d34",
+      "name": "commport_ring_drain",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00002ed4",
+      "name": "commport_tx_complete_advance",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00003144",
+      "name": "xTaskCreate",
+      "status": "vendor"
+    },
+    {
+      "address": "00003338",
+      "name": "vQueueDelete",
+      "status": "vendor"
+    },
+    {
+      "address": "0000336c",
+      "name": "prvUnlockQueue",
+      "status": "vendor"
+    },
+    {
+      "address": "000033f0",
+      "name": "xQueueReceive",
+      "status": "vendor"
+    },
+    {
+      "address": "00003698",
+      "name": "rtos_sem_take",
+      "status": "vendor"
+    },
+    {
+      "address": "00003cd0",
+      "name": "vQueueAddToRegistry",
+      "status": "vendor"
+    },
+    {
+      "address": "00003cf4",
+      "name": "event_notify_post",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00003d14",
+      "name": "input_event_post",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00003d48",
+      "name": "event_notify_post_state",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00003d80",
+      "name": "xfer_state_lock_post",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00003dc8",
+      "name": "event_post_boot",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00003ddc",
+      "name": "button_scan_poll",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00003eac",
+      "name": "event_report",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00003f14",
+      "name": "device_mgr_reset",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00003fe8",
+      "name": "device_apply_task",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000040d4",
+      "name": "record_table_store",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000410c",
+      "name": "device_fetch_cache_status9c0",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000041a4",
+      "name": "device_dispatch_command",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000442c",
+      "name": "flash_page_write",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000044c0",
+      "name": "main_SystemInit",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000062e8",
+      "name": "prvInsertBlockIntoFreeList",
+      "status": "vendor"
+    },
+    {
+      "address": "00006330",
+      "name": "prvAddCurrentTaskToDelayedList",
+      "status": "vendor"
+    },
+    {
+      "address": "0000636c",
+      "name": "vTaskSuspendAll",
+      "status": "vendor"
+    },
+    {
+      "address": "0000637c",
+      "name": "prvResetNextTaskUnblockTime",
+      "status": "vendor"
+    },
+    {
+      "address": "000063a0",
+      "name": "xTaskGetSchedulerState",
+      "status": "vendor"
+    },
+    {
+      "address": "000063c0",
+      "name": "vTaskSwitchContext_SelectNext",
+      "status": "vendor"
+    },
+    {
+      "address": "0000642c",
+      "name": "prvTaskExitError",
+      "status": "vendor"
+    },
+    {
+      "address": "00006454",
+      "name": "vPortEnterCritical",
+      "status": "vendor"
+    },
+    {
+      "address": "00006470",
+      "name": "vPortExitCritical",
+      "status": "vendor"
+    },
+    {
+      "address": "00006498",
+      "name": "xTaskCheckForTimeOut",
+      "status": "vendor"
+    },
+    {
+      "address": "000064f0",
+      "name": "checksum_feed",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00006538",
+      "name": "bus_write_commit",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00006564",
+      "name": "crc8_poly31_verify_lut",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000065a0",
+      "name": "gpio_pin_config",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000065dc",
+      "name": "bus_probe_read",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00006610",
+      "name": "bus_page_program",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000664c",
+      "name": "bus_transfer_token",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000668c",
+      "name": "flash_page_commit",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00006708",
+      "name": "store_descriptor_read",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00006794",
+      "name": "store_descriptor_write",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000067f4",
+      "name": "nvic_clockgate_bringup",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000681c",
+      "name": "log_append_event",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00006854",
+      "name": "xTaskIncrementTick",
+      "status": "vendor"
+    },
+    {
+      "address": "0000694c",
+      "name": "xTaskResumeAll",
+      "status": "vendor"
+    },
+    {
+      "address": "00006a10",
+      "name": "pvPortMalloc",
+      "status": "vendor"
+    },
+    {
+      "address": "00006b44",
+      "name": "prvCheckForValidListAndQueue",
+      "status": "vendor"
+    },
+    {
+      "address": "00006b9c",
+      "name": "vPortFree",
+      "status": "vendor"
+    },
+    {
+      "address": "00006bfc",
+      "name": "xTaskRemoveFromEventList",
+      "status": "vendor"
+    },
+    {
+      "address": "00006c70",
+      "name": "xTaskRemoveFromUnorderedEventList",
+      "status": "vendor"
+    },
+    {
+      "address": "00006cdc",
+      "name": "prvIdleTask",
+      "status": "vendor"
+    },
+    {
+      "address": "00006d34",
+      "name": "prvAddCurrentTaskToDelayedList",
+      "status": "vendor"
+    },
+    {
+      "address": "00006da4",
+      "name": "vTaskPlaceOnEventList",
+      "status": "vendor"
+    },
+    {
+      "address": "00006dc4",
+      "name": "FUN_00006dc4",
+      "status": "pending-vendor"
+    },
+    {
+      "address": "00006e20",
+      "name": "FUN_00006e20",
+      "status": "pending-vendor"
+    },
+    {
+      "address": "00006ec0",
+      "name": "rtos_sem_give",
+      "status": "vendor"
+    },
+    {
+      "address": "00006fd0",
+      "name": "FUN_00006fd0",
+      "status": "pending-vendor"
+    },
+    {
+      "address": "00007018",
+      "name": "prvTimerTask",
+      "status": "vendor"
+    },
+    {
+      "address": "00007288",
+      "name": "iom_i2c_transfer",
+      "status": "named"
+    },
+    {
+      "address": "00007364",
+      "name": "i2c_control_write",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000073a0",
+      "name": "i2c_rx_frame_verify",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00007408",
+      "name": "i2c_tx_frame",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000744c",
+      "name": "vTaskNotifyGiveFromISR",
+      "status": "vendor"
+    },
+    {
+      "address": "000074e0",
+      "name": "FUN_000074e0",
+      "status": "pending-vendor"
+    },
+    {
+      "address": "00007550",
+      "name": "xStreamBufferReceive",
+      "status": "vendor"
+    },
+    {
+      "address": "00007624",
+      "name": "commport_can_transmit",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000078d4",
+      "name": "nvic_irq_enable",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000078f0",
+      "name": "commport_isr_install",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00007988",
+      "name": "periph_clk_nvic_enable",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000079c0",
+      "name": "commport_teardown",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00007d10",
+      "name": "__aeabi_f2d",
+      "status": "vendor"
+    },
+    {
+      "address": "00007dc0",
+      "name": "__aeabi_dmul",
+      "status": "vendor"
+    },
+    {
+      "address": "00007f9c",
+      "name": "dmul_special_operands",
+      "status": "vendor"
+    },
+    {
+      "address": "00008014",
+      "name": "aeabi_ddiv_softfloat",
+      "status": "vendor"
+    },
+    {
+      "address": "00008182",
+      "name": "ddiv_special_operands",
+      "status": "vendor"
+    },
+    {
+      "address": "000081e4",
+      "name": "__aeabi_d2f",
+      "status": "vendor"
+    },
+    {
+      "address": "000082c6",
+      "name": "registry_find",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000082f2",
+      "name": "registry_lookup",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000830a",
+      "name": "registry_lookup_value",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000835e",
+      "name": "q16_mul",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000083b8",
+      "name": "q16_div",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000841e",
+      "name": "q16_sqrt",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000847c",
+      "name": "q16_sigmoid",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000084b2",
+      "name": "busy_wait",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000084be",
+      "name": "clockgate_status_ack",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000084cc",
+      "name": "port_clock_wait",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000084f6",
+      "name": "commport_frame_encode_dispatch",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008538",
+      "name": "device_send_chunked",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008594",
+      "name": "registry_add",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000085cc",
+      "name": "prvCopyDataFromQueue",
+      "status": "vendor"
+    },
+    {
+      "address": "000085f8",
+      "name": "commport_frame_enqueue",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008656",
+      "name": "device_apply",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000086dc",
+      "name": "xStreamBufferSpacesAvailable",
+      "status": "vendor"
+    },
+    {
+      "address": "000086fa",
+      "name": "prvWriteBytesToBuffer",
+      "status": "vendor"
+    },
+    {
+      "address": "00008754",
+      "name": "prvWriteMessageToBuffer",
+      "status": "vendor"
+    },
+    {
+      "address": "0000879c",
+      "name": "xSemaphoreCreateBinary",
+      "status": "vendor"
+    },
+    {
+      "address": "000087a4",
+      "name": "xQueueCreateMutex",
+      "status": "vendor",
+      "thunk": true
+    },
+    {
+      "address": "000087f2",
+      "name": "mem_free",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000087fa",
+      "name": "xfer_waiter_reset",
+      "status": "named"
+    },
+    {
+      "address": "00008852",
+      "name": "event_handler_dispatch",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008876",
+      "name": "store_flush",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000088d2",
+      "name": "store_load",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008964",
+      "name": "i2c_read_status_e28",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000899c",
+      "name": "frame_append_word_crc",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000089c0",
+      "name": "bus_mode_autodetect",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000089f8",
+      "name": "xEventGroupSetBits",
+      "status": "vendor"
+    },
+    {
+      "address": "00008a64",
+      "name": "pcc_gate_enable",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008a7a",
+      "name": "edma_tcd_build",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008aca",
+      "name": "pcc_gate_set",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008b12",
+      "name": "bus_page_write_verify",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008c46",
+      "name": "edma_chan_irq_enable",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008c8a",
+      "name": "vListInitialise",
+      "status": "vendor"
+    },
+    {
+      "address": "00008ca0",
+      "name": "vListInsertEnd",
+      "status": "vendor"
+    },
+    {
+      "address": "00008cb8",
+      "name": "vListInsert",
+      "status": "vendor"
+    },
+    {
+      "address": "00008d54",
+      "name": "xQueueSemaphoreTake",
+      "status": "vendor"
+    },
+    {
+      "address": "00008e0a",
+      "name": "device_store_field8c0",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008e76",
+      "name": "device_read_record87",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008f76",
+      "name": "device_cmd_read87",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00008fd6",
+      "name": "device_read_record91",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000090c0",
+      "name": "device_cmd_read91",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00009178",
+      "name": "device_store_words8808",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000091ec",
+      "name": "prvReadBytesFromBuffer",
+      "status": "vendor"
+    },
+    {
+      "address": "0000925a",
+      "name": "prvBytesInBuffer",
+      "status": "vendor"
+    },
+    {
+      "address": "0000926c",
+      "name": "xStreamBufferSend",
+      "status": "vendor"
+    },
+    {
+      "address": "00009408",
+      "name": "FUN_00009408",
+      "status": "flagged"
+    },
+    {
+      "address": "0000950a",
+      "name": "vPortRaiseBASEPRI",
+      "status": "vendor"
+    },
+    {
+      "address": "00009520",
+      "name": "vPortSetBASEPRI",
+      "status": "vendor"
+    },
+    {
+      "address": "0000952e",
+      "name": "vPortYield",
+      "status": "vendor"
+    },
+    {
+      "address": "00009544",
+      "name": "FUN_00009544",
+      "status": "flagged"
+    },
+    {
+      "address": "0000955e",
+      "name": "crc8_poly31_word",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000959e",
+      "name": "uxListRemove",
+      "status": "vendor"
+    },
+    {
+      "address": "000095be",
+      "name": "xQueueGenericCreate",
+      "status": "vendor"
+    },
+    {
+      "address": "00009652",
+      "name": "xQueueGiveFromISR",
+      "status": "vendor"
+    },
+    {
+      "address": "000096ce",
+      "name": "commport_rx_complete_cb",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000974e",
+      "name": "xQueueCreateMutex",
+      "status": "vendor"
+    },
+    {
+      "address": "0000976e",
+      "name": "commport_dma_ring_read_frame",
+      "status": "decomp-c"
+    },
+    {
+      "address": "000097f4",
+      "name": "rtos_sem_give_dispatch",
+      "status": "vendor"
+    },
+    {
+      "address": "0000982c",
+      "name": "vmem_cmp",
+      "status": "decomp-c"
+    },
+    {
+      "address": "0000984c",
+      "name": "vmem_copy",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00009866",
+      "name": "vmem_set",
+      "status": "decomp-c"
+    },
+    {
+      "address": "00009876",
+      "name": "vmem_strncmp",
+      "status": "decomp-c"
+    }
+  ]
+}

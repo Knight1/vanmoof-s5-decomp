@@ -1,0 +1,8440 @@
+{
+ "target": "ble",
+ "program": "ble.20240129.145222.1.5.0.main.v1.5.0-main.bin",
+ "image_base": "0x23000",
+ "generated_from": "classify-ble-functions workflow (45 agents, classify+refine)",
+ "status_legend": {
+  "vanmoof": "VanMoof application code — reconstruct to C",
+  "fmna-deferred": "Apple Find My (FMNA) — vendor, deferred (only VanMoof glue is vanmoof)",
+  "vendor-zephyr": "Zephyr RTOS kernel + Bluetooth host — vendor",
+  "vendor-sdc": "Nordic SoftDevice Controller / MPSL — vendor",
+  "vendor-libc-sdk": "libc / __aeabi_* / nrfx HAL / CC310 / arch — vendor",
+  "unsure": "unclassified"
+ },
+ "counts": {
+  "vendor-libc-sdk": 417,
+  "vendor-sdc": 819,
+  "vendor-zephyr": 610,
+  "vanmoof": 53,
+  "fmna-deferred": 116
+ },
+ "total": 2015,
+ "functions": [
+  {
+   "address": "0x00023440",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000234e0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00023530",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000235d0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00023600",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000238d4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000238e0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002393c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00023960",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000239a0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000239fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00023a18",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00023ab4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00023ac0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00023b1c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00023b94",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00023ef8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002403c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000240e4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000245bc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00024774",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00024800",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000248d8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002494c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000249b0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00024b24",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00024b44",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00024d00",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00024d20",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00024d4c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00024f08",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000252f0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002563c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000258a8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000258c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002590c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00025b3c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00025b8c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00025d2c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00025e20",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00025ea0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00025edc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00025f00",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00025fa4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00025fdc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026038",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002614c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002624c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000262b0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000262bc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000262fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002643c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026500",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002650c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026608",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026774",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026854",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000268fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026930",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026964",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000269f4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026a1c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026a30",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026a3c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026a50",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026a60",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026ac4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026ae8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026b1c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026c34",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026dcc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026dd8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026e10",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026e8c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026f30",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026f3c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026f78",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00026f88",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002700c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027024",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027030",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002704c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027064",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027074",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000270a4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000270c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000270dc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000270fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027120",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027168",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000271d8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027208",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002728c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000272c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027348",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027374",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000273d4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000273e0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000273ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000273f8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00027418",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00027458",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00027480",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00027490",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000274f0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0002750c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00027538",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00027544",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000275a0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000275ac",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000275b8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000275c4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000275d0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000275dc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000275e8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000275f4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00027600",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0002760c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00027618",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000276c4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027770",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000279c8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027a18",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027aec",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027b4c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027b84",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027bbc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027c0c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027c5c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027ca0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027db4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027dd4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027eac",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027ecc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027f0c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027f4c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00027fa8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028004",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028038",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028190",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000281b0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000282c8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000282e8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028310",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0002832c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028344",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028488",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028638",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000286a4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000286f4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0002878c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028798",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028814",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0002886c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028944",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028974",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000289a4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028a14",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028a88",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028afc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028b74",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028be0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00028f14",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00029b28",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0002a2a4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0002a338",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002a638",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0002a778",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0002a794",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0002a82c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002a8b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002a8f8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002a954",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002aa10",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002aa3c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ab0c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ab58",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002abf0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002acc8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ace8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ad4c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ad60",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002adbc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ae64",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002aebc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002af24",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002af4c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002af78",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002afa8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b024",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b0d4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b120",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b138",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b1c0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b20c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b238",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b32c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b34c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b398",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b3a8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b3dc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b3f8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b41c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b454",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b47c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b4a4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b4d0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b4fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b51c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b54c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b5a4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b5b0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002b620",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ba10",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002bb30",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002bb40",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c0f8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c228",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c304",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c544",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c54c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c564",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c57c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c598",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c620",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c638",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c66c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c678",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c684",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c6b8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c6dc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c718",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c920",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c960",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c988",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002c9a8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ca20",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002cb88",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002cc14",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002cd40",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002cddc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ce60",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002cf20",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002cf54",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d07c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d0c4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d13c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d164",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d180",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d248",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d324",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d394",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d3b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d3dc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d3f4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d408",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d41c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d5a0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d5d4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d69c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d6a8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002d6f8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002dcec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002dd18",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002dd60",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ddc8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002ddd4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002dec8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002df40",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002df7c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002dfac",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002dfdc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002e16c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002e218",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002e4b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002e4c4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002e510",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002e520",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002e554",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002f6bc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002fc90",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002fda0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0002fe88",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030258",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030330",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030404",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030504",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030680",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003081c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000308f4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030940",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000309a4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030b68",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030b7c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030ca0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030cac",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030cd4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030d30",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00030ef4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000310a0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00031a14",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00031b80",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00031e40",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00032378",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00032d1c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00032d54",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00032e0c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00032ec8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00032f3c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00032fac",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033130",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000331a0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003322c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003326c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033360",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033434",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033464",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033888",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003392c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033968",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033aa4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033bf0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033cf4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033da0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033e7c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033f20",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033fb4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033fd4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00033fe4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003401c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034028",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003405c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034480",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000345b4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000346a0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000346cc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034914",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034974",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000349b0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034b68",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034bcc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034bd8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034be4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034c00",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034c24",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034c58",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034ccc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034cd8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034d04",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034d38",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00034df8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00034ed4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00034f24",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00034ff4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000350b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000351e8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035244",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035278",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000352ac",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000352b8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000352c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035418",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000355ac",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035848",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035858",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035884",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000358f0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003593c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003595c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035978",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035a08",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035a14",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035a20",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035ad8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035c10",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035c1c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035c28",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035cb8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035cc4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035f54",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00035fc8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000360a4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000360c0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000360d4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000360e8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000360fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036164",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003671c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036798",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036810",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036918",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036b2c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036b60",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036b9c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036be0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036bec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036c08",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036c5c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036d08",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00036d1c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00036d2c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036d44",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00036dea",
+   "class": "vendor-libc-sdk",
+   "name": "thunk_FUN_00024f08",
+   "note": "toolchain branch veneer (thunk -> 0x00024f08)"
+  },
+  {
+   "address": "0x00036dee",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003700e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003701e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00037050",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003708e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000370c4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000370d2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000370f2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00037168",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000371aa",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000371f6",
+   "class": "vendor-libc-sdk",
+   "name": "thunk_FUN_000262b0",
+   "note": "toolchain branch veneer (thunk -> 0x000262b0)"
+  },
+  {
+   "address": "0x000371fa",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003720c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003721e",
+   "class": "vendor-libc-sdk",
+   "name": "thunk_FUN_0003723c",
+   "note": "toolchain branch veneer (thunk -> 0x0003723c)"
+  },
+  {
+   "address": "0x00037222",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003723c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00037240",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003725a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003727c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000372c4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000372ce",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000372ea",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000372fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00037306",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00037326",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003733a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00037354",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00037392",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000373ac",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000373d2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000373da",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000373f0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00037404",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00037418",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00037432",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00037446",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003745a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00037472",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00037492",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000374b2",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000374c6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000374da",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000375ce",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00037798",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000377d2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000377ee",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00037800",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003781e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00037852",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000378ae",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00037dfe",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00037e64",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038106",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003813a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000381a0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000381c4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000381ce",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038210",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003821c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038238",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038266",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038294",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003829c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000382a4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000382fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000383b0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000383e2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003842a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038474",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038482",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000384dc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038528",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003857c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000385c0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000385e8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003864e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038654",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000386ac",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000386c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003872e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038738",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003879a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000387d2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000387e8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000387f6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038802",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038836",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003884a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003885e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038880",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038896",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000388b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000388c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038910",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003891a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038936",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000389c6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000389d4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000389ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000389f2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038a62",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038ac0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038ac8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038ae4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038b2c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038b34",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038b3c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038b42",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00038b5c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00038b7e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00038b9c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00038bb6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038bc0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038bd0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038be4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038bee",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038c3c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038c5c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038c5e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038cd2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038ce8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038cfe",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038d2e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038d5e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038d76",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038d98",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038dc4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038e9c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038ecc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038f24",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00038f4a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039080",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000390b6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003911e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039198",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000391ba",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000391cc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000391ee",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000392be",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039314",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003931e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039324",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003932a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039330",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039336",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003933c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039344",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003934e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003935c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039366",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039370",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039374",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003937c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039380",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039384",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039388",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003938c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039390",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039394",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039398",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003939c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000393a0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000393c2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003941c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039420",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039424",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039428",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003942c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039448",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003944e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039458",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039462",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003946c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003947c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039484",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003948c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039494",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003949c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039558",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039622",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039650",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039662",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039682",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000396c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039738",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003977c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003978a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003979c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000397aa",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000397bc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000397dc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000397fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000399a0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039a00",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039a32",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039afa",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039afe",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039b38",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039b80",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039b96",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039ba6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039bc4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039be6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039c20",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039c56",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039cce",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039cfc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039d08",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039dd8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039ddc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039e22",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039e34",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039e62",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039e8e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039e96",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039e9e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039eaa",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039eb2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039eba",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039ec2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039ecc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039eee",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039ef2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039f0a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039f10",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039fb0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039fc6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00039ff4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a014",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a076",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a0fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a100",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a146",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a156",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a160",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a196",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a19e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a1ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a324",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a378",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a37e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a384",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a46c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a6a0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a70a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a72a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a76c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003a77e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003a78c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003a828",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003a85e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003aa74",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003aa8a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003aad8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003aaf2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003ab24",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003ab5c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003ab78",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003aeac",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b01c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b042",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b05e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b07a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b07e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b19a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b25e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b314",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b336",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b34e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b3c2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b45e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b5d4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b5ea",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b606",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b626",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b656",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b694",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b6dc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b750",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b81c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b832",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b844",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b860",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b8d4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b914",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b91a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b946",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b972",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b9ca",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b9e4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003b9fa",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003ba46",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003bb70",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003bb9e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003bbfc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003bc42",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003bc50",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003bc74",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003bc86",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003bca0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003bcb2",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003bcf0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003bd2e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003bd4a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003bd54",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003bd70",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003bd86",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003bd90",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003be20",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0003c2c0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003c5c0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003c660",
+   "class": "vanmoof",
+   "name": "settings_parse_time_pubkey",
+   "note": "parses server response for time, settings_vm_public_key, settings_vm_bike_id"
+  },
+  {
+   "address": "0x0003c6f4",
+   "class": "vanmoof",
+   "name": "findmy_handle_conn_rx",
+   "note": "routes BLE peer RX by slot to Find My message build/send or error"
+  },
+  {
+   "address": "0x0003cabc",
+   "class": "vanmoof",
+   "name": "findmy_conn_event_handler",
+   "note": "dispatches BLE conn events; serializes rssi/battery into Find My messages"
+  },
+  {
+   "address": "0x0003cdcc",
+   "class": "vanmoof",
+   "name": "findmy_forward_peer_payload",
+   "note": "forwards peer payload chunk to Find My slot via message sender"
+  },
+  {
+   "address": "0x0003ce20",
+   "class": "vanmoof",
+   "name": "findmy_send_status_report",
+   "note": "builds and sends Find My status report message (cmd 0xc2)"
+  },
+  {
+   "address": "0x0003d134",
+   "class": "vanmoof",
+   "name": "findmy_reset_conn_slots",
+   "note": "resets the three Find My connection slots (0x338-byte records)"
+  },
+  {
+   "address": "0x0003d160",
+   "class": "vanmoof",
+   "name": "findmy_msg_enqueue",
+   "note": "builds 0x2f8-byte Find My message record and enqueues to send queue"
+  },
+  {
+   "address": "0x0003d220",
+   "class": "vanmoof",
+   "name": "findmy_alloc_work_item",
+   "note": "allocates 0x10-byte work item, stamps default UUID/handler pointer"
+  },
+  {
+   "address": "0x0003d234",
+   "class": "vanmoof",
+   "name": "findmy_match_provisioning_topic",
+   "note": "matches incoming MQTT topic against fmna provisioning topic table"
+  },
+  {
+   "address": "0x0003d29c",
+   "class": "vanmoof",
+   "name": "findmy_store_provisioning_token",
+   "note": "receives up to 16-byte provisioning token and stores it for fmna topic"
+  },
+  {
+   "address": "0x0003d47c",
+   "class": "vanmoof",
+   "name": "findmy_send_state_report",
+   "note": "serializes ready/enabled/uuid/pairing/provisioned Find My state and sends (cmd 0xe1)"
+  },
+  {
+   "address": "0x0003d688",
+   "class": "vanmoof",
+   "name": "auth_adv_extra_field_enabled",
+   "note": "Reads three state flags; returns whether extra advertising field should be added"
+  },
+  {
+   "address": "0x0003d6b0",
+   "class": "vanmoof",
+   "name": "auth_handle_connection_command",
+   "note": "Dispatches connection sub-commands (open/close/lock), sends BLE opcodes 0xe6/0xe9-0xeb"
+  },
+  {
+   "address": "0x0003d840",
+   "class": "vanmoof",
+   "name": "auth_send_connection_state",
+   "note": "Builds connection/advertising state and sends BLE message opcode 0xe5"
+  },
+  {
+   "address": "0x0003d920",
+   "class": "vanmoof",
+   "name": "auth_parse_certificate_challenge",
+   "note": "Decrypts/parses client certificate+challenge, validates fields, disconnects on failure"
+  },
+  {
+   "address": "0x0003db34",
+   "class": "fmna-deferred",
+   "name": "fmna_handle_pairing_message",
+   "note": "Parses Apple Find My pairing message (fmna/pairing strings); defer as vendor"
+  },
+  {
+   "address": "0x0003dfb8",
+   "class": "vanmoof",
+   "name": "auth_init_connection_table",
+   "note": "Zero-initializes per-connection state table (0xb8-byte entries) and list links"
+  },
+  {
+   "address": "0x0003dff8",
+   "class": "vanmoof",
+   "name": "auth_copy_pubkey_32",
+   "note": "Copies 32-byte public key/nonce from message into global auth buffer"
+  },
+  {
+   "address": "0x0003e020",
+   "class": "vanmoof",
+   "name": "auth_copy_bike_id",
+   "note": "Copies up to 13-byte bike-id field into global auth buffer"
+  },
+  {
+   "address": "0x0003e11c",
+   "class": "vanmoof",
+   "name": "auth_submit_id_event",
+   "note": "Preps 13-byte id payload and enqueues auth event into framework queue"
+  },
+  {
+   "address": "0x0003e164",
+   "class": "vanmoof",
+   "name": "auth_alloc_disconnect_event",
+   "note": "Allocates 0x18-byte auth event struct and sets its handler callback"
+  },
+  {
+   "address": "0x0003e178",
+   "class": "vanmoof",
+   "name": "auth_alloc_connection_event",
+   "note": "Allocates 0x1c-byte connection event struct and sets its handler callback"
+  },
+  {
+   "address": "0x0003e18c",
+   "class": "vanmoof",
+   "name": "auth_check_connection_state",
+   "note": "Validates connection slot state; returns reason code 6 (challenge invalid)"
+  },
+  {
+   "address": "0x0003e2d8",
+   "class": "vanmoof",
+   "name": "auth_format_ble_address",
+   "note": "Formats BLE address as %02X:..:%02X (type) with public/random label for logging"
+  },
+  {
+   "address": "0x0003e350",
+   "class": "vanmoof",
+   "name": "auth_handle_disconnect",
+   "note": "Handles connection teardown, frees slot, posts disconnect event"
+  },
+  {
+   "address": "0x0003e3a8",
+   "class": "vanmoof",
+   "name": "auth_handle_connect",
+   "note": "Handles new connection, registers GATT char 0xfc0e, posts connect event"
+  },
+  {
+   "address": "0x0003e45c",
+   "class": "vanmoof",
+   "name": "auth_init_connection_slots",
+   "note": "Initializes four 0x40-byte per-connection slots and their list links"
+  },
+  {
+   "address": "0x0003e4b0",
+   "class": "vanmoof",
+   "name": "auth_send_disconnect_reason",
+   "note": "Sends auth-failure disconnect message with reason string (cert/signature/timeout)"
+  },
+  {
+   "address": "0x0003e574",
+   "class": "vanmoof",
+   "name": "auth_alloc_event_0x14",
+   "note": "Allocates 0x14-byte auth event struct and sets its handler callback"
+  },
+  {
+   "address": "0x0003e588",
+   "class": "vanmoof",
+   "name": "ble_connect_clear_adv_flag",
+   "note": "Clears advertising/notify state byte when BLE link-state check returns idle"
+  },
+  {
+   "address": "0x0003e59c",
+   "class": "vanmoof",
+   "name": "ble_connect_set_ready_flag",
+   "note": "Sets connect-ready state byte when BLE link-state check passes"
+  },
+  {
+   "address": "0x0003e5b0",
+   "class": "vanmoof",
+   "name": "ble_send_signed_connect_payload",
+   "note": "Builds COSE/CBOR-signed connect payload and sends over secure channel"
+  },
+  {
+   "address": "0x0003e640",
+   "class": "vanmoof",
+   "name": "ble_connect_state_machine",
+   "note": "Pairing/connect state machine dispatching on mode byte, triggers signed send + notify"
+  },
+  {
+   "address": "0x0003e6e0",
+   "class": "vanmoof",
+   "name": "ble_advertise_bike_id_payload",
+   "note": "Copies and signs 32-byte bike_id payload then sends it"
+  },
+  {
+   "address": "0x0003e72c",
+   "class": "vanmoof",
+   "name": "ble_advertise_ecu_serial_payload",
+   "note": "Copies and signs 32-byte ecu_serial payload then sends it"
+  },
+  {
+   "address": "0x0003e778",
+   "class": "vanmoof",
+   "name": "ble_secure_session_init",
+   "note": "Initializes VanMoof secure-channel session record around vendor TLS handshake"
+  },
+  {
+   "address": "0x0003e784",
+   "class": "vanmoof",
+   "name": "settings_read_property_by_path",
+   "note": "Reads property by path key (ecu_serial, vm/pub_key, vm/bike_id) and emits value"
+  },
+  {
+   "address": "0x0003e818",
+   "class": "vanmoof",
+   "name": "ble_char_write_value_26",
+   "note": "Length-checked characteristic write handler, buffers value and notifies"
+  },
+  {
+   "address": "0x0003e860",
+   "class": "vanmoof",
+   "name": "ble_build_const_response_13",
+   "note": "Copies a constant 13-byte response template into output buffer"
+  },
+  {
+   "address": "0x0003e880",
+   "class": "vanmoof",
+   "name": "ble_send_32byte_value",
+   "note": "Copies and notifies a 32-byte characteristic value (key/id)"
+  },
+  {
+   "address": "0x0003e8c8",
+   "class": "vanmoof",
+   "name": "ble_char_write_value_13",
+   "note": "Length-checked 13-byte characteristic write handler, buffers and notifies"
+  },
+  {
+   "address": "0x0003e924",
+   "class": "vanmoof",
+   "name": "ble_bike_id_present",
+   "note": "Predicate: returns 1 when the bike_id value buffer holds a non-zero first byte (bike id programmed); writes nothing (name corrected from ble_record_set_flag_byte)"
+  },
+  {
+   "address": "0x0003e948",
+   "class": "vanmoof",
+   "name": "ble_build_connect_advert_payload",
+   "note": "Composes connect advert payload, sends bike_id or ecu_serial variant by flag"
+  },
+  {
+   "address": "0x0003e9a0",
+   "class": "vanmoof",
+   "name": "ble_ftp_command_handler",
+   "note": "Handles ftp_command (size/index/data/crc/status) for firmware/flash transfer over BLE"
+  },
+  {
+   "address": "0x0003edbc",
+   "class": "vanmoof",
+   "name": "ble_message_dispatch_by_id",
+   "note": "Parses msgpack request and dispatches 16-bit command id to registered handler table"
+  },
+  {
+   "address": "0x0003ef10",
+   "class": "vanmoof",
+   "name": "spi_bridge_unlock",
+   "note": "Releases the SPI-bridge mutex (thin wrapper around vendor lock primitive)"
+  },
+  {
+   "address": "0x0003ef1c",
+   "class": "vanmoof",
+   "name": "spi_bridge_consumer_thread",
+   "note": "SPI bridge consumer loop: 0x55AA-framed CRC16 packets, double-buffer, flash spill"
+  },
+  {
+   "address": "0x0003f210",
+   "class": "vanmoof",
+   "name": "ble_msg_send",
+   "note": "Frames CRC16 packet into IPC slot and transmits message over comm queue"
+  },
+  {
+   "address": "0x0003f2cc",
+   "class": "vanmoof",
+   "name": "ble_msg_tx_busy_get",
+   "note": "Returns transmit-in-flight/channel-busy flag guarding message sends"
+  },
+  {
+   "address": "0x0003f2d8",
+   "class": "vanmoof",
+   "name": "ble_msg_tx_busy_clear",
+   "note": "Clears transmit-busy flag before queueing a new message"
+  },
+  {
+   "address": "0x0003f2e4",
+   "class": "vanmoof",
+   "name": "ble_uicr_write_init_flag",
+   "note": "One-time provisioning: when the config word at 0x10001208 reads erased (0xFFFFFFFF), programs 4 bytes there via the flash controller's write op (name corrected from ble_msg_send_init_error)"
+  },
+  {
+   "address": "0x0003f314",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003f40c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003f474",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003f4b0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003f4cc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003f4f8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003f6b8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003f7b0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003f7d8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003f870",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0003ffac",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0003ffd4",
+   "class": "vendor-libc-sdk",
+   "name": "thunk_FUN_0004ad18",
+   "note": "toolchain branch veneer (thunk -> 0x0004ad18)"
+  },
+  {
+   "address": "0x0003fff4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040010",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040074",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004031c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000404a8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000404f8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040558",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000405a4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000405c0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040618",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040668",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040678",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040704",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040774",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040794",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040850",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000408e8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040944",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000409c0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040ab0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040b40",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040b50",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00040be0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00040c64",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040cc8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040d98",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040dd4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00040f68",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00040f80",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00041024",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000411f4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004124c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00041360",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000413fc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041408",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041424",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041438",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00041458",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00041480",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004149c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000414f4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004152c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000415dc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041614",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041644",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000416cc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041744",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041780",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000418b8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000418dc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00041948",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004196c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000419d0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000419fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00041a14",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00041a38",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00041abc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00041ad4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00041b2c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00041b8c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00041bbc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00041be4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00041c00",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00041ce8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041d28",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00041d58",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041e08",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041e68",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041e74",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041ee8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041f20",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041f2c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00041f38",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00041fb0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042020",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042074",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000420c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000422c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000423f4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042418",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004248c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000425a8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000425bc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004289c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000428ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000428fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004290c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042950",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042a70",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042b68",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042b90",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042bb4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042ca8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042d5c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042d74",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042d7c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042db0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042dec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042e10",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042e98",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00042f6c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043084",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043118",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043294",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000433c0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000433e4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004348c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043540",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000435ac",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004362c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043694",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043728",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000437ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043804",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000438b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043900",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043964",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000439ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043a04",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043a44",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043a60",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043a6c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043b28",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00043ba8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044004",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000440d8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000440f8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044260",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000442b8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000442e4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000443d8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000443e0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000444c0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044544",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044554",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000446b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000446f4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004470c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000447fc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00044840",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000448b4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00044910",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00044978",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044988",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000449c4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044a0c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044a68",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044ae0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044c14",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044c20",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00044c8c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00044d5c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044d94",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044dc0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044e00",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00044e30",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00044f48",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00045058",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004525c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045380",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045458",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045564",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045610",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000456bc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045764",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004582c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045908",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045980",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000459b4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000459f8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045a28",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045a88",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045b50",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00045b68",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045c10",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045c40",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045c88",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045d10",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045d90",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045eb4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045ef0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00045f38",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000460d0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000460ec",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004614c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046240",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000462b4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046530",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046604",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000466ac",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046800",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004691c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046a00",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046ac0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046c40",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046cdc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046df0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046e2c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046e54",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046e90",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046ed8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046f20",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046f58",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00046f84",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000471e8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000477e0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00047a38",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00047a44",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00047be0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00047ff0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004801c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004813c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00048178",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000481b8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00048204",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000482a8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00048320",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00048370",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00048414",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004847c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004848c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000484b0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004860c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00048694",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000486b4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004888c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004889c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004899c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00048aec",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00048c64",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00048e40",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00048eb4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00048f64",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00048f94",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00048ff0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000490a0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000490e4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00049158",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000491ec",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00049228",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000492b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00049494",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004955c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000495b8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000495fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004988c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000498f0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00049904",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00049914",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00049920",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004993c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000499ac",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000499c0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00049a40",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00049c50",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00049cc8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004a410",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004a434",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004a460",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004a48c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004a69c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004a7ec",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004a888",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004a8b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004aa1c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004aad8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004aae8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004aaf4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004abd0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004abf8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004ac3c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004ace4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004ad08",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004ad18",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0004aee4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004af74",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004af90",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004afa4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004afe0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b034",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b06c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b1c8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b2ac",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b2b8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b2e4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b334",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b348",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b354",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b360",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b3f0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b440",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b488",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b634",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b6dc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b6fc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b710",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b84c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004b934",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004ba2c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004bc44",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004bc5c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004bc9c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004bcc4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004bce0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004bcfc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004be68",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004bf58",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004bff4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c010",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c028",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c074",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c0cc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c0e4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c138",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c14c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c170",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c1a8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0004c1bc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004c1ec",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004c2b4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004c344",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004c3dc",
+   "class": "fmna-deferred",
+   "name": "fmna_adv_owner",
+   "note": "builds Apple FindMy owner adv (0x4c/0x12, battery)"
+  },
+  {
+   "address": "0x0004c460",
+   "class": "fmna-deferred",
+   "name": "fmna_adv_nearby",
+   "note": "builds Apple FindMy nearby/separated adv (0x4c, pubkey)"
+  },
+  {
+   "address": "0x0004c50c",
+   "class": "fmna-deferred",
+   "name": "fmna_set_battery_state",
+   "note": "FMNA battery byte set+readback helper in FMNA block"
+  },
+  {
+   "address": "0x0004c558",
+   "class": "fmna-deferred",
+   "name": "fmna_battery_level_bucket",
+   "note": "buckets battery byte to 0-3 FMNA battery level"
+  },
+  {
+   "address": "0x0004c5a4",
+   "class": "fmna-deferred",
+   "name": "fmna_queue_event",
+   "note": "allocates FMNA event struct and posts it"
+  },
+  {
+   "address": "0x0004c5b0",
+   "class": "fmna-deferred",
+   "name": "fmna_conn_check",
+   "note": "reads conn info, compares FMNA role byte"
+  },
+  {
+   "address": "0x0004c5e4",
+   "class": "fmna-deferred",
+   "name": "fmna_alloc_event",
+   "note": "allocates 0x14 FMNA event with handler ptr"
+  },
+  {
+   "address": "0x0004c5f8",
+   "class": "fmna-deferred",
+   "name": "fmna_disconnect_candidate",
+   "note": "selects conn to drop on FMNA role match"
+  },
+  {
+   "address": "0x0004c650",
+   "class": "fmna-deferred",
+   "name": "fmna_notify_all_conns",
+   "note": "FMNA event handler iterating connection slots"
+  },
+  {
+   "address": "0x0004c6c8",
+   "class": "fmna-deferred",
+   "name": "fmna_format_event_log",
+   "note": "formats FMNA event type/payload via snprintf"
+  },
+  {
+   "address": "0x0004c740",
+   "class": "fmna-deferred",
+   "name": "fmna_handle_role_event",
+   "note": "conn-role gated FMNA event formatting"
+  },
+  {
+   "address": "0x0004c784",
+   "class": "fmna-deferred",
+   "name": "fmna_is_owner_role",
+   "note": "checks FMNA enabled + owner role byte"
+  },
+  {
+   "address": "0x0004c7b0",
+   "class": "fmna-deferred",
+   "name": "fmna_owner_connect",
+   "note": "owner-role FMNA connect event (type 6)"
+  },
+  {
+   "address": "0x0004c7f4",
+   "class": "fmna-deferred",
+   "name": "fmna_disconnect_handler",
+   "note": "FMNA disconnect/role transition event (type 5)"
+  },
+  {
+   "address": "0x0004c86c",
+   "class": "fmna-deferred",
+   "name": "fmna_connect_handler",
+   "note": "FMNA connection establish event (type 4)"
+  },
+  {
+   "address": "0x0004c8e8",
+   "class": "fmna-deferred",
+   "name": "fmna_count_active_conns",
+   "note": "counts active non-owner FMNA connection slots"
+  },
+  {
+   "address": "0x0004c90c",
+   "class": "fmna-deferred",
+   "name": "fmna_can_accept_conn",
+   "note": "active conn count below FMNA limit"
+  },
+  {
+   "address": "0x0004c924",
+   "class": "fmna-deferred",
+   "name": "fmna_clear_flag",
+   "note": "FMNA per-conn flag manipulation, posts work"
+  },
+  {
+   "address": "0x0004c95c",
+   "class": "fmna-deferred",
+   "name": "fmna_conn_flag_get",
+   "note": "per-conn FMNA bitmask flag test"
+  },
+  {
+   "address": "0x0004c988",
+   "class": "fmna-deferred",
+   "name": "fmna_conn_flag_set",
+   "note": "sets per-conn FMNA bitmask flag bit"
+  },
+  {
+   "address": "0x0004c9b0",
+   "class": "fmna-deferred",
+   "name": "fmna_conn_flag_clear",
+   "note": "clears per-conn FMNA bitmask flag bit"
+  },
+  {
+   "address": "0x0004c9dc",
+   "class": "fmna-deferred",
+   "name": "fmna_event_dispatch",
+   "note": "FMNA connect/disconnect/conn-param event state machine"
+  },
+  {
+   "address": "0x0004cbc4",
+   "class": "fmna-deferred",
+   "name": "fmna_init_state",
+   "note": "FMNA state init, zeroes session buffer"
+  },
+  {
+   "address": "0x0004cbfc",
+   "class": "fmna-deferred",
+   "name": "fmna_reset_work",
+   "note": "posts FMNA reset work, cancels timer"
+  },
+  {
+   "address": "0x0004cc40",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004cc54",
+   "class": "fmna-deferred",
+   "name": "fmna_ctrl_point_send",
+   "note": "FMNA control-point ATT send with fragmentation"
+  },
+  {
+   "address": "0x0004ccfc",
+   "class": "fmna-deferred",
+   "name": "fmna_att_send_or_queue",
+   "note": "FMNA ATT notify build with queue fallback"
+  },
+  {
+   "address": "0x0004cdd4",
+   "class": "fmna-deferred",
+   "name": "fmna_flush_tx_queue",
+   "note": "drains queued FMNA ATT notifications"
+  },
+  {
+   "address": "0x0004ce78",
+   "class": "fmna-deferred",
+   "name": "fmna_pairing_cp_notify",
+   "note": "FMNA pairing control-point notify (handle 0x101/0x103)"
+  },
+  {
+   "address": "0x0004cea0",
+   "class": "fmna-deferred",
+   "name": "fmna_config_cp_notify",
+   "note": "FMNA config control-point notify handle lookup"
+  },
+  {
+   "address": "0x0004cecc",
+   "class": "fmna-deferred",
+   "name": "fmna_config_cp_write",
+   "note": "FMNA config control-point opcode 0x200-0x209 parser"
+  },
+  {
+   "address": "0x0004d03c",
+   "class": "fmna-deferred",
+   "name": "fmna_nonowner_cp_notify",
+   "note": "FMNA non-owner control-point notify (0x302/0x303)"
+  },
+  {
+   "address": "0x0004d064",
+   "class": "fmna-deferred",
+   "name": "fmna_nonowner_cp_write",
+   "note": "FMNA non-owner control-point opcode 0x300/0x301 handler"
+  },
+  {
+   "address": "0x0004d134",
+   "class": "fmna-deferred",
+   "name": "fmna_paired_owner_cp_notify",
+   "note": "FMNA paired-owner control-point notify handle lookup"
+  },
+  {
+   "address": "0x0004d250",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004d264",
+   "class": "fmna-deferred",
+   "name": "fmna_pairing_handle_lut",
+   "note": "FMNA pairing ATT handle lookup table (10 entries)"
+  },
+  {
+   "address": "0x0004d278",
+   "class": "fmna-deferred",
+   "name": "fmna_config_handle_lut",
+   "note": "FMNA ATT handle lookup table (3 entries)"
+  },
+  {
+   "address": "0x0004d28c",
+   "class": "fmna-deferred",
+   "name": "fmna_load_conn_params",
+   "note": "copies FMNA conn-param template into RAM globals"
+  },
+  {
+   "address": "0x0004d2c0",
+   "class": "fmna-deferred",
+   "name": "fmna_provision_keys",
+   "note": "stores FMNA provisioning blobs via settings save"
+  },
+  {
+   "address": "0x0004d30c",
+   "class": "fmna-deferred",
+   "name": "fmna_persist_key_997",
+   "note": "loads+counts+saves FMNA provisioning record"
+  },
+  {
+   "address": "0x0004d34c",
+   "class": "fmna-deferred",
+   "name": "fmna_persist_key_998",
+   "note": "loads+counts FMNA provisioning record"
+  },
+  {
+   "address": "0x0004d474",
+   "class": "fmna-deferred",
+   "name": "fmna_signal_ready",
+   "note": "signals FMNA worker via thin wrapper"
+  },
+  {
+   "address": "0x0004d494",
+   "class": "fmna-deferred",
+   "name": "fmna_owner_cp_dispatch",
+   "note": "FMNA owner control-point event dispatcher, serial number"
+  },
+  {
+   "address": "0x0004d794",
+   "class": "fmna-deferred",
+   "name": "fmna_get_conn_param_set",
+   "note": "copies FMNA conn-param template block out"
+  },
+  {
+   "address": "0x0004d7b0",
+   "class": "fmna-deferred",
+   "name": "fmna_select_conn_params",
+   "note": "picks FMNA conn-param template by state flags"
+  },
+  {
+   "address": "0x0004d810",
+   "class": "fmna-deferred",
+   "name": "fmna_clear_keys",
+   "note": "clears FMNA key/state globals via settings delete"
+  },
+  {
+   "address": "0x0004d848",
+   "class": "fmna-deferred",
+   "name": "fmna_store_pairing",
+   "note": "persists FMNA pairing keys/serial to settings"
+  },
+  {
+   "address": "0x0004d900",
+   "class": "fmna-deferred",
+   "name": "fmna_load_pairing",
+   "note": "loads FMNA pairing records, rebuilds key counters"
+  },
+  {
+   "address": "0x0004da54",
+   "class": "fmna-deferred",
+   "name": "fmna_finalize_pairing",
+   "note": "ServerSharedSecret HKDF + pairing finalize crypto"
+  },
+  {
+   "address": "0x0004dc48",
+   "class": "fmna-deferred",
+   "name": "fmna_send_pairing_response",
+   "note": "builds FMNA pairing response with derived keys"
+  },
+  {
+   "address": "0x0004dd7c",
+   "class": "fmna-deferred",
+   "name": "fmna_pairing_cp_dispatch",
+   "note": "FMNA pairing control-point write dispatcher to crypto"
+  },
+  {
+   "address": "0x0004dee4",
+   "class": "fmna-deferred",
+   "name": "fmna_set_pairing_cb",
+   "note": "stores FMNA pairing-complete callback pointer"
+  },
+  {
+   "address": "0x0004def0",
+   "class": "fmna-deferred",
+   "name": "fmna_set_pairing_state",
+   "note": "FMNA setter in pairing/key-derivation flow"
+  },
+  {
+   "address": "0x0004df4c",
+   "class": "fmna-deferred",
+   "name": "fmna_build_pairing_msg",
+   "note": "builds 0x8d FMNA pairing payload, ECDH/HKDF"
+  },
+  {
+   "address": "0x0004e02c",
+   "class": "fmna-deferred",
+   "name": "fmna_post_event",
+   "note": "increments counter, posts FMNA event 0x14"
+  },
+  {
+   "address": "0x0004e084",
+   "class": "fmna-deferred",
+   "name": "fmna_handle_pairing_cmd",
+   "note": "FMNA pairing command handler, builds pairing msg"
+  },
+  {
+   "address": "0x0004e108",
+   "class": "fmna-deferred",
+   "name": "fmna_session_teardown",
+   "note": "FMNA session cleanup, posts event 9"
+  },
+  {
+   "address": "0x0004e160",
+   "class": "fmna-deferred",
+   "name": "fmna_session_close_cb",
+   "note": "calls session teardown then callback"
+  },
+  {
+   "address": "0x0004e1a0",
+   "class": "fmna-deferred",
+   "name": "fmna_pairing_start",
+   "note": "FMNA pairing start, state set, callback"
+  },
+  {
+   "address": "0x0004e298",
+   "class": "fmna-deferred",
+   "name": "fmna_register_handler",
+   "note": "registers FMNA handler ptr, validity checks"
+  },
+  {
+   "address": "0x0004e2f0",
+   "class": "fmna-deferred",
+   "name": "fmna_send_status",
+   "note": "FMNA status build/send via fmna helpers"
+  },
+  {
+   "address": "0x0004e330",
+   "class": "fmna-deferred",
+   "name": "fmna_send_separated",
+   "note": "FMNA separated-state advertisement send"
+  },
+  {
+   "address": "0x0004e36c",
+   "class": "fmna-deferred",
+   "name": "fmna_state_dispatch",
+   "note": "FMNA state machine dispatch, adv packet build"
+  },
+  {
+   "address": "0x0004e3d8",
+   "class": "fmna-deferred",
+   "name": "fmna_request_send",
+   "note": "FMNA gated send request"
+  },
+  {
+   "address": "0x0004e418",
+   "class": "fmna-deferred",
+   "name": "fmna_nearby_adv",
+   "note": "FMNA nearby adv build (0x44fd payload)"
+  },
+  {
+   "address": "0x0004e454",
+   "class": "fmna-deferred",
+   "name": "fmna_get_state",
+   "note": "trivial FMNA state byte getter"
+  },
+  {
+   "address": "0x0004e460",
+   "class": "fmna-deferred",
+   "name": "fmna_is_active",
+   "note": "FMNA flag mask check helper"
+  },
+  {
+   "address": "0x0004e474",
+   "class": "fmna-deferred",
+   "name": "fmna_set_state",
+   "note": "FMNA core state-machine transition handler"
+  },
+  {
+   "address": "0x0004e640",
+   "class": "fmna-deferred",
+   "name": "fmna_command_handler",
+   "note": "FMNA control-point command dispatch handler"
+  },
+  {
+   "address": "0x0004e7c4",
+   "class": "fmna-deferred",
+   "name": "fmna_is_not_separated",
+   "note": "FMNA state compare helper"
+  },
+  {
+   "address": "0x0004e7d4",
+   "class": "fmna-deferred",
+   "name": "fmna_connection_changed",
+   "note": "FMNA connect/disconnect drives state machine"
+  },
+  {
+   "address": "0x0004e800",
+   "class": "fmna-deferred",
+   "name": "fmna_set_cfg_a",
+   "note": "FMNA config setter used in module init"
+  },
+  {
+   "address": "0x0004e80c",
+   "class": "fmna-deferred",
+   "name": "fmna_set_cfg_b",
+   "note": "FMNA config setter used in module init"
+  },
+  {
+   "address": "0x0004e818",
+   "class": "fmna-deferred",
+   "name": "fmna_set_cfg_c",
+   "note": "FMNA config setter with validity check"
+  },
+  {
+   "address": "0x0004e82c",
+   "class": "fmna-deferred",
+   "name": "fmna_settings_load",
+   "note": "FMNA settings read helper (NVS-backed)"
+  },
+  {
+   "address": "0x0004e858",
+   "class": "fmna-deferred",
+   "name": "fmna_settings_store",
+   "note": "FMNA settings write helper"
+  },
+  {
+   "address": "0x0004e8b8",
+   "class": "fmna-deferred",
+   "name": "fmna_load_key16",
+   "note": "FMNA 16-byte key/setting load wrapper"
+  },
+  {
+   "address": "0x0004e8d4",
+   "class": "fmna-deferred",
+   "name": "fmna_load_key16_b",
+   "note": "FMNA 16-byte key/setting load wrapper"
+  },
+  {
+   "address": "0x0004e8f0",
+   "class": "fmna-deferred",
+   "name": "fmna_load_blob",
+   "note": "FMNA 0x400-byte blob load wrapper"
+  },
+  {
+   "address": "0x0004e90c",
+   "class": "fmna-deferred",
+   "name": "fmna_store_blob",
+   "note": "FMNA 0x400-byte blob store wrapper"
+  },
+  {
+   "address": "0x0004e91c",
+   "class": "fmna-deferred",
+   "name": "fmna_settings_clear",
+   "note": "loops deleting 8 FMNA setting entries"
+  },
+  {
+   "address": "0x0004e948",
+   "class": "fmna-deferred",
+   "name": "fmna_key_rotation",
+   "note": "FMNA key-index rotation/persist logic"
+  },
+  {
+   "address": "0x0004e9c4",
+   "class": "fmna-deferred",
+   "name": "fmna_clear_flag",
+   "note": "atomic AND on FMNA module flag word"
+  },
+  {
+   "address": "0x0004e9e4",
+   "class": "fmna-deferred",
+   "name": "fmna_get_init_state",
+   "note": "atomic read of FMNA init flag bits"
+  },
+  {
+   "address": "0x0004e9fc",
+   "class": "fmna-deferred",
+   "name": "fmna_init",
+   "note": "FMNA module enable: sets cfg, keys, starts"
+  },
+  {
+   "address": "0x0004eb28",
+   "class": "fmna-deferred",
+   "name": "fmna_deinit",
+   "note": "FMNA module disable/teardown with flags"
+  },
+  {
+   "address": "0x0004ebb4",
+   "class": "fmna-deferred",
+   "name": "fmna_derive_connect_key",
+   "note": "HKDF with FMNA connect info label"
+  },
+  {
+   "address": "0x0004ebe4",
+   "class": "fmna-deferred",
+   "name": "fmna_derive_diversified_key",
+   "note": "HKDF diversify+intermediate FMNA labels"
+  },
+  {
+   "address": "0x0004ec34",
+   "class": "fmna-deferred",
+   "name": "fmna_serial_number_protect",
+   "note": "HKDF SerialNumberProtection, ECDH SN encrypt"
+  },
+  {
+   "address": "0x0004ed10",
+   "class": "fmna-deferred",
+   "name": "fmna_derive_update_key",
+   "note": "HKDF with FMNA update info label"
+  },
+  {
+   "address": "0x0004ed74",
+   "class": "fmna-deferred",
+   "name": "fmna_server_shared_secret_decrypt",
+   "note": "HKDF ServerSharedSecret then AES decrypt"
+  },
+  {
+   "address": "0x0004ee18",
+   "class": "fmna-deferred",
+   "name": "fmna_crypt_payload",
+   "note": "HKDF FMNA label then ChaCha/AES crypt"
+  },
+  {
+   "address": "0x0004ee78",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004eeb8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004eefc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004ef14",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004ef8c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f08c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f0d0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f12c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f14c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f1d0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f228",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f318",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f478",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f568",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f5e4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f7f0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f980",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004f9e4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fa30",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fa80",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fc28",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fc64",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fd04",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fd10",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fe3c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fe48",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fed4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004fef8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004ff20",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004ff60",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0004ffd4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050058",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000500c4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050100",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050130",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005017c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050234",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050298",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000502d0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000502e8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050368",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000503f8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005042c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000504f8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005051c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000505a4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000505d8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000505ec",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050638",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005066c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050760",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050818",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005084c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050920",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000509c4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050a7c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050adc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050ae8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050b1c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00050b34",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00050c90",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00050d24",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00050d64",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00050e4c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00050e6c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00050fb8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000510b0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000510c4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000510d0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000510dc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000513cc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00051480",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00051670",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000516ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00051b7c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00051b9c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00051ed4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005259c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052668",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052730",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052750",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052754",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052778",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005277c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000527e4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052828",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005288c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000528d0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00052964",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000529e0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000529f4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00052a08",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052cb8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052e00",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052ec4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052ef0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00052f8c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00053170",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000531ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00053264",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000533ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00053488",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00053548",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005354c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00053550",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005356c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00053578",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00053584",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00053590",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x000535ec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x00053620",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005366c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053670",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053674",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005367c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053690",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000536a4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000536b4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000536c8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053704",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000537ac",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000538fc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053950",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000539dc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053c94",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053cac",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053cc8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053dc4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053de4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053df0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053e24",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053e78",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053ea0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053eac",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053ed4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053f28",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053f70",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053f98",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00053ff4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000541e4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054234",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000542ac",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054354",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054374",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000543b0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000543d0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000543e8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054450",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000544a4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000546d0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054740",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000547e4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000548c8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000548f8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054c6c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054ec4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054edc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054ef4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00054f08",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055024",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000550e4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000550ec",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000551a0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055218",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055310",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000553dc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055498",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055534",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000555e0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055698",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055764",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000557f8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005585c",
+   "class": "vendor-libc-sdk",
+   "name": "thunk_FUN_00056774",
+   "note": "toolchain branch veneer (thunk -> 0x00056774)"
+  },
+  {
+   "address": "0x00055860",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005587c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000559c8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000559d4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055abc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055b74",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055c40",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055cd8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055d3c",
+   "class": "vendor-libc-sdk",
+   "name": "thunk_FUN_000569b8",
+   "note": "toolchain branch veneer (thunk -> 0x000569b8)"
+  },
+  {
+   "address": "0x00055d40",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055d5c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055ec8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055ed4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00055f08",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056004",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056020",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005606c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000560cc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056148",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005621c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000562ec",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000563f8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056440",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005670c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056748",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056774",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000567a0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056948",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056984",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000569b8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000569ec",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056b4c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056d30",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056d44",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056d54",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056d74",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056d98",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056df4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056e24",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056e54",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056e9c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056ee8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056fa0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00056fcc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00057038",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005708c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000570ac",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000570c8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00057418",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00057474",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00057590",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00057648",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000576bc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00057708",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00057894",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00057a24",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00057e48",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00058198",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005819c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000584e2",
+   "class": "fmna-deferred",
+   "name": "fmna_packet_handler_a",
+   "note": "FMNA control-point packet decode dispatching to 0x3e0xx keys"
+  },
+  {
+   "address": "0x0005851c",
+   "class": "fmna-deferred",
+   "name": "fmna_packet_handler_b",
+   "note": "FMNA packet decode/dispatch into FMNA key module"
+  },
+  {
+   "address": "0x0005856a",
+   "class": "fmna-deferred",
+   "name": "fmna_serial_handler",
+   "note": "FMNA 0x20-byte (serial/key) handler via 0x3e8xx"
+  },
+  {
+   "address": "0x000585a2",
+   "class": "fmna-deferred",
+   "name": "fmna_info_dict_put",
+   "note": "strlen+dict-put helper for findmy info advert"
+  },
+  {
+   "address": "0x000585c0",
+   "class": "fmna-deferred",
+   "name": "fmna_build_adv_info",
+   "note": "Builds advert info: firmware/version, conditional findmy"
+  },
+  {
+   "address": "0x00058606",
+   "class": "vendor-libc-sdk",
+   "name": "thunk_findmy_send_status_report",
+   "note": "toolchain branch veneer (thunk -> 0x0003ce20)"
+  },
+  {
+   "address": "0x00058732",
+   "class": "fmna-deferred",
+   "name": "fmna_post_start_event",
+   "note": "Posts FMNA control event (tag set, FUN_40d98 notify)"
+  },
+  {
+   "address": "0x0005874c",
+   "class": "fmna-deferred",
+   "name": "fmna_post_stop_event",
+   "note": "Posts FMNA control event (tag 0, notify)"
+  },
+  {
+   "address": "0x00058766",
+   "class": "fmna-deferred",
+   "name": "fmna_set_timeout",
+   "note": "FMNA control helper adding 0x14 offset to duration"
+  },
+  {
+   "address": "0x0005876e",
+   "class": "fmna-deferred",
+   "name": "fmna_send_status",
+   "note": "Builds conn record and sends framed FMNA status"
+  },
+  {
+   "address": "0x000587aa",
+   "class": "fmna-deferred",
+   "name": "fmna_info_dict_put2",
+   "note": "strlen+dict-put helper (folded dup) for findmy info"
+  },
+  {
+   "address": "0x00058858",
+   "class": "fmna-deferred",
+   "name": "fmna_conn_is_active",
+   "note": "Reads connection flag via FUN_44a68 lookup"
+  },
+  {
+   "address": "0x00058872",
+   "class": "fmna-deferred",
+   "name": "fmna_post_owner_event",
+   "note": "Conn-keyed FMNA event post (tag 5) via 0x5c9a4 ctx"
+  },
+  {
+   "address": "0x000588a2",
+   "class": "fmna-deferred",
+   "name": "fmna_conn_ctx_lookup",
+   "note": "Gets FMNA conn ctx (conn+0x90) and resolves record"
+  },
+  {
+   "address": "0x000588b6",
+   "class": "fmna-deferred",
+   "name": "fmna_post_event_addr",
+   "note": "Conn-keyed FMNA event post (tag 6, copies 8B addr)"
+  },
+  {
+   "address": "0x000588f0",
+   "class": "fmna-deferred",
+   "name": "fmna_conn_ctx_lookup2",
+   "note": "FMNA conn ctx lookup (folded dup of 0x588a2)"
+  },
+  {
+   "address": "0x00058904",
+   "class": "fmna-deferred",
+   "name": "fmna_post_event_tag3",
+   "note": "Conn-keyed FMNA event post (tag 3) with two bytes"
+  },
+  {
+   "address": "0x00058938",
+   "class": "fmna-deferred",
+   "name": "fmna_info_dict_put3",
+   "note": "strlen+dict-put helper (folded dup)"
+  },
+  {
+   "address": "0x00058952",
+   "class": "fmna-deferred",
+   "name": "fmna_post_event_tag2",
+   "note": "FMNA event post (tag 2) with byte field"
+  },
+  {
+   "address": "0x00058974",
+   "class": "fmna-deferred",
+   "name": "fmna_post_event_tag3b",
+   "note": "FMNA event post (tag 3) with two u16 fields"
+  },
+  {
+   "address": "0x00058996",
+   "class": "fmna-deferred",
+   "name": "fmna_post_event_tag4",
+   "note": "FMNA event post (tag 4) with four u16 fields"
+  },
+  {
+   "address": "0x00058a12",
+   "class": "fmna-deferred",
+   "name": "fmna_get_battery_level",
+   "note": "Reads conn battery/value field, optional invert"
+  },
+  {
+   "address": "0x00058a36",
+   "class": "fmna-deferred",
+   "name": "fmna_info_dict_put4",
+   "note": "strlen+dict-put helper (folded dup)"
+  },
+  {
+   "address": "0x00058a50",
+   "class": "fmna-deferred",
+   "name": "fmna_send_framed_packet",
+   "note": "Builds CRC16-framed FMNA packet and queues TX"
+  },
+  {
+   "address": "0x00058aa8",
+   "class": "vanmoof",
+   "name": "ble_announce_command_id",
+   "note": "Build + transmit a JSON announce message (type 0xe001) carrying one command id"
+  },
+  {
+   "address": "0x00058af4",
+   "class": "fmna-deferred",
+   "name": "fmna_dispatch_indirect",
+   "note": "Conn flag-based indirect dispatch to vtable handler"
+  },
+  {
+   "address": "0x00058b12",
+   "class": "vanmoof",
+   "name": "findmy_build_message",
+   "note": "Build a framed FMNA transport message (type/seq/chan/frame_id header, CRC-16, payload); returns framed length or -1"
+  },
+  {
+   "address": "0x00058b70",
+   "class": "fmna-deferred",
+   "name": "fmna_read_conn_value",
+   "note": "Reads conn value field, optional computed override"
+  },
+  {
+   "address": "0x00058b80",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058bb8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058bf6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058c2c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058c56",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058c9c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058cd8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058d2e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058d72",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00058d7c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00058da4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00058de6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00058e16",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00058e86",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058eae",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058ee4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058f0a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058f24",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058f3e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058f72",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058faa",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058fd6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00058ff2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059010",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059036",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005914a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005915e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059168",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000591b6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000591f0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005920a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059276",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000592a2",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059338",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059356",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000593a8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000594ea",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059516",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059532",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005957e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005958c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000595a8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000595fc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059648",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005967c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005968e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000596a4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000596b8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000596ec",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059728",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000597c0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059830",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059856",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059878",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000598a2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059a0c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059a14",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059ac2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059ad0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059ad2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059afc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059b26",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059b4e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059b5c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059b6a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059ba6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059bac",
+   "class": "vanmoof",
+   "name": "ble_msg_publish_clear_59bac",
+   "note": "Publish a bus topic with a NULL payload (thin wrapper over ble_msg_publish_40558)"
+  },
+  {
+   "address": "0x00059bb4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059bfa",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059c26",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059c90",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059ca8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059dc2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059e04",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059e16",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00059e40",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059e5a",
+   "class": "vendor-libc-sdk",
+   "name": "thunk_FUN_00061e62",
+   "note": "toolchain branch veneer (thunk -> 0x00061e62)"
+  },
+  {
+   "address": "0x00059e5e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059e70",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059e7e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059f18",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00059fcc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a000",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a01a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a052",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a11a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a130",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a14e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a162",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a1a0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a1b8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a1e2",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a206",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a23c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a26e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a292",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a3c2",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a3e2",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a3ea",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a53c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a59a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a6b6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a7be",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a7c8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a806",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005a8d4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005aa6e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005aac6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ab16",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ab3e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ab7c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005abe6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ac2c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005acb6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ad28",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ada8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ae54",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ae7e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ae8e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005aeba",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005af10",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005afe6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005b050",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005b09c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005b27a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b2b6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b2ba",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005b2d2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b2de",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b31a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b340",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b36e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b3b6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b3ba",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b416",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b456",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b472",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b498",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b4c8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b4f0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b5ee",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b5fc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005b606",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b640",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b66a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b68c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b748",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b77e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b7b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b7f6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b838",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b89c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b906",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b918",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b932",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b9c2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005b9f2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005baa0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005baa6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bac6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bad2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bb4e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bb58",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bb7c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bbac",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bc86",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bc96",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bd10",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bd54",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bd72",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bd84",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005bdb8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c084",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c092",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c0c0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c0dc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c1c2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c1e2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c202",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c3f6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c478",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c47e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c484",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c4e2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c53a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c5f8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c650",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c684",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c6a2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c6f6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c708",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c74e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c7e8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c81e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c852",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c896",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c8a8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c8f0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c950",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005c954",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x5c994",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5c9a4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5c9a8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5c9ce",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5c9ee",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5ca3e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x5cac8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5caf6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cb20",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cb42",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cb6c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cb72",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cc06",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cc1a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cc2e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cc64",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cc66",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cc7a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cc8a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5ccae",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cd38",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x5cd4a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cd60",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5ce88",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cf08",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cf24",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5cf8a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d028",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d13e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d172",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d1a4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d1c0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d1f4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x5d21e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d272",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d2e0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d34e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d3d6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d418",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d426",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d43a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d472",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d49a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d4fa",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d534",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d55a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d580",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d5c2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d5da",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x5d5f2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d654",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d7a0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d7ca",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d7ce",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d800",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d818",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d832",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d85e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d890",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d93a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005d946",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005d964",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005d982",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005d990",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005da1c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005da38",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005da42",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005da8c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005dab6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005daee",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005db1e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005db48",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005db70",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005dba2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005dbd4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005dc5c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005dc92",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005dcd2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005dd80",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005ddae",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005de16",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005df3c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005df6a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005dfa4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005dff8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e00e",
+   "class": "vendor-libc-sdk",
+   "name": "thunk_FUN_0005d654",
+   "note": "toolchain branch veneer (thunk -> 0x0005d654)"
+  },
+  {
+   "address": "0x0005e012",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e078",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e0e6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e154",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e190",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005e1a8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e1b6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005e1c8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e212",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005e230",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005e23e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e27a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e2b4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005e2d0",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005e370",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e3ba",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e3d6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e3e2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e42c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e476",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e4e8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e584",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e5b4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e5fa",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e6b2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e732",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e7a2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e8e0",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e8e6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e924",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005e994",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ec0c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ec8c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ed70",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005ed7e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ed9e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005eda6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005edb6",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ede4",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ee08",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ee12",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ee46",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ee52",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ee5a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ee96",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005eeec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ef06",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ef0e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ef1a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ef30",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ef52",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ef5e",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ef70",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ef80",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005ef94",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005efaa",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005efba",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005efcc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005efdc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005efec",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005effc",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f00c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f01c",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f030",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f038",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f05a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f080",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f0d8",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f13a",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f21c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005f27a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005f2ca",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005f2dc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005f2f2",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f312",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f34e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f388",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f398",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f3ba",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f4a0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f4a8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f504",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f522",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f57e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f590",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f5fa",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f61c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f6a4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f70e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f722",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f730",
+   "class": "vendor-sdc"
+  },
+  {
+   "address": "0x0005f7c4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005f842",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005f85e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005f90a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005f930",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005f984",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f9aa",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f9ae",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f9c6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f9e8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005f9f4",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005fa00",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fa3a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005faa8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fab6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fac2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fae4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fb58",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fbac",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fbb2",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005fbc6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005fc54",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005fc72",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005fc7e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fc86",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fc8e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fcce",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fd02",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fd32",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fd4c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fd60",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fd8a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fdb6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0005fdba",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fe1a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fe78",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fe82",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005fe92",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005feae",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005ff14",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005ff32",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005ff5c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0005ff74",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006006e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000600b8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006016c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000602ac",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000602da",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000602fc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060308",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060322",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060396",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006039e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060410",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006041e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006042e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000604b4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000604da",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060500",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060546",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060568",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060588",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000605a6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000605cc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006061e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060652",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060668",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006067c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000606ba",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060700",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060736",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006073a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006076c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000607b2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000607c8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000607f2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060810",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060870",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0006087e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060896",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0006091e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000609c2",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060a1e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060a4a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060a64",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060a6e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060aa0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060ade",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060b50",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060c24",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060ca6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060cac",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060de2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060de4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060df8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060e2e",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060e32",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060e36",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00060e46",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060f02",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060f3a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060f8e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060f9e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060fac",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060fbc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060fca",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00060fe6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061006",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061064",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000610e6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061122",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000611ee",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061206",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061220",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061236",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006124a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000612cc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000612ec",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061302",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006131e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006132c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006138e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000613cc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000613de",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000613fe",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061426",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061448",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061468",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061474",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006148c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061490",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000614b8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061510",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061520",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061534",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061546",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061566",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006158e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000615ba",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000615c6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000615e6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006162a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006167e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000616a8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000616d8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000616f8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006173c",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061768",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061788",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000617bc",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000617c4",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000617c8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000617d0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061826",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006183e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x0006189a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000618f8",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x000619f2",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061aa6",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061b04",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061b22",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061b3e",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061b74",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061b82",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061b8a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061ba6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061c50",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061c74",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061d5a",
+   "class": "vendor-zephyr"
+  },
+  {
+   "address": "0x00061dc8",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061e00",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061e20",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061e3c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061e62",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061e72",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061e88",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061e98",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061ec0",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061ee6",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061f02",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061f06",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00061f3a",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00062012",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x0006204c",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x000620bc",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00062130",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00062486",
+   "class": "vendor-libc-sdk"
+  },
+  {
+   "address": "0x00063024",
+   "class": "vendor-libc-sdk"
+  }
+ ]
+}

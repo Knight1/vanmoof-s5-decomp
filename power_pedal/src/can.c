@@ -202,6 +202,11 @@ int power_pedal_od_signal_register_91(const uint8_t *desc_id, void *out_buf)
  * Builds descriptor {0x08, 0x88, 0} (OD 0x8808), runs the lookup/wait handshake,
  * copies the two payload words into the descriptor buffer, re-looks-up, dispatches
  * via od_signal_send and releases. Returns the send result, or -1 on any failure.
+ *
+ * The 8-byte payload is the "power_pedal_pedal" OD signal. Field meaning is pinned
+ * by the consumer (ride PedalSensorOd, ride@0x116b20 — see docs/progress.md):
+ *   byte0 = status/pedal, byte1..2 = u16 cadence (raw), byte5..6 = u16 torque
+ *   (torque = (raw - 750)/35.0), byte7 = publish-rate selector. a0 node = 0xA2.
  * (== elock/rearlight_od_signal_8808_send.)
  */
 int power_pedal_od_signal_8808_send(void *bus, const uint32_t *payload)
