@@ -75,6 +75,23 @@ mosquitto_pub -h localhost -t 'eshifter/gear/set' -m 't'
   ` modem`) and consumed by `gateway`/`tracking`/`update`/`ux`.
 - **`$aws/…`** — AWS-reserved, only the `gateway` speaks these (to the cloud).
 
+### Cross-cutting topics (nearly every service)
+
+Confirmed by a full string sweep of all seven service binaries:
+
+- **`logging/event` (+ `logging/event/<src>`)** — published by *every* C++ service
+  (`power`, `ride`, `ux`, `tracking`, `monitor`, `update`) and the bridges; the
+  **`logging`** service subscribes and persists them to `/var/log`. `ble-ctrl`
+  has a dedicated `w logging/event/ble`.
+- **`power/state`** + **`power/state/{set,status,extend_timeout}`** — the
+  power-state control plane: `power` owns it, and `ride`/`ux`/`tracking`/
+  `monitor`/`update` all subscribe `power/state` and may `set`/`extend_timeout`
+  (e.g. hold the bike awake during a flash) and read `…/status`.
+- The sweep also rejected non-topic artifacts that look topic-ish: Go package
+  paths in `gateway` (`telemetry/{batch,collector,router,mode,ignore,config}`,
+  `light/singleflight`) are **internal package names, not bus topics**; only
+  `$aws/rules/telemetry/+` is a real telemetry topic.
+
 ---
 
 ## gateway
@@ -186,13 +203,18 @@ OD**; the MQTT surface is config in / telemetry + motor identity out.
 | `ride/info/torque` | pub | ? | int16 | pedal torque (filtered) |
 | `ride/info/motor_speed` | pub | ? | uint16 | motor rotor speed |
 | `ride/info/motor_current` | pub | ? | uint16 | motor phase current (EMA) |
+| `ride/info/distance` | pub | ? | uint32 | trip distance |
+| `ride/info/calories` | pub | ? | uint | estimated calories |
+| `ride/brake_level` | pub | ? | 0–255 | brake-sensor level |
+| `device/ride/status` | pub | ? | string | ride-service health |
 | `device/motor_control/status` | pub | ? | uint16 status word | motor controller status + driver bits |
 | `device/motor_control/version/{firmware,bootloader,vendor}` | pub | ? | string | motor identity (shared `device/*` namespace) |
+| `power/state` + `power/state/{set,status,extend_timeout}` | sub/pub | — | enum/int | power-state coordination (see cross-cutting note) |
 
-> Subscriptions are the three in `ride_app_run()` (`settings/assist_level`,
-> `settings/region`, `ride/boost`). The SOC gate (`SOC ≥ 13`) is read from the
-> **CANopen OD**, not an MQTT `power/*` subscription. `ride/info/distance` /
-> `…/calories` named in `ride.md` were not found as strings in this build.
+> The config subscriptions are `settings/assist_level`, `settings/region`,
+> `ride/boost`. The SOC gate (`SOC ≥ 13`) is read from the **CANopen OD**, not an
+> MQTT `power/*` topic. (`ride/info/distance` and `…/calories` ARE present in the
+> binary — confirmed by the full string sweep.)
 
 ---
 
@@ -217,6 +239,7 @@ UX orchestrator. Owns `ux/*`; subscribes to power/ride/ble/modem/tracking inputs
 | `ux/button` | pub | ? | JSON `{pressed,duration_ms}` | power-button events |
 | `info/ecu_serial` | pub | yes | string | device hardware serial |
 | `info/bike_id` | pub | yes | string | bike identity |
+| `info/frame_number` | pub | yes | string | frame number |
 | `info/sku` | pub | yes | string | SKU / product variant |
 | `power/deep_sleep` | sub | ? | — | low-power signal |
 | `power/state` | sub | ? | enum | power state |
@@ -229,9 +252,16 @@ UX orchestrator. Owns `ux/*`; subscribes to power/ride/ble/modem/tracking inputs
 | `ride/info/distance` | sub | ? | uint32 | motor odometer (absolute) |
 | `ride/brake_level` | sub | ? | 0–255 | brake sensor |
 | `ride/boost` | sub | ? | bool | boost toggle |
-| `ble/connections/handle/{id}` | sub | ? | — | BLE connection lifecycle |
+| `ble/connections/handle` | sub | ? | — | BLE connection lifecycle |
 | `ble/connections/info` | sub | ? | JSON `{authenticated,…}` | BLE link state |
-| `ble/findmy/{certified,control,toggle}` | both | ? | JSON/bool | Apple Find-My provisioning & control |
+| `ble/certificate_public_key` | both | ? | bytes | BLE auth public key |
+| `ble/findmy/certify` / `ble/findmy/certified` | both | ? | bool | Apple Find-My certification request/state |
+| `ble/findmy/control` | both | ? | JSON | Find-My control channel |
+| `ble/findmy/provisioned` | pub | ? | bool | Find-My provisioned flag |
+| `ble/findmy/report` | sub | ? | bytes | Find-My location-report payload |
+| `ble/findmy/serial_lookup` | both | ? | string | Find-My serial lookup |
+| `ble/findmy/sound` | sub | ? | — | Find-My "play sound" trigger |
+| `ble/findmy/event/{enable,disable,paired,pairing,pairing_failed,reset,reset_ignored}` | pub | ? | — | Find-My pairing/lifecycle events |
 | `update/ux/finished` | sub | ? | bool | firmware update completion |
 | `update/stage` | sub | ? | string | OTA progress stage |
 | `tracking/alarm/imu/triggered` | sub | ? | bool | shock-alarm from tilt sensor |
@@ -250,6 +280,7 @@ Anti-theft state machine (OFF/AUTO/THEFT), fed by IMU/SMS/cellular.
 | `modem/sms` | sub | ? | JSON `{tracking: enabled/disabled}` | SMS command: enabled→THEFT, disabled→OFF |
 | `modem/info/device` | sub | ? | JSON string | modem device info (logged) |
 | `modem/location/cellular` | sub | ? | JSON cell fix (MCC/MNC/LAC/CID) | CellLocator input (5-min poll, logged) |
+| `modem/tracking/type/set` | pub | ? | string/int | select the modem's tracking/location mode |
 | `ux/sound/play` | pub | no | string filename | alarm sound on theft event |
 
 > SMS command codes: `0` enabled→THEFT, `1` disabled→OFF, `0xFFFFFFFF` parse fail.
@@ -273,9 +304,16 @@ per-component identity/health; aliveness from CAN heartbeats + modem ping.
 | `ble/heartbeat` | pub | no | `"1"` | BLE-component liveness beacon |
 | `ble/system/version_info` | pub | yes? | string | BLE firmware version |
 | `ble/system/reset_reason` | pub | yes? | string | BLE last reset reason |
-| `ble/vars` | pub | no | JSON | BLE reported variables |
+| `ble/vars/update` | pub | no | JSON | BLE reported variables |
+| `modem/heartbeat` | pub | no | `"1"` | modem-component liveness beacon |
+| `modem/system/version_info` | pub | yes? | string | modem firmware version (`mfw_nrf9160_1.3.1`) |
+| `modem/system/reset_reason` | pub | yes? | string | modem last reset reason |
+| `modem/info/network` | pub | no | JSON | modem network info |
+| `modem/config/lte` | pub | no | JSON | LTE config snapshot |
+| `modem/vars/update` | pub | no | JSON | modem reported variables |
 
-> `<name>` carries `motor_control` (version topics) and `motor` (status), plus
+> The supervisor runs **parallel `ble/*` and `modem/*` component topic sets** —
+> it watches the BLE SoC and the Nordic modem the same way. `<name>` carries
 > the other supervised sub-ECUs. Heartbeat *aliveness* arrives over **CAN**
 > (CANopen heartbeat, 2 s) — not MQTT; the modem's aliveness is an ICMP **ping**
 > to `1.1.1.1`/`8.8.4.4`. The BLE `ble/*` topics overlap the bridge namespace.
