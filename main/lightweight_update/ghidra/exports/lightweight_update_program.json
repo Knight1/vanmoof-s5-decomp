@@ -1,0 +1,23 @@
+{
+  "program": "lightweight_update",
+  "path": "/S5-v1.5/OS/lightweight_update",
+  "executable": "/usr/bin/lightweight_update",
+  "package": "vmxs5-embedded-lightweight-update",
+  "arch": "AARCH64:LE:64:v8A",
+  "image_base": "0x100000",
+  "function_count": 471,
+  "note": "Standalone trimmed CLI flasher: one file -> one device over CAN/tty. Bundles the SAME update-client classes as the `update` service (UpdateClientFactory, LightweightUpdateClient, C2000UpdateClient, MqttUpdateClient, ThirdPartyUpdateClient/Dynapack/Panasonic/Liteon, VersionClientMqtt) from devices/main/update/src/* — already reconstructed under main/update/. The unique VanMoof code is utils/lightweight_update/main.cpp (main @0x108dc0). Reconstructed to behaviour-oriented C in main/lightweight_update/{src,include} (1 TU, build clean). MQTT identity 'lightweight_update'/'update-service' @ localhost:5000; subscribes device/+/version/{firmware,bootloader,vendor}/#.",
+  "named_functions": {
+    "0x00108dc0": "main  // CLI flasher entry. getopt 'vb:hft:p:' (b=bus default vcan0, f=force, v=verbose, t=target name/addr, p=tty default /dev/ttymxc3, h=usage); requires one positional <file_to_send>; traps signals {2,3,15,11}; vm alloc(0x2860)+vm_init+open_socketcan (else 'Could not init channel'); builds VersionClientMqtt + IMQTTClient(localhost:5000) + UpdateClientFactory; device name from -t (target_addr_to_device_name, 'invalid enum value' sentinel) or basename(file) up to first '.'; factory.GetUpdateClient(file,device,force) (vt+0x10), NULL -> 'could not get an update client for: <file>'; client.PerformUpdate() (vt+0x10): !=0 -> 'Update was not performed.', ==0 -> 'Update performed.'/'Update successful.'; prints 'Spent time:<ms> ms'; exit 0 on success else 1."
+  },
+  "shared_with_update": {
+    "_note": "These are the `update`-service classes bundled into this binary; reconstructed under main/update/, modelled here as opaque externs — NOT re-reconstructed.",
+    "0x0010f230": "target_addr_to_device_name  // -t numeric address/enum -> device name ('invalid enum value' sentinel)",
+    "0x00133560": "vm_init  // libvm context init (vendor/shared)",
+    "0x00133fb0": "vm_open_socketcan  // open CAN channel (vendor/shared)",
+    "0x00134db0": "mqtt_client_ctor  // IMQTTClient(lightweight_update/update-service@localhost:5000)",
+    "0x00142890": "version_client_mqtt_ctor  // VersionClientMqtt (version_client_mqtt.cpp)",
+    "0x0010b300": "update_client_factory_ctor  // UpdateClientFactory(vm, version, mqtt, force)",
+    "0x00107dc0": "clock_ns  // monotonic clock, ns (vendor)"
+  }
+}

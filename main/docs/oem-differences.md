@@ -22,7 +22,7 @@ openssl, kernel modules, wifi firmware, …).
 | `vmxs5-embedded-tracking` | `/usr/bin/tracking` | **Anti-theft / tracking** (C++) — alarm state machine, location/theft reporting. |
 | `vmxs5-embedded-monitor` | `/usr/bin/monitor` | **System health monitor** (C++) — watches components (modem, etc.), error-state reporting. |
 | `vmxs5-embedded-update` | `/usr/bin/update` | **Peripheral OTA updater** (C++) — flashes `/opt/devices_fw/*` to the sub-ECUs. `Type=notify`. |
-| `vmxs5-embedded-lightweight-update` | (update helper) | trimmed update path. |
+| `vmxs5-embedded-lightweight-update` | `/usr/bin/lightweight_update` | **standalone CLI flasher** — trimmed update path (one file → one device over CAN/tty), reusing the `update` clients. Reconstruction: [`../lightweight_update/`](../lightweight_update/). |
 | `vmxs5-embedded-motor-update-lib` | (lib) | motor-controller update routines. |
 | `vmxs5-modem-update` | (modem fw flasher) | nRF9160 modem firmware update (`mfw_nrf9160_1.3.1.zip`). |
 | `vmxs5-embedded-logging` | `/usr/bin/logging` | **Logging service** (C++) — collects logs off the bus to `/var/log` (eMMC-backed). |
