@@ -1,0 +1,23 @@
+{
+  "program": "motor_update_example",
+  "path": "/S5-v1.5/OS/motor_update_example",
+  "executable": "/usr/bin/motor_update_example",
+  "package": "vmxs5-embedded-motor-update-lib",
+  "also_installs": "/usr/bin/tms320f40049c_sci_kernel.bin (TI TMS320F280049C SCI flash-kernel blob — VENDOR, deferred)",
+  "arch": "AARCH64:LE:64:v8A",
+  "image_base": "0x100000",
+  "function_count": 471,
+  "note": "Standalone TI C2000 (TMS320F280049C) motor-controller SCI firmware flasher. Two stages: (1) set boot-mode GPIO -> autobaud-lock the DSP ROM bootloader -> byte-echo upload the SCI flash kernel into RAM; (2) autobaud-lock the running kernel -> program the application via a DFU block protocol -> restore boot mode. Unique VanMoof code = the CLI (main) + the flasher (boot-mode GPIO, autobaud, send_kernel, flash_app); reconstructed to behaviour-oriented C in main/motor_update_lib/{src,include} (2 TUs, build clean). Decode adversarially verified by a 14-agent workflow.",
+  "named_functions": {
+    "0x001062d0": "main  // CLI: getopt 'bh:p:' (-b skip boot mode, -p ttydev default /dev/ttymxc3; usage text prints '[-g]' but flag is -b); two positionals <kernel file> <app file> (optind+2==argc); flow: serial open -> flasher -> set_boot_mode(0) -> open kernel (else throw 'unable to open kernel image') -> 'Determine baud rate...' autobaud 'Done!' -> 'Sending flash kernel...' send_kernel '\\rSending flash kernel... Done!' -> open app (else 'unable to open application image') -> autobaud -> 'Flashing application...' flash_app '\\rFlashing application... Done!' -> set_boot_mode(1). try/catch -> 'exception caught: <what>' return -1; usage return -0x16; ok return 0.",
+    "0x001071c0": "c2000_set_boot_mode  // GPIO boot-mode strobe. Lazily exports pins 12/125/126 as outputs (once). pin12=1 (strobe high); mode 0 (SCI boot): pin126=0,pin125=1; mode 1 (run): pin126=1,pin125=1; sleep 20ms (20000000ns); pin12=0 (latch). mode outside [0,1] -> throw 'Unsupported C2000 Boot Mode'.",
+    "0x00107e60": "c2000_autobaud  // TI C2000 SCI autobaud: up to 50 (0x32) tries of {nanosleep 100ms (100000000ns), serial flush (+0x70), write 'A' (0x41), read 1 byte tmo 100ms}; success when echo=='A'; throw 'baud rate detection failed' after 50.",
+    "0x00107850": "c2000_send_kernel  // byte-by-byte echo upload of the SCI flash kernel: read 1 byte from the file, write to serial, optional progress cb, read 1 byte echo (tmo 100ms); throw 'failed' on echo mismatch. Last byte sent without echo wait.",
+    "0x00107ae0": "c2000_flash_app  // DFU block-streaming app programmer. Send the 10-byte DFU start packet (DAT_0011c330 = words 1be4 0000 0100 0001 e41b), expect '-' (0x2d) else 'Failed sending DFU packet'. Stream blocks (first=11 words/22 bytes; each block: write count*2 data bytes with running 16-bit sum checksum, verify echo word every 256 bytes and at block end else 'Invalid checksum'; read+echo 6-byte next-block header {u16 count, u32 addr}, add to checksum) until count==0. Final: read status word (tmo 1000) must be 0x1be4 ('Invalid start header'), then len/skip/status words, drain (len-2)/2 words, completion word must be 0xe41b (-0x1be5), send 0x2d ack; status==0x1000 -> OK else 'Flashing failed'.",
+    "0x001079b0": "c2000_serial_read_word  // read a 16-bit little-endian word from the serial port with a ms timeout.",
+    "0x00109b90": "c2000_serial_port_ctor  // SerialPort object ctor: stores the ttydev string + a mode flag (0xf) + allocates a 255-byte rx buffer; vtable &DAT_001321b8 (serial_port.cpp, vendor).",
+    "0x00107820": "c2000_flasher_ctor  // flasher object ctor: holds the serial port (at +8).",
+    "0x00107fd0": "c2000_gpio_line_ctor  // Gpio line ctor: export pin as output via sysfs (gpio.cpp, vendor); used for pins 12/125/126."
+  },
+  "vendor_deferred": "serial_port.cpp (termios), gpio.cpp (sysfs), clock.cpp, mqtt_client.cpp, libstdc++/libc, and the TI SCI flash-kernel blob tms320f40049c_sci_kernel.bin."
+}
