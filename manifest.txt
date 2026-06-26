@@ -1,0 +1,16 @@
+Filename,Device,Date,Time,Major,Minor,Patch,Type,AllowSkip,DontRollback
+imx8_bridge.20240129.145222.1.5.0.main.v1.5.0-main.bin, imx8_bridge, 20240129, 145222, 1, 5, 0, main, 0, 0
+ble.20240129.145222.1.5.0.main.v1.5.0-main.bin, ble, 20240129, 145222, 1, 5, 0, main, 0, 0
+modem.20240129.145222.1.5.0.main.v1.5.0-main.bin, modem, 20240129, 145222, 1, 5, 0, main, 1, 0
+motor_sensor.20240129.145222.1.5.0.main.v1.5.0-main.bin, motor_sensor, 20240129, 145222, 1, 5, 0, main, 0, 0
+elock.20240129.145222.1.5.0.main.v1.5.0-main.bin, elock, 20240129, 145222, 1, 5, 0, main, 0, 0
+user_ecu.20240129.145222.1.5.0.main.v1.5.0-main.bin, user_ecu, 20240129, 145222, 1, 5, 0, main, 0, 0
+frontlight.20240129.145222.1.5.0.main.v1.5.0-main.bin, frontlight, 20240129, 145222, 1, 5, 0, main, 0, 0
+rearlight.20240129.145222.1.5.0.main.v1.5.0-main.bin, rearlight, 20240129, 145222, 1, 5, 0, main, 0, 0
+eshifter.20240129.145222.1.5.0.main.v1.5.0-main.bin, eshifter, 20240129, 145222, 1, 5, 0, main, 0, 0
+motor_control.20240129.154239.1.5.0.main.v1.5.0-main.bin, motor_control, 20240129, 154239, 1, 5, 0, main, 0, 0
+battery_primary_panasonic.0.0.1.4.256.untagged.x.bin, battery_primary_panasonic, 0, 0, 1, 4, 256, untagged, 1, 1
+power_control.20240129.145222.1.5.0.main.v1.5.0-main.bin, power_control, 20240129, 145222, 1, 5, 0, main, 0, 0
+power_pedal.20240129.145222.1.5.0.main.v1.5.0-main.bin, power_pedal, 20240129, 145222, 1, 5, 0, main, 0, 0
+charger_liteon_normal.0.0.1.8.0.untagged.x.bin, charger_liteon_normal, 0, 0, 1, 8, 0, untagged, 1, 1
+charger_liteon_speed.0.0.1.2.0.untagged.x.bin, charger_liteon_speed, 0, 0, 1, 2, 0, untagged, 1, 1
