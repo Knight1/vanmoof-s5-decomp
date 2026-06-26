@@ -18,9 +18,22 @@ table published over MQTT.
 - GPIO reset: `gpio_export_and_configure` `0x138bd0`, `gpio_set_value` `0x139180`, `component_reset_lines_ctor` `0x120310` (pins 1,0,10,11)
 - `monitor_print_component_status_table` `0x1221f0`
 
+## Build
+
+```sh
+make            # 6 TUs -> build/*.o, clean under -Wall -Wextra -Wpedantic
+```
+
+Behaviour-oriented C (C++ modelled in C) over the canonical `monitor_common.h`
+IComponent model — `src/{main,monitor_service,component,ble,lpc_device,modem}.c`.
+The C++ runtime / mosquitto / nlohmann-json and the shared `common`/`lib` layer
+are vendor (modelled as opaque handles), per project policy.
+
 ## Scope
-High-level reconstruction (function naming + architecture). The per-component
-bodies (ble/lpc_device/modem) are inlined under `-O2` and entangled with vendor
-mosquitto + nlohmann-json glue — documented by behaviour + fingerprints, not 1:1
-functions. The C++ runtime / mosquitto / json and the shared `common`/`lib` are
-vendor.
+The supervisor spine (lifecycle, heartbeat routing, supervise loop, GPIO reset
+bank, status-table renderer) is named + reconstructed. The **BLE IComponent
+methods** were carved out of the undisassembled vtable slots and named
+(`ble_*`, 8 fns) → reconstructed in `src/ble.c`. The **LPC/modem** bodies stay
+inlined under `-O2` (RELA-relocated / in a dispatch gap) — reconstructed as
+**modelled IComponent overrides** from the proven topic wiring + fingerprints,
+not 1:1 OEM functions.

@@ -5,7 +5,7 @@
   "arch": "AARCH64:LE:64:v8A",
   "image_base": "0x100000",
   "function_count": 748,
-  "note": "i.MX8 component health/version supervisor. MonitorService polls sub-ECU components (BLE, LPC devices, modem) for aliveness/heartbeat + firmware versions, resets via GPIO sysfs, publishes status. Per-component bodies inlined under -O2. See main/docs/monitor.md.",
+  "note": "i.MX8 component health/version supervisor. MonitorService polls sub-ECU components (BLE, LPC devices, modem) for aliveness/heartbeat + firmware versions, resets via GPIO sysfs, publishes status. The BLE IComponent methods were carved out + named (ble_* below); LPC/modem bodies remain inlined under -O2 and are reconstructed as modelled IComponent overrides. Reconstructed to behaviour-oriented C in main/monitor/{src,include} (6 TUs, build clean -Wall -Wextra -Wpedantic). See main/docs/monitor.md.",
   "logger": "common_logf (named) \u2014 (file,line,level{1=DBG,2=INFO,3=WARN,4=ERR},fmt,...)",
   "key": {
     "main": "0x109a98",
@@ -46,6 +46,17 @@
     "ble_modem": {
       "0x001221f0": "monitor_print_component_status_table  // Renders the supervisor's component status table to std::cout: prints GLOBAL STATE banner + SYSTEM HEALTH line + separator rule, then iterates the IComponent* vector (at this+0x18) and emits one row per component via monitor_print_component_row. This is the primary reachable consumer of the IComponent interface that the ble/modem components implement.",
       "0x00121ac0": "monitor_print_component_row  // Prints one component's status row: presence marker, heartbeat id, name (vtable +0x30), type (+0x38), status (+0x40), alive flag (+0x48), a float rate/uptime with 's' suffix (+0x50), and an extra string (+0x58). Generic over any IComponent subclass including the BLE and modem components."
+    },
+    "ble_methods": {
+      "_note": "class 3BLE:9Component, vtable @0x171070, object 0x168 bytes, typeinfo @0x171048. Carved + named this pass (create_function on the undisassembled slots). Reconstructed in main/monitor/src/ble.c.",
+      "0x0012b2a0": "ble_get_name  // get_name() (vt+0x30): copy of the cached component-name std::string ('ble').",
+      "0x0012ba50": "ble_get_version  // get_version() (vt+0x40): copy of cached m_version @this+0xe0/+0xe8; published to ble/system/version_info.",
+      "0x0012b980": "ble_get_status  // get_status() (vt+0x38): builds 0x60-byte object of three std::strings @+0x80 (reset_reason), +0xa0, +0xc0; reset_reason -> ble/system/reset_reason.",
+      "0x0012aa40": "ble_is_alive  // is_alive() (vt+0x48): if byte @+0x60 != 0 -> false, else tail-calls the IComponent base default (0x12a990).",
+      "0x0012a9d0": "ble_get_value  // get_value() (vt+0x50): (float)(now - m_start_tick@+0x70) / 1e9f (literal 0x4e6e6b28); elapsed seconds.",
+      "0x001268f0": "ble_get_type  // get_type() (vt+0x58): RTTI/ostringstream type-name pipeline (STL glue) -> 'ble'.",
+      "0x001271a0": "ble_publish  // poll/publish: walks the heartbeat map @+0x128 and publishes ble/heartbeat, ble/system/version_info, ble/system/reset_reason, ble/vars.",
+      "0x00126400": "ble_dtor  // ~BleComponent(): restore vtable 0x171070, common_logf DEBUG 'destroying BLE component', destroy member strings/map, chain icomponent_base_dtor."
     }
   }
 }
