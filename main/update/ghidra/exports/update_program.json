@@ -157,7 +157,7 @@
     },
     "common_framework_vendor": {
       "_note": "devices/main/common + lib (shared across all main-module services; vendor - named for navigation only, not reconstructed).",
-      "0x153e80": "service_env_ctor (vm_init; MQTT localhost:5000; CAN open; signal handlers)",
+      "0x153e80": "service_env_ctor (vm_init; MQTT localhost:1883; CAN open; signal handlers)",
       "0x153510": "service_env_dtor",
       "0x153800": "service_env_signal_handler (SIGSEGV -> /run/media/mmcblk2p6/SEGFAULT_<ts> backtrace + exit(1))",
       "0x155d60": "state_client_start (subscribe power/state{,/status,/extend_timeout})",

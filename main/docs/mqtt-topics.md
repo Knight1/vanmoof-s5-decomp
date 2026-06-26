@@ -21,11 +21,11 @@ publish/subscribe xref analysis) and the per-service decode docs. Entries marked
 
 ## How the bus is used
 
-- **Broker:** `mosquitto` on `localhost`. Default MQTT port `1883`; the shared
-  `common::IMQTTClient` wrapper connects with a per-service client-id and a
-  keepalive of 60 s. (The `monitor` service's env was seen constructing its
-  client against `localhost:5000` — an alternate/inproc broker port; `1883` is
-  the system default.)
+- **Broker:** `mosquitto` on `localhost:1883`, **bound to `lo`** (loopback only —
+  the bus is never exposed off-device). The shared `common::IMQTTClient` wrapper
+  hardcodes the connect to `localhost:1883` keepalive 60 s (`0x75b`/`0x3c`) with a
+  per-service client-id. Full broker + ACL settings: see **MQTT settings &
+  endpoints** at the end of this doc.
 - **Framework:** every C++ service is built on the same `common` layer
   (`IMQTTClient`, `StateClient`, `Timer`, `Clock`). A publish call is
   `publish(topic, payload, qos, retain)`; a subscribe registers a topic +
@@ -321,7 +321,7 @@ the Nordic parts; CAN sub-ECUs are flashed off-bus (page+CRC).
 
 > **`lightweight_update`** (the standalone CLI flasher, pkg
 > `vmxs5-embedded-lightweight-update`) reuses this same machinery: it connects as
-> client-id `lightweight_update` / user `update-service` to `localhost:5000` and
+> client-id `lightweight_update` / user `update-service` to `localhost:1883` and
 > subscribes `device/+/version/{firmware,bootloader,vendor}/#` to version-check
 > the one device it flashes. See [`../lightweight_update/`](../lightweight_update/).
 
@@ -334,3 +334,111 @@ the Nordic parts; CAN sub-ECUs are flashed off-bus (page+CRC).
 topics into `/var/log`. The CAN bridges (`spi-can-if-linux`, `imx8_bridge`) and
 the SPI bridges (`spi-mqtt-bridge ble`/`modem`) translate non-IP links onto the
 bus — the `ble/*` and `modem/*` namespaces above originate there.
+
+---
+
+# MQTT settings & endpoints
+
+## Local broker (`/etc/mosquitto/mosquitto.conf`)
+
+```
+listener 1883
+bind_interface lo
+acl_file /etc/mosquitto/acl
+persistence true
+persistence_location /run/media/mmcblk2p6/config/mosquitto/
+```
+
+- **Endpoint:** `tcp://localhost:1883`, **bound to `lo` only** — the bus is not
+  reachable off-device. No TLS listener, no `password_file`: the broker allows
+  anonymous connects and authorises purely by the **ACL keyed on the client's
+  username**. Each service connects with a fixed username (`ux-service`,
+  `power-service`, `gateway`, …); phone/app sessions are authenticated at the
+  **BLE/TLS layer** (the per-role client certificate) and proxied onto the bus
+  under a `ble-role-N` username, which the ACL then constrains.
+- **Persistence:** retained messages + the in-flight DB live on the ext4 config
+  partition (`mmcblk2p6/config/mosquitto/`), so retained state (current
+  `power/state`, versions, `settings/*`, `tracking/state`, …) survives reboots.
+- `pkg vmxs5-embedded-mosquitto-conf` ships both files.
+
+## Roles & permissions (`/etc/mosquitto/acl`)
+
+### Internal service accounts — full bus (`readwrite #`)
+`power-service`, `ride-service`, `ux-service`, `update-service`,
+`monitor-service`, `logging-service`, `tracking-service`, `mqtt-ftp-server`,
+`factory`. (`update-service` is also the username used by the `update` daemon
+**and** the `lightweight_update` CLI.)
+
+### Bridge accounts (scoped)
+| User | Grants |
+| --- | --- |
+| `ble-ctrl` | `rw ble/#`, `rw device/ble/#`, `w logging/event/ble`, `r power/#`, `r info/#`, `r modem/info/datetime`, `r modem/system/time` |
+| `modem-ctrl` | `rw modem/#`, `rw device/modem/#`, `r power/#`, `r ble/vars/update` |
+| `gateway` | `r #` (mirror everything to cloud) **plus** a fixed **write whitelist** (the only down-commands the cloud may inject): `power/state/set`, `settings/{region,mode,assist_level,shift_levels,light_mode,light_auto_threshold,ride_animation_right,brake_lights,turning_lights,animation_theme,bell_sound}/set`, `ux/sound/play`, `ux/usb/settings/enable/set`, `eshifter/gear/set`, `update/start` |
+
+### BLE phone/app roles (per-certificate; the on-bike permission model)
+| Role | Name | Scope |
+| --- | --- | --- |
+| `ble-role-7` | **Owner** | `rw settings/#`, `rw update/#`, lock control (`w ux/lock/unlock`, `w ux/lock/touch_unlock_activate`, `r …/touch_unlock_request`, `r …/info/state`, `r …/locking_while_riding`), `r ride/#`, `r power/battery/primary/info/{soc,soc_app}`, `r power/state`, `w ftp_server/command` `r ftp_server/reply`, `r ble/proxy` `w ble/proxy/config`, `r ble/findmy/{report,certified}`, `r ble/system/version_info`, `r ux/info/#` `r ux/sensor/#`, `r error/#`, `r eshifter/gear` `w eshifter/gear/set`, `r device/+/status` |
+| `ble-role-11` | **Shared bike** | like Owner but `settings` is **per-key** only: `rw settings/{assist_level,shift_levels,light_mode,light_auto_threshold,bell_sound,brake_lights,turning_lights,ride_animation_right}/#` (no blanket `settings/#`), `rw update/#`, same lock/ride/power/ftp/ble subset |
+| `ble-role-17` | **Bike doctor** | `rw #` (full) |
+| `ble-role-22` | **Bike Hunter** | `rw #` (full) |
+| `ble-role-55` | **QA Engineer** | `rw #` (full) |
+| `ble-role-66` | **R&D Engineer** | `rw #` (full) |
+
+> Convention: a setting/command is **written** to `<topic>/set`; the owning
+> service validates it, applies it, and re-publishes the **current value
+> (retained)** to the base `<topic>`. The cloud (`gateway`) and the app
+> (BLE roles) only ever write the `…/set` form.
+
+## The `settings/*` namespace (user/app preferences)
+
+Writable via `settings/<key>/set`; current value retained at `settings/<key>`.
+Owners read the `/set` topic and apply. Keys seen in the ACL + binaries:
+
+| Setting key | Owner | Meaning |
+| --- | --- | --- |
+| `settings/region` | ride | region → legal assist-curve cap |
+| `settings/mode` | ride/ux | ride/assist mode |
+| `settings/assist_level` | ride | pedal-assist level 0–4 |
+| `settings/shift_levels` | ux/eshifter | e-shifter gear-shift points |
+| `settings/light_mode` | ux | headlight/taillight mode (auto/on/off) |
+| `settings/light_auto_threshold` | ux | lux threshold for auto-headlight |
+| `settings/bell_sound` | **ux** | **which bell/horn sound the bike plays** (see below) |
+| `settings/brake_lights` | ux | brake-light behaviour toggle |
+| `settings/turning_lights` | ux | turn-indicator behaviour toggle |
+| `settings/ride_animation_right` | ux | LED ride-animation (right) |
+| `settings/animation_theme` | ux | LED-ring animation theme |
+| `settings/backup_unlock_code` | ux | the 3-symbol `BackupUnlock` kick-code |
+| `ux/usb/settings/enable` | ux | enable the USB (phone-charging) port |
+
+## Cloud endpoint — AWS IoT (via `gateway`)
+
+The Go `gateway` is the only bridge off-bike. It connects to **AWS IoT Core**
+over **TLS (mTLS)** — device X.509 cert + root-CA **pinning to the two Amazon
+roots (CA1 + CA3)**, no `InsecureSkipVerify` (see `gateway-aws-iot`). The ATS
+endpoint hostname is **provisioned per-device** (cert/config, not hardcoded in
+the binary). Topic roots it speaks: `$aws/things/<thing>/shadow/*`,
+`$aws/things/<thing>/jobs/*`, `$aws/rules/telemetry/+` (CBOR) — detailed in the
+**gateway** section above.
+
+## `settings/bell_sound/set` — what it does
+
+It selects the bike's **bell (electronic horn) sound**. The bike has a
+configurable bell with several built-in clips — `bell_dingdong`,
+`bell_partyhorn`, `bell_ping`, `bell_submarine`, plus `bell_custom` (a
+user-uploaded sound) — all string ids found in the **`ux`** binary alongside
+`bell_sound` and `ux/sound/play`. Flow:
+
+1. A writer publishes the chosen id to **`settings/bell_sound/set`**. Per the
+   ACL the writers are the **`gateway`** (cloud/app → has an explicit
+   `w settings/bell_sound/set` grant) and the **Shared-bike / Owner BLE roles**
+   (`ble-role-11` `rw settings/bell_sound/#`, `ble-role-7` `rw settings/#`) —
+   i.e. the phone app over BLE.
+2. **`ux`** (the sound/UX owner) consumes it, stores the selection, and
+   re-publishes the current value (retained) to `settings/bell_sound`.
+3. When the rider rings the bell, `ux` plays the selected clip via
+   **`ux/sound/play`**.
+
+So it's the app/cloud setting for *which tone the bike's bell rings* — purely a
+UX preference, not a security or motor control path.
