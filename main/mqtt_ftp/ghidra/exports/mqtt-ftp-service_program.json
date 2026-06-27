@@ -1,0 +1,28 @@
+{
+  "program": "mqtt-ftp-service",
+  "path": "/S5-v1.5/OS/mqtt-ftp-service",
+  "executable": "/usr/bin/mqtt-ftp-service",
+  "package": "vmxs5-embedded-mqtt-ftp",
+  "also_installs": "/usr/bin/mqtt_ftp_send (the sender CLI / client side)",
+  "arch": "AARCH64:LE:64:v8A",
+  "image_base": "0x100000",
+  "function_count": 738,
+  "note": "File-transfer-over-MQTT server (MqttFtpService). Subscribes ftp_server/command (JSON), writes/reads files under a mandatory destination folder in CRC32-checked chunks (default 512), publishes ftp_server/reply + ftp_server/file_finished. Broker localhost:1883 keepalive 60 (the literal 5000 is the client +0x58 field, NOT the port). The multiframe reassembly (size limit, open-transfer eviction) is the CAN TP layer (lib/src/tp/tp.c), vendor. Reconstructed to behaviour-oriented C in main/mqtt_ftp/{src,include} (2 TUs, build clean). Decoded + adversarially verified by a 5-cluster workflow; ctor + topics confirmed by direct read_memory.",
+  "named_functions": {
+    "0x00107850": "main  // CLI getopt 'vh' (-v/--verbose, -h); positionals <destination-folder> (mandatory) + <chunk-size> (stoul base10, default 0x200=512); usage 'Usage: `<argv0>` [params...] <destination-folder> <chunk-size>'; builds service_env (MQTT localhost:1883) + MqttFtpService, runs, tears down; main.cpp:0x2f WRN 'UpdateService shut down' (copy-paste leftover).",
+    "0x0010ab50": "mqtt_ftp_service_ctor  // MqttFtpService(mqtt, fs::path dest, IClock, chunk_size): stores mqtt@+0x08, dest_folder@+0x30, clock@+0x58, chunk_size@+0x60, an fstream member @+0x68..; mqtt_ftp_service.cpp:0x10 WRN 'Starting MQTTFTPServer'; subscribes ftp_server/command (DAT_0012f028) -> handler FUN_0010a920, qos 1.",
+    "0x0010a980": "mqtt_ftp_service_dtor  // teardown; 'Stopping MQTTFTPServer'.",
+    "0x0010a920": "mqtt_ftp_on_command  // ftp_server/command handler: parse JSON; a 'data' payload (or flush) -> write (CRC32 per-block vs cmd 'crc', append under dest/<name>, truncate on index==0, flush -> file_finished), else -> read (seek index*chunk_size, CRC32, reply with 'data'). 'silent' suppresses the reply. Error token FTP_ERR_FILE_ACCESS."
+  },
+  "data": {
+    "0x0012f028": "'ftp_server/command' (subscribe)",
+    "0x0012f040": "'ftp_server/reply' (publish)",
+    "0x0012f058": "'ftp_server/file_finished' (publish)",
+    "0x0012ed60": "'FTP_ERR_FILE_ACCESS'"
+  },
+  "json_schema": {
+    "command": "name, index, crc, data (write), silent, flush, chunk_size",
+    "reply": "status ('OK'|FTP_ERR_FILE_ACCESS), name, size, index, crc, cached (+ data on reads)"
+  },
+  "vendor_deferred": "common::MQTTClient/CRC32/IClock, ServiceEnv, the CAN transport-protocol multiframe assembler (lib/src/tp/tp.c: 'Multiframe transfer too large', 'Too many open multiframe write transfers'), std::filesystem/fstream, nlohmann-json, libstdc++/libc."
+}
