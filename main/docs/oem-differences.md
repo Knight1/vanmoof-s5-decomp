@@ -35,8 +35,8 @@ openssl, kernel modules, wifi firmware, …).
 | `vmxs5-embedded-mosquitto-conf` | `/etc/mosquitto/*` | the broker config + the **role-based ACL** (`mqtt-bus.md`). |
 | `vmxs5-embedded-ppp-conf` | `/etc/ppp/peers/nrf9160` | the **cellular PPP** peer config for the nRF9160 modem: `/dev/ttymxc2` @ 115200, `nocrtscts`, `noauth`, `defaultroute`+`replacedefaultroute`, LCP echo 5 s / 3 fails. Used by `ppp@nrf9160.service`. Config only. |
 | `vmxs5-upgrade-scripts` | `/pre-install.sh`, `/post-install.sh` | A/B-image-swap FOTA hooks — but in v1.5.0 these are **no-op stubs** (`#!/bin/sh` + `echo {pre,post} install stub`). The real A/B swap + install logic lives in `update` / `runFOTA.sh` (the `update` service shells out to these hooks around the i.MX8 self-update). |
-| `vmxs5-utils` | misc `/usr/bin` | VanMoof CLI utilities. |
-| `vmxs5-version` | version metadata | stamps `/etc/firmware_version`, `/etc/firmware_imagetype`. |
+| `vmxs5-utils` | `/usr/bin/{runFOTA.sh, gpio_func.sh, shipping_mode.sh}` | **Shell utilities.** `runFOTA.sh` = the i.MX8 **FOTA / A-B image-swap orchestrator** (2029-line Pega ODM script v1.3.11: parses a 2048-byte `HEAD_PEGA_FOTA_VM-XS5_SIG` header with BOOT/KERNEL/ROOTFS/DELTA labels, `dd`-splits the image, writes the **off-line A/B slot** (`mmcblk2boot0/1` + parts p2/p3 kernel, p4/p5 rootfs, p6 user) with md5-skip, swaps via `mmc bootpart enable`, supports xdelta3 **delta** updates and a **safe-update** state machine via `fw_setenv su_state`) — the `update` service shells out to it. `shipping_mode.sh` = waits for VBUS/VAC1/VAC2 absent (BQ25672 `CHRG_STAT_0` @ i²c `2-006b`), sets the **bq27542 gauge to HIBERNATE** (`00 11` → `2-0055/subcommandcode`) and `poweroff` (kernel drops BQ25672 into Ship Mode). `gpio_func.sh` = sysfs GPIO helpers. |
+| `vmxs5-version` | `/etc/firmware_version`, `/etc/firmware_imagetype` | version stamps — `v1.5.0-main` / `production` (config only). |
 
 (See `services.md` for what each binary actually does and how they wire up.)
 
