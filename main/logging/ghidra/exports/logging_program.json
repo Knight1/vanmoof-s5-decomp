@@ -1,0 +1,26 @@
+{
+  "program": "logging",
+  "path": "/S5-v1.5/OS/logging",
+  "executable": "/usr/bin/logging",
+  "package": "vmxs5-embedded-logging",
+  "arch": "AARCH64:LE:64:v8A",
+  "image_base": "0x100000",
+  "function_count": 437,
+  "note": "On-board log collector / dictionary expander. Sub-ECUs/services emit COMPACT log refs (device-id, source-file-path-hash, line, args) over the vm/CAN transport; logging holds a dictionary ('device|file|line|LEVEL|message' lines, from an optional log_config.txt or a compiled-in default at DAT_0012fe70), looks each ref up, formats it, and emits a JSON line {ts,file_id,file,line,level,msg} to std::cout (-> systemd journald -> /var/log). MQTT broker localhost:1883 keepalive 60 (the source literal 5000 is the client +0x58 field, NOT the port). Reconstructed to behaviour-oriented C in main/logging/{src,include} (2 TUs, build clean). Decoded via a 10-agent workflow, adversarially verified.",
+  "named_functions": {
+    "0x001074c0": "main  // CLI getopt_long: -s/--service, -f/--filter <address|name>, optional [log_config.txt] positional (optind+1==argc). Builds service_env (vm_init + MQTT localhost:1883 + CAN + signals {2,4,6,15}), constructs LoggingService, runs, tears down.",
+    "0x0010b2a0": "logging_service_ctor  // stores {service_flag@0, filter@+1, can@+8, ostream(cout or arg)@+0x10, bus@+0x18}; registers the vm message handler (FUN_001127d0; throws 'Failed on a VM call ...' on error); loads the log dictionary: compiled-in default (logging_server.cpp:0x3c 'Using the compiled-in log configuration') or file (0x38 'Reading log configuration from %s'); parses each '\\n'-line, splits on '|' into device|file|line|level|msg (else 0x45 'log config line ignored'), key=(line, file-path-hash[back-to-front *0x1003f], device) -> entry; dedup -> 0x72 'Duplicate log config for file %s (%d), line %d'.",
+    "0x0010b250": "logging_service_deinit  // tear down the registered handler + free the dictionary (OEM dtor).",
+    "0x001127a0": "logging_on_log_message  // per-message vm-callback trampoline: expand a compact ref (lookup (device,hash,line) -> level/file/msg, '???' on miss), build the JSON object {ts:'%H:%M:%S', file_id:<device>, file, line, level, msg} and emit to cout.",
+    "0x00112d00": "log_device_name  // device-id -> name (shared vm role enum: 0 CORE_SERVICES, 0x82 POWER, 0x84 RIDE, 0x88 UX, 0x8d MOTOR_CONTROL, 0x90 BLE, 0xa4 BATTERY_PRIMARY, 0xc1 ELOCK, 0xfb PING, 0xff TEST; else 'invalid enum value').",
+    "0x0011d580": "mqtt_client_ctor  // common::MQTTClient ctor; connects FUN_00129940(self, host, 0x75b=1883, 0x3c=60) = localhost:1883 keepalive 60; the literal 5000 passed by the builder is the client +0x58 field, NOT the port; 'Mosquitto connect error: <rc>' throw."
+  },
+  "data": {
+    "0x0012fe70": "compiled-in default log config (DAT) — newline-joined 'device|file|line|LEVEL|message' dictionary for all sub-ECU + libvm/lib sources",
+    "0x0012fae0": "'CMAKE_SOURCE_DIR/' (path prefix stripped for display)",
+    "0x0012faf8": "'devices/' (path prefix stripped for display)",
+    "0x0012fbb0": "'%H:%M:%S' (ts strftime) + JSON field names ts/file/file_id/%u/line/level/msg",
+    "0x0012fc14": "'???' (placeholder on dictionary miss)"
+  },
+  "vendor_deferred": "common::ServiceEnv / MQTTClient / vm transport, std::map/string/ifstream, nlohmann-json, libstdc++/libc."
+}
