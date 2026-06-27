@@ -1,0 +1,22 @@
+{
+  "program": "spi-mqtt-bridge",
+  "path": "/S5-v1.5/OS/spi-mqtt-bridge",
+  "executable": "/usr/bin/spi-mqtt-bridge",
+  "package": "vmxs5-embedded-spi-mqtt-bridge",
+  "arch": "AARCH64:LE:64:v8A",
+  "image_base": "0x100000",
+  "function_count": 399,
+  "note": "SPI<->MQTT bridge, run once per SPI satellite: 'spi-mqtt-bridge ble' (nRF52840 @ /dev/spidev0.0) and 'spi-mqtt-bridge modem' (nRF9160 @ /dev/spidev0.1). Resets the nRF over GPIO, opens spidev at 6 MHz, waits on a GPIO data-ready interrupt, reads SPI frames (connection_id, role, topic, payload) and bridges them to/from MQTT. Each BLE connection gets a SPIMQTTClient; connection_id 0x80='ble-ctrl', 0x81='modem-ctrl' (the ACL usernames). Devices request forwarded topics via bridge/subscribe + bridge/unsubscribe. Reconstructed to behaviour-oriented C in main/spi_mqtt_bridge/{src,include} (2 TUs, build clean). Decoded via a 5-cluster workflow + direct decompile of main/channel/client_manager/_INIT.",
+  "named_functions": {
+    "0x001065f0": "main  // 'Usage: %s <ble/modem>'; select config (DAT_00141068 ble / DAT_001410e8 modem); reset the nRF via GPIO (set reset_gpio 0, sleep 20000us, set 1, sleep 20000us); SPI speed 6000000 (6 MHz); run spi_channel_init_run; 'Error initializing SPI channel' main.cpp:0x163. Invalid device -> std::invalid_argument('invalid device').",
+    "0x001150e0": "spi_channel_init_run  // memset the ~0xa858 bridge object; spi_channel_open(spidev, 0x8000 buf); mutex init; gpio_register_ready_irq(config gpio); start the spi_reader_thread (FUN_00106050 pthread_create FUN_00114c60). Returns 0 ok / -1 / -2.",
+    "0x00106e40": "client_manager_get_or_create  // hashmap of SPIMQTTClient by connection_id (buckets @+0x08, count @+0x10). role matches -> keep; differs -> 'Replace the current SPI-MQTT Client' (client_manager.cpp:0x25); absent -> 'Create new SPI-MQTT Client' (0x15). 0x80 -> prefix 'ble-ctrl', 0x81 -> 'modem-ctrl', else per-connection prefix.",
+    "0x00114260": "spi_mqtt_client_ctor  // SPIMQTTClient (RTTI 13SPIMQTTClient, 0x268 bytes): the per-connection MQTT client + its forwarded-subscription set.",
+    "0x00114c60": "spi_reader_thread  // the reader thread: on GPIO data-ready, read SPI frames and route each to client_manager_get_or_create / MQTT; 'Error writing to SPI channel %ld'.",
+    "0x00123fe0": "spi_channel_open  // opens /dev/spidev*, spidev ioctls, 0x8000-byte buffer (vendor SPI-TP wrapper).",
+    "0x0011a080": "gpio_register_ready_irq  // register the GPIO data-ready edge interrupt (/sys/class/gpio/gpio<pin>/edge + poll on /value).",
+    "0x00106840": "_INIT_1  // builds the two device configs: ble {name 'ble', /dev/spidev0.0, GPIO reset 83 / ready 85 / aux 59, 'BLE'}; modem {name 'modem', /dev/spidev0.1, GPIO reset 84 / ready 86 / aux 61, 'MODEM'}."
+  },
+  "topics_new": "This bridge is the source/sink of the whole ble/* (and modem/*) namespace, plus the control topics bridge/subscribe + bridge/unsubscribe and several ble topics not previously cataloged: ble/bike_resolving_key, ble/certificate_public_key, ble/connection_state/acknowledge, ble/connections/config, ble/nfc/unlock_request, ble/findmy/fmna_auth.",
+  "vendor_deferred": "the spidev SPI-transport-protocol frame layer (spi_channel_open + the TP reassembly), the GPIO data-ready interrupt, the std::thread reader, common::MQTTClient (localhost:1883 keepalive 60 — the 5000 literal is the client +0x58 field, not the port), std::map/string, libstdc++/libc."
+}
