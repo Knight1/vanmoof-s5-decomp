@@ -1,0 +1,21 @@
+{
+  "program": "spi-can-if-linux",
+  "path": "/S5-v1.5/OS/spi-can-if-linux",
+  "executable": "/usr/bin/spi-can-if-linux",
+  "package": "vmxs5-embedded-spi-can-bridge",
+  "arch": "AARCH64:LE:64:v8A",
+  "image_base": "0x100000",
+  "function_count": 386,
+  "note": "SPI<->CAN bridge: 'spi-can-if-linux bridge' exposes the bike's CAN fleet on SocketCAN vcan0 by bridging it over SPI to the imx8_bridge co-processor (/dev/spidev1.0). A composite channel couples a SocketCAN endpoint to a SPI-master endpoint; the CAN transport-protocol (TP) layer reassembles 8-byte CAN frames into multiframe transfers keyed by (src,idx,trgt) — the same lib/src/tp layer mqtt-ftp defers to. Reconstructed to behaviour-oriented C in main/spi_can_bridge/{src,include} (2 TUs, build clean): the SocketCAN endpoint is reconstructed faithfully (socket/ioctl/bind), the SPIM channel + composite + CAN-TP are modelled (vendor). Decoded by direct decompile (the workflow verify agents balked).",
+  "named_functions": {
+    "0x001065f0": "main  // config_lookup_by_name('bridge') (argv[1] overrides); GPIO data-ready init + set 0/1; signals {2,15,3}; 'Starting on %s, irq_pin=%d' main.cpp:0x62; init ladder: vmlib (else 0x65 'Could not initialize vmlib'), composite (0x6b), SocketCAN open vcan0 (0x73), SPIM channel init (0x7a), start composite (0x7f); run + teardown.",
+    "0x00107120": "config_lookup_by_name  // linear search of the config table @0x138078 (entries 0x70 bytes) by name; throws std::invalid_argument('invalid device') if not found.",
+    "0x0010bca0": "socketcan_open  // socket(PF_CAN=0x1d, SOCK_RAW=3, CAN_RAW=1); SIOCGIFINDEX(0x8933) on 'vcan0'; bind(sockaddr_can, 0x18=24); spawn socketcan_reader_thread. vtable+0x20 = socketcan_send.",
+    "0x0010bad0": "socketcan_send  // write a struct can_frame {can_id, can_dlc, data[8]} to the CAN socket.",
+    "0x0010bba0": "socketcan_reader_thread  // reads inbound CAN frames from vcan0 and forwards them toward the SPI side.",
+    "0x00107950": "spim_channel_init  // allocate the 0xa8-byte SPI-master channel; copy the bridge config (spidev path + irq pin); spawn spim_reader_thread (SPI<->imx8_bridge). 'Failed to initialize SPIM channel' main.cpp:0x7a.",
+    "0x00107640": "spim_reader_thread  // the SPI processing loop to/from the imx8_bridge (spidev + GPIO data-ready handshake; SPI frame protocol).",
+    "0x00106840": "(static init) builds the config table @0x138078 ('bridge': spidev + irq_pin)."
+  },
+  "vendor_deferred": "the SPI-master frame protocol + the CAN transport-protocol multiframe reassembly (lib/src/tp; 'Multiframe transfer too large (already received: %zu, new DLC: %d, limit: %d)', 'Too many open multiframe write transfers. Will drop an older transfer (src: %d, idx: %d, trgt: %d)'), the GPIO data-ready interrupt (gpio.cpp/gpio_polling.cpp/event_reader.cpp), the std::thread plumbing, the common vm library, libstdc++/libc."
+}
