@@ -79,7 +79,7 @@ Dependencies (Go modules embedded): `eclipse/paho.golang v0.10.0` (MQTT v5),
 | Binary | Pkg | Bridges |
 | --- | --- | --- |
 | `spi-mqtt-bridge <ifc>` | `vmxs5-embedded-spi-mqtt-bridge` | SPI ↔ MQTT for `ble` (nRF52) and `modem` (nRF9160). Each device's protocol frames become MQTT messages and back. |
-| `spi-can-if-linux <ifc>` | `vmxs5-embedded-spi-can-bridge` | SPI ↔ CAN ↔ SPI to the `imx8_bridge` co-processor — exposes the CAN fleet on `vcan0` and bridges CAN traffic to the bus. |
+| `spi-can-if-linux <ifc>` | `vmxs5-embedded-spi-can-bridge` | SPI ↔ CAN to the `imx8_bridge` co-processor (`/dev/spidev1.0`) — exposes the CAN fleet on **SocketCAN `vcan0`** (`socket(PF_CAN)`/bind), with CAN-TP multiframe reassembly. **Full decode: [`../spi_can_bridge/`](../spi_can_bridge/).** |
 | `start_vcan.sh` | `vmxs5-vcan-starter` | `modprobe vcan; ip link add vcan0 type vcan; ip link set up vcan0`. |
 
 ## `/opt/devices_fw` — the peripheral firmware bundle (`vmxs5-device-binaries`)
