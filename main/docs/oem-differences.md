@@ -27,14 +27,14 @@ openssl, kernel modules, wifi firmware, …).
 | `vmxs5-modem-update` | (modem fw flasher) | nRF9160 modem firmware update (`mfw_nrf9160_1.3.1.zip`). |
 | `vmxs5-embedded-logging` | `/usr/bin/logging` | **Logging service** (C++) — collects logs off the bus to `/var/log` (eMMC-backed). |
 | `vmxs5-embedded-mqtt-ftp` | `/usr/bin/mqtt-ftp-service` | **File transfer over MQTT** — pushes/pulls files via the bus (log/cert/config transport). |
-| `vmxs5-embedded-spi-mqtt-bridge` | `/usr/bin/spi-mqtt-bridge` | **SPI ↔ MQTT** bridge, instantiated for `ble` and `modem` — puts the BLE SoC and the modem onto the bus. |
-| `vmxs5-embedded-spi-can-bridge` | `/usr/bin/spi-can-if-linux` | **SPI ↔ CAN ↔ SPI** bridge to the `imx8_bridge` co-processor — puts the CAN fleet onto the bus. |
+| `vmxs5-embedded-spi-mqtt-bridge` | `/usr/bin/spi-mqtt-bridge` | **SPI ↔ MQTT** bridge, instantiated for `ble` (nRF52840 @spidev0.0) and `modem` (nRF9160 @spidev0.1) — source/sink of the `ble/*`+`modem/*` namespace; per-connection `SPIMQTTClient`, `bridge/subscribe` forwarding. Reconstruction: [`../spi_mqtt_bridge/`](../spi_mqtt_bridge/). |
+| `vmxs5-embedded-spi-can-bridge` | `/usr/bin/spi-can-if-linux` | **SPI ↔ CAN** bridge — exposes the CAN fleet on SocketCAN `vcan0` by bridging it over SPI (`/dev/spidev1.0`) to the `imx8_bridge` co-processor; CAN-TP multiframe reassembly. Reconstruction: [`../spi_can_bridge/`](../spi_can_bridge/). |
 | `vmxs5-vcan-starter` | `/usr/sbin/start_vcan.sh` | brings up the `vcan0` virtual CAN interface at boot. |
-| `vmxs5-input-event` | (input handling) | handlebar / button input event plumbing. |
+| `vmxs5-input-event` | `/etc/udev/rules.d/50-input-event.rules` | **udev rules** — stable symlinks for the kernel input devices: `input/spi0.0` (nRF52840), `input/spi0.1` (nRF9160), `input/spi1.0` (imx8_bridge), and the **`input/pwr-btn`** = the BQ25672 charger's power-button input (consumed by `ux`). Config only. |
 | `vmxs5-device-binaries` | `/opt/devices_fw/*` | **the sub-ECU firmware bundle** — every peripheral image (`ble`, `user_ecu`, `elock`, motors, lights, …) + `manifest.txt`, staged for `update`. |
 | `vmxs5-embedded-mosquitto-conf` | `/etc/mosquitto/*` | the broker config + the **role-based ACL** (`mqtt-bus.md`). |
-| `vmxs5-embedded-ppp-conf` | `/etc/ppp/*`, chatscripts | the **cellular PPP** dial config for the nRF9160 modem. |
-| `vmxs5-upgrade-scripts` | upgrade hooks | A/B image swap / post-install scripts. |
+| `vmxs5-embedded-ppp-conf` | `/etc/ppp/peers/nrf9160` | the **cellular PPP** peer config for the nRF9160 modem: `/dev/ttymxc2` @ 115200, `nocrtscts`, `noauth`, `defaultroute`+`replacedefaultroute`, LCP echo 5 s / 3 fails. Used by `ppp@nrf9160.service`. Config only. |
+| `vmxs5-upgrade-scripts` | `/pre-install.sh`, `/post-install.sh` | A/B-image-swap FOTA hooks — but in v1.5.0 these are **no-op stubs** (`#!/bin/sh` + `echo {pre,post} install stub`). The real A/B swap + install logic lives in `update` / `runFOTA.sh` (the `update` service shells out to these hooks around the i.MX8 self-update). |
 | `vmxs5-utils` | misc `/usr/bin` | VanMoof CLI utilities. |
 | `vmxs5-version` | version metadata | stamps `/etc/firmware_version`, `/etc/firmware_imagetype`. |
 

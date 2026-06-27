@@ -365,6 +365,43 @@ the Nordic parts; CAN sub-ECUs are flashed off-bus (page+CRC).
 
 ---
 
+## spi-mqtt-bridge (ble / modem)
+
+`spi-mqtt-bridge ble` (nRF52840 @ `/dev/spidev0.0`) and `spi-mqtt-bridge modem`
+(nRF9160 @ `/dev/spidev0.1`) are the **source/sink of the entire `ble/*` and
+`modem/*` namespace** — they translate the device's SPI frames `(connection_id,
+role, topic, payload)` to/from MQTT. Per-connection `SPIMQTTClient`s are keyed by
+`connection_id` (`0x80` = the `ble-ctrl` client, `0x81` = `modem-ctrl`). The
+device drives its own forwarding: it asks the bridge to (un)subscribe MQTT topics
+on its behalf, and the matched messages are pushed back over SPI.
+
+| Topic | Dir | Payload / format | Purpose |
+| --- | --- | --- | --- |
+| `bridge/subscribe` | sub (control) | topic string | device asks the bridge to subscribe an MQTT topic and forward it over SPI (`"Already subscribed to %s"` on dup) |
+| `bridge/unsubscribe` | sub (control) | topic string | device asks to stop forwarding a topic |
+| `device/ble/serial` | pub | string | BLE module serial |
+| `ble/heartbeat` / `modem/heartbeat` | pub | `1` | liveness beacons (non-retained) |
+| `ble/system/{version_info,reset_reason,reboot}` | pub/sub | string | BLE firmware version / reset reason (retained); `reboot` in |
+| `ble/vars/update` | pub | JSON | BLE reported variables |
+| `ble/connections/{handle,info,config}` | both | — / JSON | BLE link lifecycle / state / config |
+| `ble/connection_state/acknowledge` | sub | — | BLE connection-state ack |
+| `ble/proxy` / `ble/proxy/config` | both | bytes / JSON | BLE GATT proxy data + config (gateway peer) |
+| `ble/ftp/firmware/{command,reply}` | both | SMP/FTP | BLE (nRF52) firmware transfer (the `update` path) |
+| `ble/findmy/*` | both | JSON/bool/bytes | Apple Find-My (certify/certified/control/provisioned/report/serial_lookup/sound + `fmna_auth` + `event/{enable,disable,paired,pairing,pairing_failed,reset,reset_ignored}`) |
+| `ble/nfc/unlock_request` | pub | — | NFC tap unlock request |
+| `ble/bike_resolving_key` | both | bytes | BLE bike resolving key (Find-My / identity) |
+| `ble/certificate_public_key` | both | bytes | BLE auth public key |
+
+> All of these were string-confirmed in the bridge binary; the ones beyond the
+> `ux`/`gateway` view above (`bridge/{subscribe,unsubscribe}`,
+> `ble/bike_resolving_key`, `ble/certificate_public_key`,
+> `ble/connection_state/acknowledge`, `ble/connections/config`,
+> `ble/nfc/unlock_request`, `ble/findmy/fmna_auth`) originate here. The `modem`
+> instance carries the parallel `modem/*` set (system/info/location/sms/…).
+> See [`../spi_mqtt_bridge/`](../spi_mqtt_bridge/).
+
+---
+
 ## Not on this bus
 
 `mqtt-ftp-service` rides the `ftp_server/command`+`ftp_server/reply` channel
