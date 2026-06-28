@@ -1,0 +1,1335 @@
+{
+ "target": "motor_sensor",
+ "program": "motor_sensor.20240129.145222.1.5.0.main.v1.5.0-main.bin",
+ "mcu": "NXP Cortex-M4 (LPC546xx-class) \u2014 M_CAN/FDCAN + ADC + SCT/CTimer; FreeRTOS. (peripheral bases tentative)",
+ "image_base": "0x0",
+ "generated_from": "motor-sensor-decode workflow (bootstrap from vector table: 0 -> 210 fns; then 8 Sonnet map agents carve+classify -> 218 fns)",
+ "note": "Motor position/current/temperature sensor ECU. Reads a magnetic angle/position sensor (@0xf400, 12-byte block) + ADC, reports over CAN-FD (@0x40006000); has a flash-update path, a watchdog (WWDT 0xAA/0x55), and a BLE-GATT/key-sensor link (VMKYS task). main=FUN_0000375c (peripheral bring-up + xTaskCreate@0x29ec + scheduler). 5 VanMoof tasks: motor_sensor_task, CanTX, can, VMKYS, vm. Inline jump-table/data blocks of FUN_375c (0x3b10/0x3d2e/0x4028/0x4326/0x4710/0x4bc6) are excluded (not functions).",
+ "status_legend": {
+  "vanmoof": "VanMoof app code (sensor sampling + CAN reporting + tasks + glue)",
+  "vendor-freertos": "FreeRTOS kernel + Cortex-M port",
+  "vendor-hal": "NXP LPC SDK/HAL (M_CAN/ADC/SCT/GPIO/IOCON/clock/IAP-flash) + CMSIS",
+  "vendor-libgcc": "libgcc / mem*",
+  "vendor-startup": "reset/fault startup",
+  "unsure": "flagged (borderline / BLE-GATT link)"
+ },
+ "counts": {
+  "vendor-hal": 72,
+  "vendor-freertos": 42,
+  "vendor-startup": 2,
+  "unsure": 8,
+  "vanmoof": 92,
+  "vendor-libgcc": 2
+ },
+ "total": 218,
+ "functions": [
+  {
+   "address": "0x00000000",
+   "name": "vector_table",
+   "class": "vendor-hal",
+   "note": "Cortex-M vector table: SP_init=0x20008000 at word[0], Reset=0xDC1(thumb) at word[1], then NMI/HardFault/MemManage/BusFault/UsageFault/SVCall=vPortSVCHandler(0xF61)/PendSV=xPortPendSVHandler(0xF01)/SysTick=xPortSysTickHandler(0x5B81), then 60 external IRQ entries 0x40-0x133. Data region, not executab"
+  },
+  {
+   "address": "0x00000134",
+   "name": "vmfw_header",
+   "class": "vendor-hal",
+   "note": "VanMoof firmware image header: magic VMFW, version 0x01056000 (v1.5.0-main), CRC 0xEDE5DA94, length 0x6204, build timestamp Jan 29 2024 14:50:32, SRAM base 0x20000000. Data, not code."
+  },
+  {
+   "address": "0x00000164",
+   "name": "crt0_startup_body",
+   "class": "vendor-hal",
+   "note": "C runtime startup inline code (part of startup flow): iterates copy table to initialize .data from flash, zeros .BSS segments word-by-word, then calls main initializer at 0x375c. Followed by PSP setup code at 0x290 that sets CONTROL.SPSEL=2, loads PSP, clears BASEPRI, and branches to the first task "
+  },
+  {
+   "address": "0x000002d0",
+   "name": "vPortStartFirstTask",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS Cortex-M port: loads initial MSP from current TCB's stack top pointer, enables IRQ and FIQ (CPSIE i/f), DSB+ISB, then issues SVC #2 to transfer control to the first FreeRTOS task via vPortSVCHandler."
+  },
+  {
+   "address": "0x00000300",
+   "name": "xPortPendSVHandler_body",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS PendSV context-switch body (inline in gap): saves callee-saved regs (r2-r11) + LR onto PSP using stmdb, stores PSP to current TCB, raises BASEPRI to mask IRQs, calls vTaskSwitchContext (0x36F0), clears BASEPRI, restores saved registers from new TCB's PSP, returns via bx r3."
+  },
+  {
+   "address": "0x00000360",
+   "name": "vPortSVCHandler_dispatch",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS SVC handler dispatch stub (inline in gap): tests LR bit[2] to choose MSP vs PSP, loads vector from pointer table, bx to handler."
+  },
+  {
+   "address": "0x00000384",
+   "name": "fault_handler_spin",
+   "class": "vendor-startup",
+   "note": "Fault spin handler: performs DSB, writes priority group bits into NVIC AIRCR (or similar register at 0xE000ED0C region via constant tables at 0x3A0/0x3A4), DSB again, then loops forever. Called from the error/fault path."
+  },
+  {
+   "address": "0x000003a8",
+   "name": "NVIC_EnableIRQ",
+   "class": "vendor-hal",
+   "note": "CMSIS NVIC_EnableIRQ(IRQn): computes ISER register index (IRQn>>5) and bit mask (1<<(IRQn&31)), writes to NVIC ISER base at 0xE000E100. Returns without action for negative (reserved) IRQ numbers."
+  },
+  {
+   "address": "0x000003c4",
+   "name": "unused_irq_stub_table",
+   "class": "vendor-hal",
+   "note": "Table of 30+ unused/reserved IRQ handler stubs (0x3C4-0x49F): each is a pair [b . / nop] (infinite spin). Two real stubs embedded at 0x438 and 0x450 each do: ldr r2,[ptr_to_state]; ldr r1,[r2]; ldr r3,[r3_ptr]; ldr r0,[extra]; bx r3 \u2014 likely reset/reinit trampolines. No separate functions carved due"
+  },
+  {
+   "address": "0x000004a0",
+   "name": "peripheral_is_enabled",
+   "class": "unsure",
+   "note": "Reads system status register 0x40000A18 bit[6]; if set, loads and returns a non-zero constant; otherwise returns 0. Likely queries whether a specific peripheral (ADC or SPI) clock/enable is active."
+  },
+  {
+   "address": "0x000004b8",
+   "name": "can_get_status_flags",
+   "class": "vanmoof",
+   "note": "Reads M_CAN PSR register (base+0xB8) and ECR (base+0x98) to determine bus state. Returns 0x8000 if error-passive (PSR.EP set) or bus-off (PSR.BO set). Returns 0 if nominal. App-level CAN health check."
+  },
+  {
+   "address": "0x000004f2",
+   "name": "gpio_irq_dispatch",
+   "class": "vanmoof",
+   "note": "GPIO interrupt dispatcher: given a port index and status word, routes to registered callbacks. Checks a mode byte per port: if 0, calls single callback[0](status); otherwise iterates bits 0-6, calling each registered bit-callback[bit](status) that is non-null."
+  },
+  {
+   "address": "0x00000574",
+   "name": "gpio_ch0_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 1, channel 0 ISR: reads peripheral status from 0x40004000, invokes registered callback(0, status) if non-null, calls FUN_00004dd0 to clear interrupt if bit[0] not set."
+  },
+  {
+   "address": "0x000005a4",
+   "name": "gpio_ch1_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 1, channel 1 ISR. Same pattern as ch0 but index=1, checks bit[2] of status for clear condition."
+  },
+  {
+   "address": "0x000005d4",
+   "name": "gpio_ch2_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 1, channel 2 ISR. Index=2, checks bit[3] of status for clear condition."
+  },
+  {
+   "address": "0x00000604",
+   "name": "gpio_ch3_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 1, channel 3 ISR. Index=3, checks bit[4]."
+  },
+  {
+   "address": "0x00000634",
+   "name": "gpio_ch4_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 1, channel 4 ISR. Index=4, checks bit[5]."
+  },
+  {
+   "address": "0x00000664",
+   "name": "gpio_ch5_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 1, channel 5 ISR. Index=5, checks bit[6]."
+  },
+  {
+   "address": "0x00000694",
+   "name": "gpio_ch6_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 1, channel 6 ISR. Index=6, checks bit[7]."
+  },
+  {
+   "address": "0x000006c4",
+   "name": "gpio_ch7_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 1, channel 7 ISR. Index=7, checks bit[8]."
+  },
+  {
+   "address": "0x000006f4",
+   "name": "gpio2_ch0_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 2, channel 0 ISR: reads status from second GPIO peripheral at DAT_0000071C, invokes callback(0, status), clears if bit[0] not set. Separate peripheral base from the ch0-ch7 above."
+  },
+  {
+   "address": "0x00000724",
+   "name": "gpio2_ch1_irq_handler",
+   "class": "vanmoof",
+   "note": "GPIO controller 2, channel 1 ISR. Index=1 on second GPIO controller, bit[1] clear test."
+  },
+  {
+   "address": "0x00000754",
+   "name": "can_is_fd_mode",
+   "class": "vanmoof",
+   "note": "Returns true (non-zero) if CAN controller is configured in FD mode: reads byte at CAN config base + 6, compares to 3."
+  },
+  {
+   "address": "0x00000764",
+   "name": "can_tx_frame_abort",
+   "class": "vanmoof",
+   "note": "Aborts a pending CAN TX frame: writes 0x60 to TX buffer abort field (+0x28), calls vtable entry[1] to trigger hardware abort, conditionally adjusts TX size field if current value is 0xA0000 by subtracting a scaled term."
+  },
+  {
+   "address": "0x00000790",
+   "name": "can_tx_dispatch",
+   "class": "vanmoof",
+   "note": "CAN TX dispatcher: checks FD mode and NVIC status register (0x40000FFC bits[3:0]); selects one of three vtable function pointers to call with the TX frame argument."
+  },
+  {
+   "address": "0x000007d4",
+   "name": "can_tx_submit",
+   "class": "vanmoof",
+   "note": "Submits a CAN frame to the hardware TX buffer: selects vtable handler at +0x2C (classic) or +0x38 (FD) depending on can_is_fd_mode, then dispatches the frame."
+  },
+  {
+   "address": "0x000007fc",
+   "name": "timeout_table_register",
+   "class": "vanmoof",
+   "note": "Registers a (deadline, callback) pair in a fixed 8-entry timeout table (indexed 0-7). Scans for first slot where key==0 and stores the pair. Used by the timer subsystem to track per-channel timeouts."
+  },
+  {
+   "address": "0x00000820",
+   "name": "tick_counter_increment",
+   "class": "vanmoof",
+   "note": "Increments the global system tick counter (*DAT_0000082C += 1). Called from the SysTick/tick hook path."
+  },
+  {
+   "address": "0x00000830",
+   "name": "tick_deadline_update",
+   "class": "vanmoof",
+   "note": "Updates the global tick deadline: reads the head of the timer queue through a linked-list pointer; if the queue is empty sets deadline to 0xFFFFFFFF, otherwise reads the deadline from the head node (at node+0xC dereferenced)."
+  },
+  {
+   "address": "0x00000854",
+   "name": "queue_state_check",
+   "class": "vanmoof",
+   "note": "Returns CAN queue state: 1 if TX queue is empty (*DAT_0000086C==0), 2 if TX queue non-empty but RX queue empty (*DAT_00000870==0), 0 if both queues have content."
+  },
+  {
+   "address": "0x00000874",
+   "name": "timer_event_schedule",
+   "class": "vanmoof",
+   "note": "Schedules a periodic timer event: stores deadline (param_2) and links self-pointer into param_1. Handles tick wraparound for both forward and backward deadline ordering. Calls FUN_00004e60 to insert into the sorted timer list."
+  },
+  {
+   "address": "0x000008b0",
+   "name": "heap_free_block",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS heap_4.c vPortFree equivalent: walks a singly-linked free list in ascending address order, inserts the freed block at the correct position, and coalesces with adjacent free blocks (both predecessor and successor)."
+  },
+  {
+   "address": "0x000008f8",
+   "name": "assert_failed_spin",
+   "class": "vendor-hal",
+   "note": "Assertion failure trap: checks a sentinel value (*DAT_0000091C), calls FUN_00004EA0 (error/disable function), then loops forever. Equivalent to configASSERT() fail path."
+  },
+  {
+   "address": "0x00000920",
+   "name": "critical_section_exit",
+   "class": "vendor-hal",
+   "note": "FreeRTOS portEXIT_CRITICAL_FROM_ISR equivalent: calls FUN_00004EA0 (re-enable IRQs at saved mask), increments nesting counter, executes DSB+ISB."
+  },
+  {
+   "address": "0x0000093c",
+   "name": "critical_section_leave",
+   "class": "vendor-hal",
+   "note": "FreeRTOS taskEXIT_CRITICAL_FROM_ISR: asserts nesting count > 0 (calls assert_failed if 0), decrements nesting counter, if counter reaches zero calls FUN_00004ED4 to restore interrupt mask."
+  },
+  {
+   "address": "0x00000964",
+   "name": "tick_delay_compute",
+   "class": "vanmoof",
+   "note": "Computes a tick-based delay: given a (start_tick, delay_ticks) pair, adjusts the expiry relative to the current tick counter, handling the case where the timer list head matches. Calls critical_section_leave on exit."
+  },
+  {
+   "address": "0x000009bc",
+   "name": "spi_write_bytes",
+   "class": "vendor-hal",
+   "note": "Writes a byte buffer to SPI FIFO at peripheral_base+8. Handles byte-alignment: writes trailing bytes one-by-one until 4-byte aligned, then writes word-at-a-time for bulk, then flushes remaining bytes. Peripheral base loaded from DAT_00000A00."
+  },
+  {
+   "address": "0x00000a04",
+   "name": "can_rx_enqueue",
+   "class": "vanmoof",
+   "note": "Enqueues a received CAN frame into the RX buffer: selects the write function from a vtable at offset +0x24 (classic CAN) or +0x30 (FD mode), passes the frame and a zero padding arg."
+  },
+  {
+   "address": "0x00000a28",
+   "name": "can_rx_dequeue",
+   "class": "vanmoof",
+   "note": "Dequeues a CAN frame from the RX buffer: selects read function at vtable +0xC (FD) or uses DAT_00000A54 (classic), passes 0x200 as max frame size."
+  },
+  {
+   "address": "0x00000a5c",
+   "name": "gpio_set_pin",
+   "class": "vanmoof",
+   "note": "Sets or clears a GPIO pin by index: looks up (port, pin) from a 2-byte lookup table at 0xAB4; writes IOCON clock-enable via 0x40000000 region; then based on direction (param_3[0]) and mode (param_3[1]) writes to GPIO SET/CLR/DIR registers at 0x4008E000."
+  },
+  {
+   "address": "0x00000abc",
+   "name": "can_tx_peek",
+   "class": "vanmoof",
+   "note": "Non-destructive peek at the CAN TX buffer head: selects vtable read function at +0x40 (classic) or +0x4C (FD), passes frame pointer and 0x200 size. Does not advance read pointer."
+  },
+  {
+   "address": "0x00000aec",
+   "name": "can_tx_poke",
+   "class": "vanmoof",
+   "note": "Advances the CAN TX buffer read pointer (consumes the peeked frame): selects vtable function at +0x8 (FD) or DAT_00000B1C (classic), passes 0x200 and an extra DAT arg."
+  },
+  {
+   "address": "0x00000b28",
+   "name": "can_bus_error_recover",
+   "class": "vanmoof",
+   "note": "M_CAN bus-off recovery sequence: writes CCCR=2 (init mode) at base+0x84, DSB+ISB, calls FUN_00004DD0 with command 5 (bus-off recovery), then writes CCCR=2 at base+0x184 to release. Restores CAN to operational mode after bus-off."
+  },
+  {
+   "address": "0x00000b50",
+   "name": "freertos_tick_hook",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS vApplicationTickHook: if not in nested ISR, increments tick counter via tick_counter_increment, checks for expired timer deadlines (calls FUN_00004F58 if expired), updates next deadline, returns 1 if pending work (DAT_00000C34 != 0). If nested ISR, increments a nested-tick counter and retur"
+  },
+  {
+   "address": "0x00000c40",
+   "name": "(literal pool)",
+   "class": "vendor-hal",
+   "note": "8-byte literal pool data consumed by FUN_0000b50 via ldr.w from [0x0c40] and [0x0c44]; not a function"
+  },
+  {
+   "address": "0x00000c48",
+   "name": "freertos_timer_decrement_and_dispatch",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS prvProcessExpiredTimer equivalent \u2014 decrements timer tick count, dispatches expired software timer callbacks via FUN_00000b50, calls FUN_00004ee2 (xTaskResumeAll) if work was done"
+  },
+  {
+   "address": "0x00000d0c",
+   "name": "freertos_queue_free_block",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS prvReturnItemToFreeList equivalent \u2014 validates block magic, returns memory block back to free list, increments free count"
+  },
+  {
+   "address": "0x00000d6c",
+   "name": "freertos_queue_dequeue_and_resume",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS queue helper \u2014 spins calling a function pointer (param_1[1]) on param_1[2] with timeout 0x7fffffff until it returns 0, then resumes via FUN_00004f58"
+  },
+  {
+   "address": "0x00000d84",
+   "name": "NMI_Handler",
+   "class": "vendor-hal",
+   "note": "Cortex-M NMI exception handler \u2014 saves FPU context and calls fault reporter FUN_00004f58"
+  },
+  {
+   "address": "0x00000d88",
+   "name": "HardFault_Handler",
+   "class": "vendor-hal",
+   "note": "Cortex-M HardFault handler \u2014 infinite loop trap"
+  },
+  {
+   "address": "0x00000dac",
+   "name": "MemManage_Handler",
+   "class": "vendor-hal",
+   "note": "Cortex-M MemManage fault handler \u2014 infinite loop trap"
+  },
+  {
+   "address": "0x00000db0",
+   "name": "BusFault_Handler",
+   "class": "vendor-hal",
+   "note": "Cortex-M BusFault handler \u2014 infinite loop trap"
+  },
+  {
+   "address": "0x00000db4",
+   "name": "UsageFault_Handler",
+   "class": "vendor-hal",
+   "note": "Cortex-M UsageFault handler \u2014 infinite loop trap"
+  },
+  {
+   "address": "0x00000db8",
+   "name": "FUN_00000db8",
+   "class": "vendor-hal",
+   "note": "Reserved exception slot handler \u2014 likely NOP/infinite-loop stub for unused exception vector at 0x1C"
+  },
+  {
+   "address": "0x00000dbc",
+   "name": "DebugMon_Handler",
+   "class": "vendor-hal",
+   "note": "Cortex-M DebugMon exception handler \u2014 infinite loop trap or NOP"
+  },
+  {
+   "address": "0x00000dc0",
+   "name": "Reset_Handler",
+   "class": "vendor-startup",
+   "note": "CMSIS startup Reset_Handler \u2014 copies .data section via freertos_queue_free_block, zeroes .bss, then calls SystemInit and application main. Shared with imx8_bridge sibling (same 0xdc0 reset)."
+  },
+  {
+   "address": "0x00000e20",
+   "name": "freertos_queue_recv_item",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS internal queue receive helper \u2014 validates queue list head pointer, calls vTaskSwitchContext (FUN_00004f58) on the item"
+  },
+  {
+   "address": "0x00000e94",
+   "name": "freertos_queue_send_from_isr",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xQueueSendFromISR inner loop \u2014 iterates param_1+0x45 count, calls freertos_queue_recv_item, signals waiting task via DAT_00000f14, resets count byte to 0xFF"
+  },
+  {
+   "address": "0x00000f00",
+   "name": "xPortPendSVHandler",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS Cortex-M4 PendSV context-switch handler \u2014 saves/restores task registers including FPU, switches pxCurrentTCB"
+  },
+  {
+   "address": "0x00000f5c",
+   "name": "freertos_queue_signal_waiting_task",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS queue signal helper \u2014 checks scheduler running (DAT_00000fb4), ORs 0x80000000 into param_1[0] (task notification), validates param_1[3], calls vTaskSwitchContext"
+  },
+  {
+   "address": "0x00000f60",
+   "name": "vPortSVCHandler",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS Cortex-M4 SVC handler \u2014 first-task launch, sets PSP and drops to task mode"
+  },
+  {
+   "address": "0x00000fc8",
+   "name": "freertos_queue_pend_wait_loop",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS queue wait-for-space inner loop \u2014 spins while queue full flag is set, yields via FUN_00004ee2 (xTaskResumeAll) if multiple tasks waiting, then calls taskENTER_CRITICAL and vTaskSwitchContext"
+  },
+  {
+   "address": "0x00000fcc",
+   "name": "FUN_00000fcc",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue wait continuation fragment at +4 offset into freertos_queue_pend_wait_loop body \u2014 entry point from different branch of queue send"
+  },
+  {
+   "address": "0x00000fd0",
+   "name": "FUN_00000fd0",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue wait fragment \u2014 inner wait loop body shared by multiple queue paths via -Os ICF"
+  },
+  {
+   "address": "0x00000fd4",
+   "name": "FUN_00000fd4",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue wait fragment variant \u2014 enters loop after scheduler-suspend check"
+  },
+  {
+   "address": "0x00000fd8",
+   "name": "FUN_00000fd8",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue wait fragment variant"
+  },
+  {
+   "address": "0x00000fdc",
+   "name": "FUN_00000fdc",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue wait fragment variant \u2014 enters directly into FUN_00004ee2 call"
+  },
+  {
+   "address": "0x00000fe0",
+   "name": "FUN_00000fe0",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue wait fragment variant"
+  },
+  {
+   "address": "0x00000fe8",
+   "name": "FUN_00000fe8",
+   "class": "vendor-hal",
+   "note": "FreeRTOS vTaskSwitchContext tail \u2014 loads TCB list head and jumps to FUN_00004f58"
+  },
+  {
+   "address": "0x00000fec",
+   "name": "FUN_00000fec",
+   "class": "vendor-hal",
+   "note": "FreeRTOS vTaskSwitchContext direct tail-call \u2014 no-arg tail into FUN_00004f58"
+  },
+  {
+   "address": "0x00000ff0",
+   "name": "FUN_00000ff0",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue count decrement pair \u2014 decrements two counters (uxMessagesWaiting and uxSemaphoreCount), calls taskEXIT_CRITICAL"
+  },
+  {
+   "address": "0x00000ff4",
+   "name": "FUN_00000ff4",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue store-and-decrement \u2014 stores r3 to *r6, decrements *r4, calls taskEXIT_CRITICAL"
+  },
+  {
+   "address": "0x00000ff8",
+   "name": "FUN_00000ff8",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue counter decrement \u2014 decrements *r4 by 1, calls taskEXIT_CRITICAL"
+  },
+  {
+   "address": "0x00000ffc",
+   "name": "FUN_00000ffc",
+   "class": "vendor-hal",
+   "note": "FreeRTOS taskEXIT_CRITICAL tail \u2014 direct tail-call to FUN_0000093c"
+  },
+  {
+   "address": "0x00001000",
+   "name": "FUN_00001000",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue/data-section copy loop body \u2014 copies .data init values via freertos_queue_free_block, then branches back into wait loop"
+  },
+  {
+   "address": "0x00001008",
+   "name": "FUN_00001008",
+   "class": "vendor-hal",
+   "note": "FreeRTOS .data copy loop tail \u2014 calls freertos_queue_free_block then branches into wait loop"
+  },
+  {
+   "address": "0x0000100c",
+   "name": "thunk_FUN_00000fd0",
+   "class": "vendor-hal",
+   "note": "Thunk jumping to FUN_00000fd0 queue wait loop"
+  },
+  {
+   "address": "0x00001020",
+   "name": "FUN_00001020",
+   "class": "vendor-hal",
+   "note": "FreeRTOS xQueueSend inner path \u2014 loads queue handle from DAT_0000107c, calls FUN_00004f58 (vTaskSwitchContext) with queue+4"
+  },
+  {
+   "address": "0x00001024",
+   "name": "FUN_00001024",
+   "class": "vendor-hal",
+   "note": "FreeRTOS xQueueSend inner path variant \u2014 same as 0x1020 but different entry"
+  },
+  {
+   "address": "0x00001028",
+   "name": "FUN_00001028",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue send tail \u2014 calls FUN_00004f58(*r6+4)"
+  },
+  {
+   "address": "0x0000102c",
+   "name": "FUN_0000102c",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue send tail \u2014 calls FUN_00004f58(param_1+4)"
+  },
+  {
+   "address": "0x00001030",
+   "name": "FUN_00001030",
+   "class": "vendor-hal",
+   "note": "FreeRTOS vTaskSwitchContext tail call with no arg"
+  },
+  {
+   "address": "0x00001034",
+   "name": "FUN_00001034",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer list insert \u2014 checks for 0xFFFFFFFF (max ticks), computes new expiry tick, writes to timer list bucket, updates uxTaskNumber min-ticks field, calls xQueueSend (0x4e48/0x4e60)"
+  },
+  {
+   "address": "0x00001038",
+   "name": "FUN_00001038",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer list insert variant (without 0xFFFFFFFF special case)"
+  },
+  {
+   "address": "0x00001050",
+   "name": "FUN_00001050",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer list insert tail \u2014 calls FUN_00004e60 to insert into overflow list"
+  },
+  {
+   "address": "0x00001068",
+   "name": "FUN_00001068",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer min-tick update \u2014 updates *DAT_0000108c if r4 < current min"
+  },
+  {
+   "address": "0x0000106c",
+   "name": "FUN_0000106c",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer min-tick update tail (no preceding call)"
+  },
+  {
+   "address": "0x00001070",
+   "name": "FUN_00001070",
+   "class": "vendor-hal",
+   "note": "FreeRTOS conditional min-tick update \u2014 if(r4<param_3) *param_4=r4"
+  },
+  {
+   "address": "0x00001074",
+   "name": "FUN_00001074",
+   "class": "vendor-hal",
+   "note": "FreeRTOS conditional store \u2014 if(CY && !ZR) *in_r3=r4 (carry-without-zero = unsigned greater)"
+  },
+  {
+   "address": "0x00001090",
+   "name": "FUN_00001090",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer list re-insert with task wakeup \u2014 inserts into timer list at +0x18 offset, then calls FUN_00001020 (xQueueSend) to signal timer service task"
+  },
+  {
+   "address": "0x00001094",
+   "name": "FUN_00001094",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer list insert tail with wakeup (variant)"
+  },
+  {
+   "address": "0x00001098",
+   "name": "FUN_00001098",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer list insert with explicit offset and wakeup"
+  },
+  {
+   "address": "0x000010b0",
+   "name": "freertos_timer_tick_process",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS prvTimerTask tick processing \u2014 validates timer handle, checks interrupt context, decrements reload count, updates TCB linked list pointer, signals waiting task if queue ready"
+  },
+  {
+   "address": "0x0000114c",
+   "name": "thunk_FUN_0000093c",
+   "class": "vendor-hal",
+   "note": "Thunk to FUN_0000093c (taskEXIT_CRITICAL / xTaskResumeAll)"
+  },
+  {
+   "address": "0x00001154",
+   "name": "freertos_timer_queue_send_isr",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xQueueSendToBackFromISR for timer queue \u2014 conditional path: if ZR set calls freertos_queue_send_from_isr chain, else checks timer priority (0x115c logic), signals queue item arrival via FUN_00001090"
+  },
+  {
+   "address": "0x0000115c",
+   "name": "freertos_timer_priority_check",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS timer priority comparison \u2014 compares timer->uxTimerPriority with current task priority, updates timer->uxBasePriority and list position if needed"
+  },
+  {
+   "address": "0x00001164",
+   "name": "FUN_00001164",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer priority check variant with explicit param3/param4"
+  },
+  {
+   "address": "0x0000116c",
+   "name": "FUN_0000116c",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer priority update with list-position check \u2014 updates +0x18 field, conditional FUN_00004f58 if list position matches"
+  },
+  {
+   "address": "0x00001174",
+   "name": "FUN_00001174",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer priority update tail \u2014 unconditional write to +0x18, conditional FUN_00004f58"
+  },
+  {
+   "address": "0x000011a4",
+   "name": "FUN_000011a4",
+   "class": "vendor-hal",
+   "note": "FreeRTOS conditional store + list insert \u2014 if(carry and not zero) *param_3=param_4, then FUN_00004e48 (list remove), then taskEXIT_CRITICAL"
+  },
+  {
+   "address": "0x000011d4",
+   "name": "freertos_queue_receive_blocking",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xQueueReceive blocking path \u2014 calls freertos_queue_send_from_isr, freertos_timer_decrement_and_dispatch, taskENTER_CRITICAL, decrements queue message count, updates TCB list pointers, calls xTaskResumeAll if task woke"
+  },
+  {
+   "address": "0x00001204",
+   "name": "FUN_00001204",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue notify tail \u2014 if in_r3 != 0 and freertos_queue_recv_item returns nonzero, calls xTaskResumeAll, then taskEXIT_CRITICAL"
+  },
+  {
+   "address": "0x00001234",
+   "name": "FUN_00001234",
+   "class": "vendor-hal",
+   "note": "FreeRTOS taskEXIT_CRITICAL tail (bare)"
+  },
+  {
+   "address": "0x00001264",
+   "name": "freertos_task_priority_set",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS vTaskPrioritySet inner logic \u2014 finds TCB via param_1+8, computes new effective priority (max of base and inherited), validates ready-list membership, updates uxPriority and uxBasePriority, moves task in ready list if priority changed"
+  },
+  {
+   "address": "0x00001294",
+   "name": "freertos_assert_failed",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS configASSERT failure handler \u2014 calls FUN_00004ea0 (enter critical / disable IRQ) then infinite loops"
+  },
+  {
+   "address": "0x000012c4",
+   "name": "FUN_000012c4",
+   "class": "vendor-hal",
+   "note": "FreeRTOS sorted-list conditional insert \u2014 if(carry && !zero) *param_3=param_4, then FUN_00004e48(param_4*0x14+r5, param_1) (list insert at computed offset), taskEXIT_CRITICAL"
+  },
+  {
+   "address": "0x000012f4",
+   "name": "can_tx_state_set_active",
+   "class": "vanmoof",
+   "note": "App layer: sets CAN TX object state to ACTIVE. Acquires critical section (FUN_00000920), checks byte at *piVar1+0x68 != 0x02 (not already transmitting), copies *(piVar1+0x64) and sets byte 0x68=1, signals CanTX task via FUN_00001020(param_1) if param_1 != 0. Called after a CAN frame descriptor is pl"
+  },
+  {
+   "address": "0x00001350",
+   "name": "freertos_timer_stop_and_remove",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xTimerStop / vTimerStop inner logic \u2014 if timer is in active list (param_1[0x58]==DAT_000013ec), removes its callback from callback-table array (8-entry scan), removes timer block via FUN_00000d0c, drains waiting-task list via FUN_00000f5c, optionally triggers SysTick reset (writes 0x80 to 0"
+  },
+  {
+   "address": "0x000013f8",
+   "name": "freertos_queue_send_blocking",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xQueueSend (blocking) inner path \u2014 validates queue ptr, checks scheduler state, enters critical, decrements available count (param_1+0x38), calls FUN_00005128 (copy-to-queue), wakes waiting task via freertos_queue_recv_item, calls xTaskResumeAll"
+  },
+  {
+   "address": "0x00001508",
+   "name": "can_event_fsm_dispatch",
+   "class": "vanmoof",
+   "note": "App layer CAN interrupt event FSM dispatcher. Reads M_CAN IR (Interrupt Register) from param_1+0x50, clears the handled bit in param_1+0x54 (ILS/ILE), decodes event type: TX complete (bit0=0x1 or bit4=0x10 -> code 0x183d/0x1842), RX FIFO new message (bit9=0x200 -> code 0x1839, clears RXFIFO0 pending"
+  },
+  {
+   "address": "0x000015fc",
+   "name": "can_controller_init",
+   "class": "unsure",
+   "note": "CAN controller hardware initializer. Enables peripheral clocks (0x40000148=0x8000000, 0x40000228=0x8000000), configures GPIO pins for CAN TX/RX (0x40000300/320/32c/38c/394/30c), selects NBTP bit-timing from calibration table based on nominal bitrate: 0x7c1e (low speed), 0x6c16 (mid speed), 0x5811 (h"
+  },
+  {
+   "address": "0x000017ec",
+   "name": "can_tx_task",
+   "class": "vanmoof",
+   "note": "App layer CAN TX FreeRTOS task (CanTX task, string at 0x616C). Infinite loop: (1) blocks on freertos_queue_send_blocking(param_1[0], &local_buf, 500ms) waiting for a frame descriptor; (2) builds 29-bit extended CAN ID header: local_38 = (id & 0x1FFFFFFF) | 0x40000000 (XTD bit set); (3) if TX buffer "
+  },
+  {
+   "address": "0x00001984",
+   "name": "queue_stream_advance_read_ptr",
+   "class": "vendor-hal",
+   "note": "Advances circular buffer read pointer; decrements ref-count and signals task completion (via FUN_00004f58) when buffer fully drained. Body 0x1984\u20130x1a17; literal pool 0x1a18\u20130x1a29."
+  },
+  {
+   "address": "0x00001a2a",
+   "name": "can_tx_completion_state_machine",
+   "class": "vanmoof",
+   "note": "CAN TX event callback; state codes 0x1839/0x1848/0x1846 drive ACK/NACK/retry paths; builds CAN TX buffer header via FUN_0000530a, triggers PendSV (E000ED04=0x10000000) for deferred reschedule."
+  },
+  {
+   "address": "0x00001b10",
+   "name": "queue_send_item",
+   "class": "vendor-hal",
+   "note": "Post item to FreeRTOS queue: validates handle, calls queue_stream_advance_read_ptr, signals waiting tasks via FUN_0000093c. Task-context version; checks scheduler running state."
+  },
+  {
+   "address": "0x00001b18",
+   "name": "queue_send_item_irq_variant",
+   "class": "vendor-hal",
+   "note": "ISR-variant of queue_send_item with unaff_r4 Ghidra artifact; functionally identical body 0x1b18\u20130x1c01. No callers found \u2014 likely dead code or ICF-duplicate."
+  },
+  {
+   "address": "0x00001c20",
+   "name": "queue_send_dispatch",
+   "class": "vanmoof",
+   "note": "Routes queue send: if queue-type==6 calls FUN_000053d8 (timer daemon path), else calls queue_send_item with ISR-safe flag derived from FUN_00000854 scheduler state."
+  },
+  {
+   "address": "0x00001c6c",
+   "name": "can_channel_abort_and_disconnect",
+   "class": "vanmoof",
+   "note": "Marks channel inactive (byte+9=0); if queue handle non-null and item count nonzero sends disconnect message (code 5) via queue_send_dispatch; resets RCC clock gate at 0x4000038c=0x40000000."
+  },
+  {
+   "address": "0x00001cec",
+   "name": "queue_node_unlink",
+   "class": "vanmoof",
+   "note": "Pops head node from singly-linked list: if head->next==0 calls FUN_00004f58 (task unblock); else swaps list head pointer to next node. Used by can_tx_manager_loop to dequeue pending TX items."
+  },
+  {
+   "address": "0x00001d5c",
+   "name": "can_tx_manager_loop",
+   "class": "vanmoof",
+   "note": "Main CAN TX manager event loop (body 0x1d5c\u20130x1f42): blocks on queue via FUN_000013f8; switch(msg_type): 0/1/2/6/7=open+send new frame, 3/8=clear active flag, 4/9=set TX data pointer, 5=abort if not active; periodically updates SysTick watermark and calls queue_node_unlink."
+  },
+  {
+   "address": "0x00001f5c",
+   "name": "can_tx_buffer_enable",
+   "class": "vanmoof",
+   "note": "Sets FDCAN TX buffer pending/enable bitmasks: ORs param_1/param_2 into regs +0x10/+0x14; if persistent_flag also ORs into +0x18/+0x1c; delays 100 ticks via FUN_00005154; then calls FUN_000054a8 to arm TX."
+  },
+  {
+   "address": "0x00001f9c",
+   "name": "can_connection_handoff",
+   "class": "vanmoof",
+   "note": "Transitions connection state +0x68 from 1\u21922; if DAT_00002018 (peer queue) valid, copies TX buffer header via FUN_00004e48 and sets high-water flag if new sequence count exceeds previous."
+  },
+  {
+   "address": "0x00002030",
+   "name": "can_connection_abort",
+   "class": "vanmoof",
+   "note": "Task-context connection close: disables scheduler, sets state +0x68=2; if state was 1 (active), unblocks pending task via FUN_00004f58; then yields via FUN_0000093c."
+  },
+  {
+   "address": "0x000020f4",
+   "name": "can_channel_open",
+   "class": "vanmoof",
+   "note": "Opens CAN TX channel: validates handle not null, state not already 2; sets state=2, calls optional pre-open callback (param_1[7]), then configures FDCAN TX via FUN_000054e0. Returns -2/\u22123 on error, 0 on success."
+  },
+  {
+   "address": "0x0000213c",
+   "name": "can_channel_open_from_irq",
+   "class": "vanmoof",
+   "note": "Thin wrapper: calls FUN_00000b28 (basepri mask / enter critical) then can_channel_open. For use from ISR context."
+  },
+  {
+   "address": "0x00002150",
+   "name": "can_tx_irq_enable_and_open",
+   "class": "vanmoof",
+   "note": "Enables CAN TX-done interrupt bits (+4 |= 2 then &= ~2 toggle), then calls can_channel_open; on failure and pending list non-null posts error via FUN_000053d8 and triggers PendSV (0xe000ed04=0x10000000)."
+  },
+  {
+   "address": "0x000021a8",
+   "name": "can_tx_send_with_flow_control",
+   "class": "vanmoof",
+   "note": "CAN TX send with watermark: checks buffer occupancy vs threshold (0x8c); encodes frame via FUN_0000520a; if overflow clears *param_1 and retries, updates connection state via can_connection_abort on full overflow; handles task and IRQ contexts."
+  },
+  {
+   "address": "0x0000227c",
+   "name": "can_tx_abort_reset",
+   "class": "vanmoof",
+   "note": "Checks global lock (ptr at 0x2474); if already set asserts via FUN_00004ea0; otherwise acquires mutex (FUN_00000820 timeout=10) then calls FUN_00001020 (no-return task unblock/abort)."
+  },
+  {
+   "address": "0x0000229e",
+   "name": "peripheral_hw_init",
+   "class": "vanmoof",
+   "note": "Full CAN/ADC/timer/clock hardware init (468 bytes, NEWLY CARVED): enables CAN TX done flag, programs FDCAN nominal+data bit timing (+0x88/+0x8c |=0x100), sets clocks (0x40000220=0x800, 0x40000240=0x800), configures SPI/ADC peripheral at 0x40004000 (prescaler=5), enables NVIC IRQ 33, programs FDCAN T"
+  },
+  {
+   "address": "0x000024b8",
+   "name": "flash_read_sectors",
+   "class": "vanmoof",
+   "note": "Reads flash sectors at base 0x8000+offset in 512-byte blocks via FUN_00000790 (flash read page); advances via FUN_000009bc (flash page advance/erase toggle); accumulates result into *param_4; validates param_2+param_3 <= 0x7400. Returns 0=ok, 1=read_error, 2=bad_params."
+  },
+  {
+   "address": "0x00002580",
+   "name": "can_send_status_frame_382",
+   "class": "vanmoof",
+   "note": "Acquires CAN TX slot (FUN_00004d3e, msg-id 0x382, 3-byte), waits semaphore 100 ms, copies 8-byte payload from literal pool at 0x25e8 into CAN buffer, sends (FUN_00005914), releases semaphore (FUN_000054a8)."
+  },
+  {
+   "address": "0x000025ee",
+   "name": "can_send_data_frame_8887",
+   "class": "vanmoof",
+   "note": "Sends 30-byte sensor data frame on CAN (msg-id 0x8887). Copies 7 words + 1 halfword from caller-supplied buffer into CAN TX buffer, then acquire/release cycle."
+  },
+  {
+   "address": "0x00002674",
+   "name": "can_tx_queue_flush",
+   "class": "vanmoof",
+   "note": "Waits on CAN TX semaphore (100 ms), drains the TX queue (FUN_000059fa), clears pending TX mask bits in obj+0x10/0x14, zeroes obj+0x18/0x1c, releases semaphore."
+  },
+  {
+   "address": "0x000026bc",
+   "name": "can_send_status_frame_2a1",
+   "class": "vanmoof",
+   "note": "Sends 1-word status payload on CAN (msg-id 0x2A1). Word sourced from literal pool at 0x2720. Same acquire/wait/release pattern as 0x2580."
+  },
+  {
+   "address": "0x00002724",
+   "name": "flash_write_sector",
+   "class": "vanmoof",
+   "note": "Writes a region of flash. param_1=flash-obj, param_2=byte-offset (max 0x7400), param_3=src-ptr, param_4=byte-len. Uses 0x200-byte sector granularity; issues erase+program (cmd 0xF200) via FUN_00000790; verifies with FUN_00000aec."
+  },
+  {
+   "address": "0x000027f4",
+   "name": "heap_malloc",
+   "class": "vendor-freertos",
+   "note": "dlmalloc-style heap allocator. First call initialises a 0x5400-byte heap pool from a bss region. Walks free-list, splits blocks, 8-byte-aligns all allocations. Returns aligned ptr or 0 on OOM. Calls FUN_00000c48 (disable-IRQ critical section), FUN_000008b0 (heap coalesce)."
+  },
+  {
+   "address": "0x00002928",
+   "name": "freertos_task_alloc_init",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS inner task allocator. Allocs 0x3C bytes for TCB via heap_malloc, selects stack-init function pointer from a table (checked via FUN_00000764/FUN_00000754 for Cortex-M port variant), calls port stack initialiser, then FUN_00004f20 (prvInitialiseNewTask field setup). Returns TCB ptr or 0."
+  },
+  {
+   "address": "0x00002970",
+   "name": "gatt_attr_write_notify",
+   "class": "vanmoof",
+   "note": "Reads current attribute value (0x200-byte scratch buffer via FUN_000007d4), optionally sets notification-enable bits (0x70) in attr control byte, writes updated value back via FUN_00000a04. Returns true on error."
+  },
+  {
+   "address": "0x000029ec",
+   "name": "xTaskCreate",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xTaskCreate. Allocs stack (param_3*4 bytes) + TCB (0x6C bytes). Copies task name (\u22640x13 chars), initialises TCB fields, writes Cortex-M initial stack frame with register fill patterns (R0\u2013R12=0x00010101..0x12121212, xPSR=0x01000000, LR=0xFFFFFFFD). Links TCB into ready-list at given priorit"
+  },
+  {
+   "address": "0x00002be0",
+   "name": "timer_queue_init",
+   "class": "vendor-hal",
+   "note": "FreeRTOS timer-service task/queue one-time init. Calls FUN_00004e32 twice (queue handles), then FUN_00005af6(10, 0x10) to create timer queue (depth=10, item=16 bytes), binds callback via FUN_000007fc. Tail-calls FUN_0000093c (scheduler yield/start)."
+  },
+  {
+   "address": "0x00002c34",
+   "name": "xTimerCreate",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xTimerCreate. param_1=handle-out-ptr, param_2=period_ms (0x7FFFFFFF=infinite), param_3=auto-reload, param_4=timer-id, param_5=callback. Allocs 0x28-byte timer struct, converts period, initialises timer_queue_init on first call, starts timer via FUN_00001c20. Returns false (0) on success."
+  },
+  {
+   "address": "0x00002d14",
+   "name": "watchdog_feed_timer_cb",
+   "class": "vanmoof",
+   "note": "Watchdog feed callback. Creates/rearms a 5000 ms software timer (xTimerCreate). When tick count matches, writes 0xAA then 0x55 to watchdog reload register (DAT_00002d60+8) under primask to service the hardware watchdog."
+  },
+  {
+   "address": "0x00002d64",
+   "name": "can_controller_init",
+   "class": "vanmoof",
+   "note": "CAN peripheral init. Sets busy flag in CAN obj, clears peripheral enable at 0x4000038c=0, creates 5000 ms watchdog timer, calls FUN_00000b28 (CAN clock+GPIO setup) and FUN_000015fc (M_CAN filter/mode config), programs acceptance filter registers CAN+0x88/+0x8C with mask 0x101 ORed into existing valu"
+  },
+  {
+   "address": "0x00002dd4",
+   "name": "can_send_brake_status_4a1",
+   "class": "vanmoof",
+   "note": "Sends brake-engaged bit on CAN (msg-id 0x4A1). Reads bit-0 of param_3[0] as brake flag, stores in DAT_00002e78+9, acquires TX slot. On first call allocs 0xC-byte timer block and starts 1-second auto-reload timer (xTimerCreate, callback at DAT_00002e7c) for periodic re-send."
+  },
+  {
+   "address": "0x00002e80",
+   "name": "can_diag_log_send",
+   "class": "vanmoof",
+   "note": "Send diagnostic/event log entry over CAN. Vararg: param_1=opcode(u32), param_2=event-code(u16), param_3=extra-arg-count (0\u20133), then up to 3 word args on stack. Zeroes a 0x1E-byte packet, fills opcode+event-code, copies args, sends via FUN_000054e0 to obj+0x590 endpoint. No-ops if *DAT_00002ee0==0."
+  },
+  {
+   "address": "0x00002ee8",
+   "name": "gatt_attr_write_dispatch",
+   "class": "vanmoof",
+   "note": "GATT-style attribute write dispatcher. Looks up attribute by 3-byte UUID (param_2[0..2]) via FUN_00004d3e. Dispatches by attr-type byte: type-0=direct write (calls handler piVar3[5]); type-1=read-only, returns 0; type-2=segmented reassembly (3 reassembly slots of 0x40 bytes each in obj+0x5AC, calls "
+  },
+  {
+   "address": "0x00003170",
+   "name": "sensor_reg_block_write",
+   "class": "vanmoof",
+   "note": "Writes a 0x200-byte register block to the sensor IC. Checks bus-lock (FUN_00000aec), performs register write (FUN_00000a28), checks mode (FUN_00000754) then calls either a direct function pointer or a vtable path to write the block. Logs diagnostic via can_diag_log_send on failure. Returns 0 on succ"
+  },
+  {
+   "address": "0x00003204",
+   "name": "sensor_config_write",
+   "class": "vanmoof",
+   "note": "Sensor peripheral configuration write with retry/fallback. Dispatches write to peripheral address 0xfa00 via vtable (FUN_00003204+0x10 vtable offset 0x10); on success reads back via FUN_00000790 at 0xf400, then calls sensor_reg_block_write for the 0xf400 block; logs diagnostic on failure. Returns 0,"
+  },
+  {
+   "address": "0x00003284",
+   "name": "sensor_position_read",
+   "class": "vanmoof",
+   "note": "Reads 12 bytes of position/angle register data from sensor at address 0xf400 into caller-supplied output buffer. Calls sensor_config_write; if result is -3 (unconfigured), zeroes the buffer via FUN_00005f62 (memset); on read success copies via FUN_00000790 into buf[0..11]. Returns 0 on success, -1 o"
+  },
+  {
+   "address": "0x00003310",
+   "name": "sensor_speed_sample",
+   "class": "vanmoof",
+   "note": "Reads a 6-byte position frame via sensor_position_read, validates it via memcmp (FUN_00005f72) against a reference pattern stored at 0x3378; if valid returns raw speed/count value from frame word [sp+0x1c]. Returns 0 on null handle or comparison mismatch; logs diagnostic on mismatch."
+  },
+  {
+   "address": "0x00003382",
+   "name": "motor_sensor_task_loop",
+   "class": "vanmoof",
+   "note": "FreeRTOS task body for motor_sensor_task (infinite loop). Reads motor type byte and identifies variant (0x53=S, 0x41=A, 0x4c=L, 0x56=V). Calls sensor_speed_sample to get raw speed, scales via float (raw * cal_factor / 6.0) to compute normalized speed value stored to global. Every 30 ticks sends stat"
+  },
+  {
+   "address": "0x00003704",
+   "name": "freertos_select_next_task",
+   "class": "vendor-freertos",
+   "note": "VENDOR FreeRTOS port \u2014 vTaskSwitchContext / select-next-task. Checks scheduler-suspended flag; if suspended sets a pending-switch flag and returns. Otherwise clears pending flag, walks priority-ordered TCB ready list (0x14-byte stride array at DAT_00003754), finds highest-priority non-empty entry, r"
+  },
+  {
+   "address": "0x0000375c",
+   "name": "motor_sensor_hw_init_and_scheduler_start",
+   "class": "vanmoof",
+   "note": "Top-level hardware initializer and FreeRTOS scheduler launcher. Configures RCC/GPIO (0x40000220), SPI/FLEXCOMM (0x400A0000), M_CAN/FDCAN (0x40006000) with bit-timing and filters, reads ADC (FUN_000004a0) and applies FPU scaling for current/voltage, writes WDT unlock sequence (0xAA/0x55), creates mot"
+  },
+  {
+   "address": "0x00004ce8",
+   "name": "subscription_id_comparator",
+   "class": "vanmoof",
+   "note": "Comparator for subscription list search: compares two subscription ID bytes (byte[1] then byte[0]) and returns the delta. Zero = match."
+  },
+  {
+   "address": "0x00004cfa",
+   "name": "subscription_list_search",
+   "class": "vanmoof",
+   "note": "Linear search over flat subscription table (stride 0x2c). Calls comparator fn-ptr from param_1[2]. Returns matching index or 0xFFFFFFFF."
+  },
+  {
+   "address": "0x00004d26",
+   "name": "subscription_find_entry",
+   "class": "vanmoof",
+   "note": "Find subscription entry pointer by key. Returns (base + index*0x2c) or NULL if not found."
+  },
+  {
+   "address": "0x00004d3e",
+   "name": "subscription_find_entry_or_null",
+   "class": "vanmoof",
+   "note": "Null-safe wrapper: returns NULL if handle is 0, else delegates to subscription_find_entry."
+  },
+  {
+   "address": "0x00004d56",
+   "name": "can_tx_disable",
+   "class": "vanmoof",
+   "note": "Disable CAN TX: clears MCAN mode-init bit (+0xe0), clears CCE (+0x54), sets INIT (+0xd4), waits for bus idle, clears app state fields +0x10 and +0x115."
+  },
+  {
+   "address": "0x00004d92",
+   "name": "clock_prescaler_config",
+   "class": "vendor-hal",
+   "note": "Configure LPC546xx clock prescalers: writes divider values to 0x40000260 + (id*4) register file, encoding two prescaler fields packed into one uint32."
+  },
+  {
+   "address": "0x00004dc2",
+   "name": "gpio_debounce_clear",
+   "class": "vendor-hal",
+   "note": "Clear GPIO debounce latch: if bit 24 of +0x28 is set, re-writes +0x2c to clear the debounce flag."
+  },
+  {
+   "address": "0x00004dd0",
+   "name": "event_bit_set_if_unmasked",
+   "class": "vanmoof",
+   "note": "Set event bit in param_1[9] only if not already set in *param_1 and the bit is in the mask param_1[9]."
+  },
+  {
+   "address": "0x00004de6",
+   "name": "gpio_pulse_wait",
+   "class": "vendor-hal",
+   "note": "GPIO pulse-and-wait: sets a GPIO pin via 0x40000120, polls 0x40000100 until set; then clears via 0x40000140, polls until clear. Used for SPI/flash CS sequencing."
+  },
+  {
+   "address": "0x00004e10",
+   "name": "can_tx_submit_checked",
+   "class": "vanmoof",
+   "note": "Validated CAN TX submit: returns error 1 if no handle, error 2 if no queue; else calls can_tx_submit(handle, queue, type+0x30, payload). Returns 0 on success."
+  },
+  {
+   "address": "0x00004e32",
+   "name": "list_head_init",
+   "class": "vendor-hal",
+   "note": "FreeRTOS vListInitialise: initialises doubly-linked list sentinel node with circular self-pointers and zero count."
+  },
+  {
+   "address": "0x00004e48",
+   "name": "list_insert_end",
+   "class": "vendor-hal",
+   "note": "FreeRTOS vListInsertEnd: inserts node before list sentinel (at end), sets owner, increments count."
+  },
+  {
+   "address": "0x00004e60",
+   "name": "list_insert_ordered",
+   "class": "vendor-hal",
+   "note": "FreeRTOS vListInsert: sorted insertion by priority value; walks list until a node with higher value found, splices in before it."
+  },
+  {
+   "address": "0x00004e8e",
+   "name": "ringbuf_read_available",
+   "class": "vanmoof",
+   "note": "Circular ring buffer query: returns bytes available to read = (write_head + size - read_head) % size."
+  },
+  {
+   "address": "0x00004ea0",
+   "name": "freertos_critical_section_enter",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS taskENTER_CRITICAL: saves BASEPRI, raises to 0x20 (mask priority), issues DSB+ISB. Returns saved BASEPRI in high word."
+  },
+  {
+   "address": "0x00004eb6",
+   "name": "ringbuf_write_free",
+   "class": "vanmoof",
+   "note": "Circular ring buffer query: returns free space for writing = (size + write_head - 1 - read_head) % size. Halts on NULL handle."
+  },
+  {
+   "address": "0x00004ed4",
+   "name": "freertos_critical_section_exit",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS taskEXIT_CRITICAL: restores BASEPRI to saved value, issues DSB+ISB."
+  },
+  {
+   "address": "0x00004ee2",
+   "name": "freertos_pendsv_trigger",
+   "class": "vendor-freertos",
+   "note": "Trigger PendSV context switch: writes 0x10000000 to ICSR (0xE000ED04), then DSB+ISB barriers."
+  },
+  {
+   "address": "0x00004ef8",
+   "name": "assert_nonnull_then_critical_exit",
+   "class": "vendor-hal",
+   "note": "Assert non-null under critical section: spins if param_1 is NULL, otherwise calls critical_section_exit + critical_section_leave."
+  },
+  {
+   "address": "0x00004f1c",
+   "name": "return_zero_stub",
+   "class": "unsure",
+   "note": "Stub that unconditionally returns 0. Likely placeholder or dead callback slot."
+  },
+  {
+   "address": "0x00004f20",
+   "name": "can_tx_queue_priority_select",
+   "class": "vanmoof",
+   "note": "CAN TX queue arbitration: peeks both TX queues (priority 1 and 2), compares CAN IDs, selects the lower-priority ID queue for next transmission. Updates state at +0x24 and +0x20."
+  },
+  {
+   "address": "0x00004f58",
+   "name": "list_remove_entry",
+   "class": "vendor-hal",
+   "note": "FreeRTOS uxListRemove: unlinks node from doubly-linked list, stitches prev/next, clears owner pointer, decrements count. Updates list head if removed node was head."
+  },
+  {
+   "address": "0x00004f78",
+   "name": "freertos_block_free_if_nonnull",
+   "class": "vendor-freertos",
+   "note": "Free memory block only if pointer is non-null; calls freertos_queue_free_block."
+  },
+  {
+   "address": "0x00004f80",
+   "name": "freertos_tick_handler_wrapper",
+   "class": "vendor-freertos",
+   "note": "SysTick body: enters critical section, calls freertos_tick_hook(), triggers PendSV if hook returns nonzero, exits critical section."
+  },
+  {
+   "address": "0x00004fa4",
+   "name": "freertos_queue_receive_from_isr",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xQueueReceiveFromISR: dequeues one item from ring-style queue under critical section. Asserts handle non-null, handles reader-count tracking and ISR wakeup flag."
+  },
+  {
+   "address": "0x00005020",
+   "name": "freertos_event_group_set_bits",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xEventGroupSetBits: iterates task wait list, ORs event bits, signals tasks whose wait masks are satisfied via freertos_queue_signal_waiting_task."
+  },
+  {
+   "address": "0x0000508a",
+   "name": "can_frame_filter_dispatch",
+   "class": "vanmoof",
+   "note": "CAN receive frame filter: unpacks 29-bit extended CAN ID from raw frame bytes, builds canonical form, calls registered filter callback (*param_3)(param_3, &canonical_id). Returns true if callback matches."
+  },
+  {
+   "address": "0x000050cc",
+   "name": "can_tx_frame_write_chunks",
+   "class": "vanmoof",
+   "note": "CAN TX frame write in \u22648-byte chunks via function pointer at param_1[0x10]. Handles CAN FD DLC wraparound (mode 1 = 4-bit nibble wrap, mode 2 = 3-bit nibble wrap)."
+  },
+  {
+   "address": "0x00005128",
+   "name": "freertos_timer_advance_callback",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS timer internal: if timer +0x10 != 0, advances expiry time by increment (with size wrap), then calls FUN_00005f48 callback."
+  },
+  {
+   "address": "0x00005154",
+   "name": "freertos_timer_generic_command",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xTimerGenericCommand: in task context calls freertos_timer_tick_process; in ISR context uses critical section + reader lock for deferred processing."
+  },
+  {
+   "address": "0x0000520a",
+   "name": "ringbuf_read_consume",
+   "class": "vanmoof",
+   "note": "Circular ring buffer consume: copies min(available, requested) bytes out of ring buffer with wraparound, advances read pointer."
+  },
+  {
+   "address": "0x00005278",
+   "name": "ringbuf_write_produce",
+   "class": "vanmoof",
+   "note": "Circular ring buffer produce: copies data into ring buffer at write_head with wraparound, advances write pointer. Returns bytes written."
+  },
+  {
+   "address": "0x000052d2",
+   "name": "subscription_list_add",
+   "class": "vanmoof",
+   "note": "Add entry to subscription table: verifies count < capacity and no duplicate (via subscription_list_search returning -1), copies 0x2c-byte entry at [count], increments count. Returns 0 on success, 0xFFFFFFFF on failure."
+  },
+  {
+   "address": "0x0000530a",
+   "name": "can_mailbox_buffer_setup",
+   "class": "vanmoof",
+   "note": "M_CAN Tx/Rx buffer setup: reads TXBC/TXESC or RXBC/RXESC registers (+0xa0/0xa4 or +0xb0/0xb4), computes buffer element pointer, copies 8-byte CAN header. Updates put-index register."
+  },
+  {
+   "address": "0x00005390",
+   "name": "ringbuf_write_partial",
+   "class": "vanmoof",
+   "note": "Ring buffer partial write with FD-mode flow control: checks FD bit (+0x1c), limits write length, calls ringbuf_write_produce. Returns actual bytes written or 0 if flow-controlled."
+  },
+  {
+   "address": "0x000053d8",
+   "name": "freertos_stream_buffer_send",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xStreamBufferSend (non-blocking path): writes data to stream buffer ring under critical section, signals waiting receiver via freertos_queue_recv_item, optionally triggers PendSV."
+  },
+  {
+   "address": "0x0000544a",
+   "name": "can_frame_pack_and_enqueue",
+   "class": "vanmoof",
+   "note": "Pack a raw CAN frame into a 16-byte queue item (DLC at [0], 29-bit ID at [4..7] from bytes 0..3 of raw frame, data at [8..15]) and enqueue to TX queue via queue_send_item."
+  },
+  {
+   "address": "0x000054a8",
+   "name": "freertos_queue_send_from_isr_or_task",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS queue send dispatcher: if in task context calls queue_send_item directly; if in ISR context calls freertos_queue_receive_from_isr and triggers PendSV if a task was woken."
+  },
+  {
+   "address": "0x000054e0",
+   "name": "freertos_stream_buffer_send_blocking",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xStreamBufferSend (blocking path): validates args, writes partial data to ring buffer via ringbuf_write_partial, wakes or aborts receiver connection on full-buffer, handles both task and ISR contexts. Function body extends to 0x55f8."
+  },
+  {
+   "address": "0x000055fa",
+   "name": "queue_receive_dispatch",
+   "class": "vendor-hal",
+   "note": "FreeRTOS queue receive helper; dispatches to registered callback (fn ptr at struct+0x14/+0x18) based on message byte (0x01=invoke callback, 0x02=call FUN_000020f4). Checks ISR vs task context."
+  },
+  {
+   "address": "0x0000563e",
+   "name": "queue_send_from_isr_or_task",
+   "class": "vendor-hal",
+   "note": "FreeRTOS xQueueSend, ISR-aware. ISR path uses critical-section helpers (FUN_00004ea0/FUN_00004ed4). Task path calls portENTER_CRITICAL (FUN_00000920) / portEXIT_CRITICAL (FUN_0000093c). Triggers PendSV (write 0x10000000 to 0xE000ED04) when needed."
+  },
+  {
+   "address": "0x00005740",
+   "name": "flash_page_verify_and_advance",
+   "class": "vanmoof",
+   "note": "Verifies a programmed flash page by reading back at offset (page+0x40)*0x200 and comparing. If more pages remain, advances page pointer and pre-fills next page buffer via memset(0xff, 0x200). Returns true if verified OK."
+  },
+  {
+   "address": "0x0000579c",
+   "name": "flash_sector_data_write",
+   "class": "vanmoof",
+   "note": "Writes caller-provided data to a flash sector identified by sector index (param_2). Looks up sector address via FUN_00004d3e, clears 4 bytes, then calls flash_write_sector (FUN_000024b8). Validates page range. Returns -1 on out-of-range."
+  },
+  {
+   "address": "0x000057f8",
+   "name": "flash_sector_write_and_verify",
+   "class": "vanmoof",
+   "note": "Programs a flash sector and verifies the write. Calls flash_page_verify_and_advance, reads calibration data via FUN_00000790(handle, 0x8134), calls flash_write_sector. Sets struct+0x15=1 (verified flag) if checksum matches. Writes error flag via memcpy."
+  },
+  {
+   "address": "0x00005882",
+   "name": "flash_erase_and_program_sector",
+   "class": "vanmoof",
+   "note": "Erases up to 58 (0x3a) sectors starting at sector index param_3[0], count param_3[1], via FUN_00000aec (sector erase). Then programs a 512-byte page: fills header via memset+memcpy, calls flash_page_verify_and_advance. Returns 0 on success, -1 on error."
+  },
+  {
+   "address": "0x00005914",
+   "name": "can_frame_notify_subscribers",
+   "class": "vanmoof",
+   "note": "Dispatches a CAN frame to registered subscriber callbacks. Builds 13-byte notification from frame object (CAN ID, length, data, type). For type 0 (data): calls fn ptr at param_1+0x5a4 with subscriber list at param_1+0x594. For type 1/2: calls FUN_000050cc (CAN TX queue send). Called by all can_send_"
+  },
+  {
+   "address": "0x0000599a",
+   "name": "can_frame_receive_and_dispatch",
+   "class": "vanmoof",
+   "note": "Handles an incoming CAN frame: looks up frame descriptor via FUN_00004d3e, takes semaphore (FUN_00005154, timeout 0x7fffffff), invokes optional receive callback (fn ptr at struct+0x14), then calls can_frame_notify_subscribers. Returns without action if descriptor not found or semaphore fails."
+  },
+  {
+   "address": "0x000059fa",
+   "name": "can_tx_submit_frame",
+   "class": "vanmoof",
+   "note": "Submits a CAN TX frame. Constructs local CAN ID 0x8808, looks up TX descriptor via FUN_00004d3e, takes semaphore (timeout 100ms), copies frame data into descriptor buffer, calls can_frame_notify_subscribers. Called by can_tx_queue_flush and motor_sensor_hw_init_and_scheduler_start."
+  },
+  {
+   "address": "0x00005a70",
+   "name": "can_tx_buf_write",
+   "class": "vanmoof",
+   "note": "Appends data (param_3, length param_4) to the CAN TX ring buffer at current write position. Checks (write_pos + len) <= (page_count * page_size) before writing. Calls flash_write_sector to persist. Updates write pointer struct+8 on success. Returns 0 on success, -1 on overflow."
+  },
+  {
+   "address": "0x00005aaa",
+   "name": "can_bus_send_and_yield",
+   "class": "vanmoof",
+   "note": "Flushes CAN TX buffer tail marker to flash if struct+0x15 flag is set (via flash_write_sector at end-of-buffer position), then triggers CAN controller TX (FUN_00000384) and signals CAN bus ready via FUN_00002970."
+  },
+  {
+   "address": "0x00005ac8",
+   "name": "can_bus_is_ready",
+   "class": "vanmoof",
+   "note": "Tests CAN bus ready state. Gets CAN handle via FUN_00002928, queries ready state via FUN_00002970(handle, flag), releases handle. Returns 0 if ready, -1 if not ready or no handle."
+  },
+  {
+   "address": "0x00005af6",
+   "name": "freertos_queue_create",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xQueueGenericCreate: allocates heap_malloc(item_size*capacity+0x48), initialises QueueDefinition (head/tail/size fields, sentinel bytes 0xff at +0x44/+0x45), calls prvListInit (FUN_00004e32) for two embedded lists. Ends with portEXIT_CRITICAL (FUN_0000093c). Returns NULL if malloc fails."
+  },
+  {
+   "address": "0x00005b66",
+   "name": "freertos_mutex_create",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xSemaphoreCreateMutex: calls freertos_queue_create(1,0) then initialises mutex fields (count=0, head=0) and calls FUN_00001b10 (prvInitialiseMutex). Called only by motor_sensor_hw_init_and_scheduler_start."
+  },
+  {
+   "address": "0x00005b80",
+   "name": "xPortSysTickHandler",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS SysTick ISR entry from vector table @0x3C. 2-instruction tail: mov r0,r4 / pop {r4,pc}. This is the epilogue of a larger SysTick body that precedes it in flash (the actual tick increment/scheduler call is in the code leading to 0x5b80)."
+  },
+  {
+   "address": "0x00005b86",
+   "name": "gatt_char_0x87_read_and_notify",
+   "class": "unsure",
+   "note": "Reads 14 bytes of motor/sensor data via BLE handle (FUN_00002928/FUN_00004e10), looks up GATT attribute 0x87XX via FUN_00004d3e, copies data into attribute value buffer (14-byte loop), notifies subscribers via FUN_000054a8. Optionally sends response via memcmp+gatt_write_response_send. Called by ble"
+  },
+  {
+   "address": "0x00005c88",
+   "name": "gatt_char_0x91_read_and_notify",
+   "class": "unsure",
+   "note": "Same pattern as gatt_char_0x87_read_and_notify but for attribute handle 0x91XX and a 16-byte payload. Called by ble_notify_char_0x91_and_update and motor_sensor_hw_init_and_scheduler_start."
+  },
+  {
+   "address": "0x00005d74",
+   "name": "gatt_write_response_send",
+   "class": "unsure",
+   "note": "Sends a GATT Write Response: heap_malloc(512), fills ATT PDU header (FUN_000007d4), copies attribute data via memcpy, submits via FUN_00000a04 + FUN_00004e10, verifies response via memcmp. Frees buffer. Returns true on error."
+  },
+  {
+   "address": "0x00005dec",
+   "name": "ble_notify_char_0x87_and_update",
+   "class": "unsure",
+   "note": "Builds a 14-byte BLE notification (1-byte type flag + 13-byte data from param_3), sends via gatt_write_response_send, calls gatt_char_0x87_read_and_notify to update the GATT attribute. Acquires/releases BLE connection handle. Returns -1 on error."
+  },
+  {
+   "address": "0x00005e4c",
+   "name": "ble_notify_char_0x91_and_update",
+   "class": "unsure",
+   "note": "Same as ble_notify_char_0x87_and_update but 16-byte payload and calls gatt_char_0x91_read_and_notify. No callers found \u2014 likely invoked via fn pointer."
+  },
+  {
+   "address": "0x00005eb0",
+   "name": "flash_update_sector",
+   "class": "vanmoof",
+   "note": "High-level flash config/calibration update. Reads 512-byte sector via FUN_00003204 (flash_read_sector), zeroes buffer, copies 12 new bytes at offset via memcpy, writes back with 64-second timeout via FUN_00003170 (flash_write_raw), re-reads and verifies. Returns 0 on success, -1 on write failure, -2"
+  },
+  {
+   "address": "0x00005f0e",
+   "name": "assert_invalid_state_halt",
+   "class": "vendor-hal",
+   "note": "Assertion/panic halt. Checks version byte at *(struct+0x18-2) == 0x02; if not, enters infinite loop after FUN_00004ea0 (disable interrupts). Any other caller path also spins forever. No callers found \u2014 invoked via fn pointer or linker reference."
+  },
+  {
+   "address": "0x00005f28",
+   "name": "memcmp",
+   "class": "vendor-hal",
+   "note": "Standard memcmp(s1, s2, n): byte-by-byte comparison, returns s1[i]-s2[i] at first mismatch or 0 if equal. Used throughout for CAN frame and GATT payload verification."
+  },
+  {
+   "address": "0x00005f48",
+   "name": "memcpy",
+   "class": "vendor-libgcc",
+   "note": "Standard memcpy(dst, src, n): byte-by-byte forward copy. Used extensively for CAN frame data, GATT attribute values, and flash sector buffers."
+  },
+  {
+   "address": "0x00005f62",
+   "name": "memset",
+   "class": "vendor-libgcc",
+   "note": "Standard memset(dst, val, n): fills n bytes with val. Ubiquitous for zeroing/filling flash buffers, CAN frame buffers, and GATT payload buffers."
+  },
+  {
+   "address": "0x00005f72",
+   "name": "strncmp",
+   "class": "vendor-hal",
+   "note": "Standard strncmp(s1, s2, n): byte-by-byte compare stopping at n bytes, NUL, or mismatch. Returns s1[i]-s2[i] or 0. Called by FUN_00003310 (outside range)."
+  }
+ ]
+}
