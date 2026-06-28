@@ -35,6 +35,8 @@ DEPS         := $(OBJS:.o=.d)
 
 ARCH_FLAGS   := -mcpu=$(MCU) -mthumb -mfpu=$(FPU) -mfloat-abi=$(FLOAT_ABI)
 
+# -Wno-cast-function-type: the OEM passes 4-arg worker fns to the void(*)(void*)
+# task-create ABI — the same cast FreeRTOS' own xTaskCreate requires.
 CFLAGS       := $(ARCH_FLAGS) \
                 -std=c11 \
                 -Os -g3 \
@@ -42,6 +44,7 @@ CFLAGS       := $(ARCH_FLAGS) \
                 -fno-common -fno-builtin \
                 -Wall -Wextra -Wpedantic -Wshadow \
                 -Wno-unused-parameter \
+                -Wno-cast-function-type \
                 -I$(INC_DIR) \
                 -MMD -MP
 

@@ -98,9 +98,12 @@ imx8_bridge/
 
 ## Open / next
 
-- [ ] Finish the C reconstruction of the SPI-slave wire format + CAN-TP session
-      framing (struct layouts from the deep-decode pass).
-- [ ] Cross-ref the SPI frame format against the Linux side
-      (`../main/spi_can_bridge/` `spim_channel.cpp` + `lib/src/tp`).
-- [ ] Confirm the `vm_can_init` task-create primitive (`queue_msg_enqueue
-      0x214c`) vs stock `xTaskCreate`.
+- [x] MCU identified (LPC55S69), 146 functions carved + classified, the 3 tasks +
+      CAN-TP session layer + SPI framing decoded (deep-decode + adversarial-verify).
+- [x] Core VanMoof bridge app reconstructed to C in `src/` (6 TUs, `make` clean).
+- [ ] Cross-ref the 13-byte SPI frame format against the Linux side
+      (`../main/spi_can_bridge/` `spim_channel.cpp` + `lib/src/tp`) to confirm the
+      session-id / flags / chunk-sequence encoding end-to-end.
+- [ ] Reconstruct the remaining transport helpers if needed (SPI session
+      read/rx-frame, the flash-update relay path, `spi_connection_init/_watchdog`)
+      — currently decoded + classified but modelled as externs.

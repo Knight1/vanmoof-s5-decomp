@@ -22,4 +22,12 @@ ALWAYS_INLINE void __wfi(void)     { __asm volatile ("wfi"); }
 ALWAYS_INLINE void __cpsid_i(void) { __asm volatile ("cpsid i" ::: "memory"); }
 ALWAYS_INLINE void __cpsie_i(void) { __asm volatile ("cpsie i" ::: "memory"); }
 
+/* Current exception number (0 = thread mode). The OEM branches task-vs-ISR on
+ * a bare `mrs rN, ipsr` (the decompiler shows phantom helper calls). */
+ALWAYS_INLINE unsigned __get_ipsr(void)
+{ unsigned r; __asm volatile ("mrs %0, ipsr" : "=r" (r)); return r; }
+
+/* Raw 32-bit MMIO accessors (verbatim volatile loads/stores, no abstraction). */
+#define MMIO32(addr) (*(volatile unsigned *)(addr))
+
 #endif /* IMX8_BRIDGE_COMPILER_H */
