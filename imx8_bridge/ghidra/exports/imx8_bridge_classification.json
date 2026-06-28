@@ -1,0 +1,903 @@
+{
+ "target": "imx8_bridge",
+ "program": "imx8_bridge.20240129.145222.1.5.0.main.v1.5.0-main.bin",
+ "mcu": "NXP LPC55S69 (LPC5500, Cortex-M4F) \u2014 dual Bosch M_CAN CAN-FD + FlexComm SPI-slave",
+ "image_base": "0x0",
+ "generated_from": "imx8-bridge-map workflow (9 Sonnet region agents, carve+classify) + deep-decode pass; raw image, Ghidra auto-analysis fails (no entry map), bootstrapped from the vector table",
+ "note": "SPI<->CAN bridge co-processor. VanMoof app = 3 tasks (vm/CanTX/can) + CAN-TP session layer + SPI-slave framing over the LPC55 SDK + FreeRTOS. The 10 system_init__*_block entries the map reported in 0x4400-0x4bc8 are interior basic blocks of vm_can_init@0x3ad8, NOT separate functions, and are excluded.",
+ "status_legend": {
+  "vanmoof": "VanMoof app code (bridge tasks + CAN-TP sessions + SPI framing + infra)",
+  "vendor-freertos": "FreeRTOS kernel + Cortex-M port",
+  "vendor-hal": "NXP LPC55 SDK/HAL (SYSCON/IOCON/DMA/MCAN/FlexComm/IAP-flash) + CMSIS",
+  "vendor-libgcc": "libgcc / mem*",
+  "vendor-startup": "reset/fault startup",
+  "unsure": "flagged (borderline SDK-vs-app)"
+ },
+ "counts": {
+  "vendor-freertos": 33,
+  "vendor-startup": 2,
+  "vendor-hal": 46,
+  "vanmoof": 60,
+  "unsure": 3,
+  "vendor-libgcc": 2
+ },
+ "total": 146,
+ "functions": [
+  {
+   "address": "0x000002d0",
+   "name": "vPortStartFirstTask",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS Cortex-M port: load pxCurrentTCB top-of-stack, set MSP, enable IRQs/FIQs (cpsie i/f), DSB/ISB, SVC#2 to launch first task"
+  },
+  {
+   "address": "0x00000384",
+   "name": "default_fault_handler",
+   "class": "vendor-startup",
+   "note": "DSB, set SCB->AIRCR=0x05FA0004 (SYSRESETREQ) via 0xE000ED0C, DSB, infinite spin \u2014 triggers system reset on any unhandled fault"
+  },
+  {
+   "address": "0x000003a8",
+   "name": "NVIC_EnableIRQ",
+   "class": "vendor-hal",
+   "note": "CMSIS NVIC_EnableIRQ(IRQn): compute ISER word (IRQn>>5) and bit mask (1<<(IRQn&0x1f)), write to NVIC->ISER[word] at 0xE000E100"
+  },
+  {
+   "address": "0x0000048c",
+   "name": "CLOCK_GetXtalOscFreq",
+   "class": "vendor-hal",
+   "note": "NXP SDK: read SYSCON->XTAL_CTRL (0x40000000+0xa18) bit6; return XTAL frequency constant if enabled, else 0"
+  },
+  {
+   "address": "0x000004a4",
+   "name": "CLOCK_GetPll0Freq",
+   "class": "vendor-hal",
+   "note": "NXP SDK: read SYSCON PLL0STAT (0x40000000+0xb8) LOCK/BYPASS bits and PLL0NUM/DENOM (0x40000000+0x98) to compute PLL0 output frequency"
+  },
+  {
+   "address": "0x000004dc",
+   "name": "CLOCK_GetMainClkFreq",
+   "class": "vendor-hal",
+   "note": "NXP SDK: read SYSCON->MAINCLKSELB (0x40000000+0x284), dispatch to CLOCK_GetXtalOscFreq / CLOCK_GetPll0Freq / etc. by selector value"
+  },
+  {
+   "address": "0x00000550",
+   "name": "delay_calibrated",
+   "class": "vanmoof",
+   "note": "VanMoof calibrated busy-wait: reads calibration flag in peripheral struct @(0x4008C000+0x35), calls CLOCK_GetMainClkFreq, computes loop count as (MHz*10*us)/4, busy-loops, toggles flag"
+  },
+  {
+   "address": "0x00000594",
+   "name": "can_get_instance_id",
+   "class": "vanmoof",
+   "note": "Map CAN-FD peripheral base address to instance index: 0x40082000\u21920, 0x400A7000\u21921, other\u21922"
+  },
+  {
+   "address": "0x000005b0",
+   "name": "MCAN_CalculateBitTimingParam",
+   "class": "vendor-hal",
+   "note": "NXP SDK: pack CAN-FD bit-timing fields (BRP, TSEG1, TSEG2, SJW for nominal and data phase) from config struct into hardware register words; validates sample-point divisibility, returns error if not divisible"
+  },
+  {
+   "address": "0x0000068c",
+   "name": "mcan_init_instance",
+   "class": "unsure",
+   "note": "NXP MCAN hardware init: lookup FlexComm index, toggle CC_CTRL init bit (reg+0x408), configure RX/TX element counts in message-RAM regs (0xe00/0xe04/0xe08/0xe14), dispatch to user init callback via function pointer"
+  },
+  {
+   "address": "0x00000738",
+   "name": "can_configure_tx_element",
+   "class": "vanmoof",
+   "note": "Configure one CAN-FD TX buffer element: call can_get_instance_id to resolve instance, check TX filter bitmap, call MCAN_CalculateBitTimingParam, enable/disable TX element and write config register"
+  },
+  {
+   "address": "0x000007b0",
+   "name": "peripheral_interrupt_init_sweep",
+   "class": "vanmoof",
+   "note": "Sweep 23 peripheral-instance entries in table @0x200007c0: for each instance with non-null base, check 3 event bitmaps (pending IRQ flags), call registered callbacks for events 0/1/2"
+  },
+  {
+   "address": "0x0000087c",
+   "name": "flexcomm_instance_lookup",
+   "class": "vendor-hal",
+   "note": "NXP SDK: linear scan of FlexComm instance table @0x6a80 (up to 9 entries), match input base address, return index 0-8"
+  },
+  {
+   "address": "0x00000898",
+   "name": "flexcomm0_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK FlexComm0 (0x40086000) ISR: call flexcomm_instance_lookup, load rx-handle/tx-handle/handler from 3 parallel pointer tables, tail-call the handler"
+  },
+  {
+   "address": "0x000008c8",
+   "name": "flexcomm1_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK FlexComm1 (0x40087000) ISR dispatcher"
+  },
+  {
+   "address": "0x000008f8",
+   "name": "flexcomm2_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK FlexComm2 (0x40088000) ISR dispatcher"
+  },
+  {
+   "address": "0x00000928",
+   "name": "flexcomm3_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK FlexComm3 (0x40089000) ISR dispatcher"
+  },
+  {
+   "address": "0x00000958",
+   "name": "flexcomm4_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK FlexComm4 (0x4008A000) ISR dispatcher"
+  },
+  {
+   "address": "0x00000988",
+   "name": "flexcomm5_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK FlexComm5 (0x40096000) ISR dispatcher"
+  },
+  {
+   "address": "0x000009b8",
+   "name": "flexcomm6_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK FlexComm6 (0x40097000) ISR dispatcher"
+  },
+  {
+   "address": "0x000009e8",
+   "name": "flexcomm7_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK FlexComm7 (0x40098000) ISR dispatcher"
+  },
+  {
+   "address": "0x00000a18",
+   "name": "flexcomm14_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK FlexComm14 / HS-SPI (0x4009F000) ISR dispatcher"
+  },
+  {
+   "address": "0x00000a48",
+   "name": "usart0_rx_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART0 RX ISR: call USART_GetStatusFlags(0x40004000), invoke user callback (event 0) if set, check RXRDY bit, tail-call USART_TransferHandleIRQ (0x4fdc) if pending"
+  },
+  {
+   "address": "0x00000a78",
+   "name": "usart0_tx_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART0 TX ISR: user callback (event 1), checks TXRDY bit (STAT<<0x1e), tail-calls USART_TransferHandleIRQ"
+  },
+  {
+   "address": "0x00000aa8",
+   "name": "usart0_txidle_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART0 TX-idle ISR: user callback (event 2), checks TXIDLE bit (STAT<<0x1d)"
+  },
+  {
+   "address": "0x00000ad8",
+   "name": "usart0_cts_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART0 CTS ISR: user callback (event 3), checks CTS bit (STAT<<0x1c)"
+  },
+  {
+   "address": "0x00000b08",
+   "name": "usart0_rxstart_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART0 RX-start ISR: user callback (event 4), checks RXSTART bit (STAT<<0x1b)"
+  },
+  {
+   "address": "0x00000b38",
+   "name": "usart0_framerr_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART0 frame-error ISR: user callback (event 5), checks FRAMERR bit (STAT<<0x1a)"
+  },
+  {
+   "address": "0x00000b68",
+   "name": "usart0_parerr_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART0 parity-error ISR: user callback (event 6), checks PARERR bit (STAT<<0x19)"
+  },
+  {
+   "address": "0x00000b98",
+   "name": "usart0_rxnoise_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART0 RX-noise ISR: user callback (event 7), checks RXNOISE bit (STAT<<0x18)"
+  },
+  {
+   "address": "0x00000bc8",
+   "name": "usart1_rx_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART1 (0x40005000) RX ISR: user callback (event 0), checks RXRDY bit (STAT bit0)"
+  },
+  {
+   "address": "0x00000bf8",
+   "name": "usart1_tx_isr_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP SDK USART1 (0x40005000) TX ISR: user callback (event 1), checks TXRDY bit (STAT<<0x1f)"
+  },
+  {
+   "address": "0x00000c28",
+   "name": "prvGetClockIndexByBase",
+   "class": "vendor-freertos",
+   "note": "Scan 8-entry peripheral instance table for a matching base address; return its index. Called from can_fd_transmit and an unnamed NXP init fn to resolve a peripheral's clock/ID slot."
+  },
+  {
+   "address": "0x00000c44",
+   "name": "xTaskGetSchedulerState",
+   "class": "vendor-freertos",
+   "note": "Return FreeRTOS scheduler state: 0=not started, 1=suspended, 2=running. Reads uxSchedulerSuspended and xSchedulerRunning byte fields."
+  },
+  {
+   "address": "0x00000c54",
+   "name": "prvInitialiseNewStreamBuffer",
+   "class": "vendor-freertos",
+   "note": "Zero-initialise a new StreamBuffer_t (sets xTriggerLevelBytes=0x60), call an xStreamBufferSpacesAvailable function pointer from the driver vtable, conditionally adjust xLength."
+  },
+  {
+   "address": "0x00000c80",
+   "name": "prvGetTasksWaitingToSendOrReceive",
+   "class": "vendor-freertos",
+   "note": "Return pointer to the task blocked waiting on this stream buffer \u2014 sender list or receiver list \u2014 depending on current scheduler state (checked via xTaskGetSchedulerState)."
+  },
+  {
+   "address": "0x00000cc4",
+   "name": "prvRegisterInterruptHandler",
+   "class": "vendor-freertos",
+   "note": "Insert (irq_num, handler_fn) into an 8-slot interrupt dispatch table. Slots are (u32 irq, fn_ptr handler) pairs; finds the first empty slot (irq==0)."
+  },
+  {
+   "address": "0x00000ce8",
+   "name": "prvIncrementSuspendedCounter",
+   "class": "vendor-freertos",
+   "note": "Increment a single word counter at a fixed global address (uxTasksDeleted or uxCurrentNumberOfTasks decrement). Tiny 4-instruction helper."
+  },
+  {
+   "address": "0x00000cf8",
+   "name": "prvUpdateTopOfStack",
+   "class": "vendor-freertos",
+   "note": "Read pxCurrentTCB; if the TCB's task-list head is non-NULL read the head TCB's pxTopOfStack and store to a global; else store 0xFFFFFFFF sentinel."
+  },
+  {
+   "address": "0x00000d1c",
+   "name": "xTaskGetSchedulerState2",
+   "class": "vendor-freertos",
+   "note": "Duplicate/variant of xTaskGetSchedulerState: checks pxReadyTasksLists head; returns 1 if NULL (suspended), else reads uxSchedulerSuspended to return 0 or 2."
+  },
+  {
+   "address": "0x00000d3c",
+   "name": "vListInsert",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS list.c: insert list item into sorted position by xItemValue; sets pvContainer back-pointer. Also used as the heap_4 block-insertion helper."
+  },
+  {
+   "address": "0x00000d78",
+   "name": "vPortFree",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS heap_4.c pvPortFree: walk free-list to find adjacent block below the freed pointer, coalesce sizes; optionally absorb the next free block too; re-link."
+  },
+  {
+   "address": "0x00000dc0",
+   "name": "Reset_Handler",
+   "class": "vendor-startup",
+   "note": "ARM vector-table Reset entry AND error-path hang. Checks uxCriticalNesting @0x20000004 == 0xFFFFFFFF (set by bootloader before hand-off); if not, asserts via vPortRaiseBASEPRI + infinite loop. If yes: raises BASEPRI, spins on saved-r1 in own stack frame (never exits at cold boot since r1=0; also invoked from vTaskStart"
+  },
+  {
+   "address": "0x00000de8",
+   "name": "vTaskEnterCritical",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS tasks.c vTaskEnterCritical: calls vPortRaiseBASEPRI (0x50A2) to mask interrupts, increments uxCriticalNesting at 0x20000004, issues DSB+ISB memory barriers, returns. 32 call sites across the codebase."
+  },
+  {
+   "address": "0x00000e04",
+   "name": "vTaskExitCritical",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS tasks.c vTaskExitCritical: validates uxCriticalNesting != 0 (else asserts), decrements it, if result==0 calls vPortRestoreBasePRI (0x50D6) to re-enable interrupts. 43 call sites."
+  },
+  {
+   "address": "0x00000e2c",
+   "name": "prvWriteBytesToBuffer",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS stream_buffer.c prvWriteBytesToBuffer: under critical section copy bytes into the circular StreamBuffer_t storage ring with head-pointer wrap-around."
+  },
+  {
+   "address": "0x00000e84",
+   "name": "prvCopyDataToStreamBuffer",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS stream_buffer.c word-aligned ring-buffer copy: 4-byte word copies when source and destination are aligned; falls back to byte copies for unaligned head/tail residuals."
+  },
+  {
+   "address": "0x00000ecc",
+   "name": "flexcomm_clock_attach",
+   "class": "vendor-hal",
+   "note": "NXP SDK fsl_clock.c CLOCK_AttachClk: resolve FLEXCOMM peripheral index (via prvGetClockIndexByBase), load driver-instance clock-attach function pointer at [instance+0x40], tail-call it with (base, 0x200)."
+  },
+  {
+   "address": "0x00000efc",
+   "name": "flexcomm_clock_attach2",
+   "class": "vendor-hal",
+   "note": "NXP SDK clocking variant: like flexcomm_clock_attach but also retrieves a secondary attach function pointer from [instance+0x8] (e.g., for USART clock attach with mux)."
+  },
+  {
+   "address": "0x00000f38",
+   "name": "EnableIRQ",
+   "class": "vendor-freertos",
+   "note": "CMSIS / NXP SDK NVIC_EnableIRQ: call NVIC_SetPriority (0x4fdc) for the IRQ, then set the ISER bit (NVIC base 0x40004000, offset=irq/32*4+0x60*4)."
+  },
+  {
+   "address": "0x00000f98",
+   "name": "xTaskIncrementTick",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS tasks.c xTaskIncrementTick: increment xTickCount, move tasks from delayed list to ready list when their wake-time arrives, return pdTRUE if context switch needed."
+  },
+  {
+   "address": "0x00001090",
+   "name": "xTimerGenericCommand",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS timers.c xTimerGenericCommand: acquire critical section, process pending timer list (calling xTaskIncrementTick@0xf98 for each), send command to timer daemon queue, trigger PendSV if high-priority task woken."
+  },
+  {
+   "address": "0x00001154",
+   "name": "prvFreeBlock",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS heap_4.c helper: validate block tag and not-in-use marker, remove from allocated set (vPortFree@0xd78 coalescer), update xFreeBytesRemaining, increment xNumberOfSuccessfulFrees."
+  },
+  {
+   "address": "0x000011b4",
+   "name": "xQueueGenericSend",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS queue.c xQueueGenericSend: block-wait for space (with timeout via xTaskIncrementTick), copy item via prvCopyDataToQueue@0x1268, unblock highest-priority waiter, optionally yield."
+  },
+  {
+   "address": "0x00001268",
+   "name": "prvCopyDataToQueue",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS queue.c prvCopyDataToQueue: copy uxItemSize bytes into queue ring at pcWriteTo, advance pointer with wrap, increment uxMessagesWaiting, update stats, unblock sender task if space freed."
+  },
+  {
+   "address": "0x000012dc",
+   "name": "xQueueGenericSendFromISR",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS queue.c xQueueGenericSendFromISR: ISR-safe queue send \u2014 calls vTaskEnterCritical twice around the copy, raises pxHigherPriorityTaskWoken flag if a receiver of higher priority was unblocked."
+  },
+  {
+   "address": "0x00001360",
+   "name": "xQueueReceiveFromISR",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS queue.c xQueueReceiveFromISR: ISR-safe receive \u2014 check uxMessagesWaiting, copy item out, decrement counter, unblock any blocked sender if queue was full, set pxHigherPriorityTaskWoken."
+  },
+  {
+   "address": "0x00001424",
+   "name": "prvWriteMessageToBuffer",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS stream_buffer.c prvWriteMessageToBuffer: prepend 4-byte message-length header into the circular buffer via prvWriteBytesToBuffer@0xe2c, then write the payload; returns bytes written or triggers receiver unblock."
+  },
+  {
+   "address": "0x00001464",
+   "name": "spi_timer_isr",
+   "class": "vanmoof",
+   "note": "IRQ1 timer ISR: loads driver ptr from 0x2000074C, calls FUN_5062 with queued SPI item at *driver+4, then does conditional min-update on timestamp global at 0x20000FD0. Likely a periodic tick/timeout ISR for SPI transfer retry."
+  },
+  {
+   "address": "0x00001494",
+   "name": "spi_notify_and_kick",
+   "class": "vanmoof",
+   "note": "2-instruction stub (push {r4,lr}; mov r4,r1) that falls through into spi_irq_group0 body at 0x1498. Also called directly as a subroutine from can_mb_group_isr (at 0x17a2 and 0x191e) with args (obj+0x24, timeout). Saves caller r1 as r4 so the shared body can use it."
+  },
+  {
+   "address": "0x00001498",
+   "name": "spi_irq_group0",
+   "class": "unsure",
+   "note": "IRQ14 vector. SPI FLEXCOMM message-group 0 ISR: loads SPI driver ptr from 0x20000744, calls FUN_5062 (NXP SPI submit/notify with driver+0x18 offset), then tail-calls prvWriteMessageToBuffer (0x1424) with r1=1 to enqueue received byte into stream buffer."
+  },
+  {
+   "address": "0x000014b4",
+   "name": "spi_transfer_complete_handler",
+   "class": "vendor-hal",
+   "note": "IRQ15 vector entry and shared body for IRQ15-16. NXP FLEXCOMM SPI DMA transfer completion handler. Checks driver state byte at *driver+0x68: if not 0x2 (busy), copies DMA result register (*driver+0x64) and sets state=1; calls optional callback (param_1). Calls xTaskNotifyFromISR (0x0e04) twice (pre and post). On re-che"
+  },
+  {
+   "address": "0x00001510",
+   "name": "spi_transfer_dequeue",
+   "class": "vendor-hal",
+   "note": "IRQ17-IRQ20 shared entry. Checks peripheral base of param_1 against 0x4009D000 (FLEXCOMM7/SPI7). Scans 8-slot transfer array at 0x20000FF8 to find and clear the completed slot. If abort flag set (driver[0x5a]!=0): pulse SYSCON clock-gate reset on SPI (0x40000244 |= 0x80), dequeue any pending list. Clears lock variable "
+  },
+  {
+   "address": "0x000015b8",
+   "name": "can_mb_group_isr",
+   "class": "vanmoof",
+   "note": "Main FlexCAN message-buffer group ISR. IRQ20/21/32-35/42-43 vectors all enter at different offsets within this body. Manages CAN TX and RX: if called from ISR context reads IPSR, acquires critical section, calls xTaskNotifyFromISR (0x0e04), dispatches via FUN_0e2c (xTaskNotifyWait?). On TX complete: decrements MB pendi"
+  },
+  {
+   "address": "0x00001648",
+   "name": "can_mb_isr_pendsv_epilogue",
+   "class": "vendor-hal",
+   "note": "Interior code slice of can_mb_group_isr at the 'trigger PendSV if needed' point. IRQ4 vector (0x50=0x1649) points HERE, indicating IRQ4 is another CAN MB group that shares this handler entry. Logic: if r6!=0, write 0x10000000 to 0xE000ED04 (ICSR PENDSVSET), then fall to epilogue at 0x15c0."
+  },
+  {
+   "address": "0x00001708",
+   "name": "can_mb_isr_loop_body",
+   "class": "vanmoof",
+   "note": "Interior slice of can_mb_group_isr loop. IRQ32 vector (0xC0=0x1709) points here. Continuation of TX-done path: if driver[0]==0 (no current TCB), loads *CAN_handle_ptr (0x20000744), increments refcount at handle+0x4c, assigns to driver[2]. Then processes pending list at driver[4] (FUN_1268), calls xTaskNotifyFromISR (0x"
+  },
+  {
+   "address": "0x0000188c",
+   "name": "can_tx_queue_send",
+   "class": "vanmoof",
+   "note": "CAN TX blocking enqueue. Params: (CAN_obj, mb_index, timeout_ticks, extra). Spins on driver[0x38] (TX free-slot count): if >0 calls FUN_52c6 (MCAN TX write), decrements count, optionally wakes list via FUN_1268, returns 1. If count==0 and timeout>0: calls xTaskNotifyFromISR (0x0e04), sleeps with xTaskNotifyWait (FUN_0e"
+  },
+  {
+   "address": "0x0000199c",
+   "name": "can_flexcan_irq_dispatch",
+   "class": "vendor-hal",
+   "note": "NXP FlexCAN IFLAG interrupt demultiplexer. Reads IFLAG at param_1+0x50. Decodes bit fields: bits23-25=0x3800000 (bus error) -> event 0x1848; bit9=0x200 (TX MB complete) -> clears IMASK1/IMASK2, event 0x1839; bit0=TX done -> event 0x183d; bit3=RX done -> 0x1842; bit4 -> 0x1849; bit5->0x1840/0x1848; bit6->0x1840; bit7->0"
+  },
+  {
+   "address": "0x00001a90",
+   "name": "can_init",
+   "class": "unsure",
+   "note": "CAN-FD peripheral initialization. Asserts *DAT_1c78==0 (not already initialized). Calls FUN_ce8(10) (delay), FUN_1424 (prvWriteMessageToBuffer/init?), FUN_1090. Enables CAN clock via SYSCON (0x40000220 |= 0x800, 0x40000240 |= 0x800). Configures SPI-connected FlexCAN: sets regs at 0x4008A000 (FLEXCOMM4, DAT_1c80+0x88/0x"
+  },
+  {
+   "address": "0x00001cbc",
+   "name": "flash_page_erase",
+   "class": "vendor-hal",
+   "note": "Erases one IAP flash sector; sector index at obj+0x44 (0xffff=none queued); sector count at obj+0x46; fills page with 0xFF via memset; selects blocking vs non-blocking IAP erase fn ptr via xTaskGetSchedulerState; called by flash_write_pages and FUN_555e"
+  },
+  {
+   "address": "0x00001d38",
+   "name": "flash_write_pages",
+   "class": "vendor-hal",
+   "note": "Writes param_3 bytes to internal flash at offset param_2 (base 0x8000) in 0x200-byte pages; enables SYSCON AHB clock bit 0x200000 at 0x40000220; calls flash_page_erase; invokes IAP page-program fn via vtable; returns 0=ok 1=erase-needed 2=param-error"
+  },
+  {
+   "address": "0x00001ed0",
+   "name": "iap_cmd_enqueue",
+   "class": "vendor-hal",
+   "note": "Registers an IAP command object in global slot table at DAT_1f20; calls can_get_instance_id(0x594) to extract slot/sub-index from param_2; zeroes 0x10-byte header; stores object ptr; sets bitmask in obj+0x48 array; calls NVIC_EnableIRQ to arm completion IRQ"
+  },
+  {
+   "address": "0x00001f28",
+   "name": "heap_malloc",
+   "class": "vanmoof",
+   "note": "dlmalloc-style first-fit heap allocator over 0x5400-byte pool at DAT_2048; free-block linked list at DAT_204c; aligns blocks to 8 bytes; splits blocks when remainder > 0x10; disables IRQ via FUN_1090 around critical section; panics via FUN_50a2 on misalignment; initialises heap on first call"
+  },
+  {
+   "address": "0x0000205c",
+   "name": "flash_read_sector",
+   "class": "vendor-hal",
+   "note": "Allocates 0x3c-byte IAP context + 0x200-byte DMA buffer via heap_malloc; calls IAP read vtable at DAT_2140+0x10 (offset 0x1c blocking / 0x28 non-blocking based on scheduler state); reads one 0x200-byte flash sector; patches sector flags word if param_1==0; returns 0=ok -1=fail"
+  },
+  {
+   "address": "0x0000214c",
+   "name": "queue_msg_enqueue",
+   "class": "vanmoof",
+   "note": "Allocates msg node (0x6c bytes) + data buffer (param_3*4 bytes) via heap_malloc; copies name string up to 20 chars; initialises priority queue node fields (prev/next, priority 0-5); inserts node sorted by param_5 priority into global queue at DAT_2308; notifies consumer task via FUN_e04 (task notify); returns 1=ok -1=a"
+  },
+  {
+   "address": "0x00002338",
+   "name": "can_tx_slot_alloc",
+   "class": "vanmoof",
+   "note": "Allocates a CAN TX pending-slot from global CAN state object at DAT_2398+0x5a8; max 3 concurrent TX slots tracked at field +0x5c; zeroes 0x1c-byte slot body; installs callback ptrs from DAT_239c/DAT_23a0 and handle ptr; returns slot ptr or NULL if full or busy"
+  },
+  {
+   "address": "0x000023a4",
+   "name": "can_fd_transmit",
+   "class": "vanmoof",
+   "note": "Builds and submits a CAN-FD frame; sets MCAN CCCR bits (0x30000/0x3/0x2000/0x1000) in controller; builds Tx buffer descriptor on stack; calls can_configure_tx_element(0x738) and FUN_4fa0 (add Tx request); handles classical-CAN (param_2!=0) and FD (param_2==0 using DAT_2770/2774 baud tables) paths; calls MCAN_CalculateB"
+  },
+  {
+   "address": "0x00002778",
+   "name": "can_fd_hw_init",
+   "class": "vendor-hal",
+   "note": "CAN-FD M_CAN hardware initialisation; enables SYSCON AHB clocks at 0x40000148/0x40000228 (bit 0x8000000); programs M_CAN NBTP/DBTP timing regs; configures Tx buffer base and Rx FIFO; selects baud-rate preset from table at DAT_2920 (up to 8 entries, indexed by clock rate vs DAT_2924 threshold); calls FUN_4f2e (AHBCLKCTR"
+  },
+  {
+   "address": "0x00002938",
+   "name": "spi_rx_send_loop",
+   "class": "vanmoof",
+   "note": "SPI-receive to CAN-transmit bridge task body; infinite loop: calls can_tx_queue_send(0x188c) blocking 500ms for SPI packet; processes received SPI frame header; reads FLEXCOMM SPI regs at +0xcc/0xc8/0xc0; writes CAN Tx data via FUN_5d96; sets FLEXCOMM control bits (+0xe0/0x5c/0x58/0x54/0xd0); on completion notifies via"
+  },
+  {
+   "address": "0x00002ad0",
+   "name": "spi_rx_buf_advance",
+   "class": "vanmoof",
+   "note": "Advances SPI receive ring-buffer read pointer; if no DMA transfer pending (param_1[0x10]==0) decrements message refcount at param_1[2]+0x4c; when refcount hits 0 and priority changed, reinserts node in priority queue via FUN_5156+FUN_504a; if DMA in progress writes next SPI byte via FUN_5d96 and wraps ring pointer; pan"
+  },
+  {
+   "address": "0x00002c5c",
+   "name": "spi_tx_send_loop",
+   "class": "vanmoof",
+   "note": "CAN-to-SPI transmit dequeue loop; checks CAN msg queue (param_1+0x38 vs param_1+0x3c); when data available calls spi_rx_buf_advance(0x2ad0) to emit SPI byte; calls FUN_1268 (CAN filter update) on pending filter; notifies via FUN_e04; on empty queue calls FUN_1494 (set SPI CS idle) + FUN_12dc + FUN_1090; waits via FUN_e"
+  },
+  {
+   "address": "0x00002d6c",
+   "name": "spi_queue_send",
+   "class": "vanmoof",
+   "note": "Enqueues a message on the SPI transmit queue. r0=object/session, r1=cmd (0-5 normal, 6+ ISR variant). Dispatches to FUN_2c5c (cmd<6) or FUN_577a (cmd>=6 = FromISR path). Guards on queue handle *DAT_2db4. Traps via 0x50a2 if r0==NULL. Called by nearly every function in range as the outbound SPI pipe."
+  },
+  {
+   "address": "0x00002db8",
+   "name": "spi_reset_and_disable",
+   "class": "vanmoof",
+   "note": "Resets and disables the SPI slave peripheral. Sets enable flag [r3+0xd4]=1, clears SPI busy flag [r3+0x35]=0. If session has active connection, sends cmd=5 (close) via spi_queue_send. Writes 0 to SYSCON clock-enable reg 0x40000000+0x38c (disables SPI clock)."
+  },
+  {
+   "address": "0x00002e48",
+   "name": "can_session_list_pop_head",
+   "class": "vanmoof",
+   "note": "Pops the head node from a singly-linked CAN session list (*DAT). If head[0] is non-NULL, unlinks it (stores next ptr in head slot, saves prev ptr in old-head slot). Calls vtable dispatch [r4+0x20](r4) and FUN_5062 (enqueue to CAN TX hardware)."
+  },
+  {
+   "address": "0x00002eb8",
+   "name": "can_rx_dispatch_loop",
+   "class": "vanmoof",
+   "note": "Main CAN receive processing loop \u2014 likely the 'can' task body or its inner rx pump. Reads rx ring via FUN_188c, parses frames via FUN_d3c, dispatches to sessions via spi_queue_send(cmd=3). Contains a 10-entry TBB jump table @0x2ffe for session state machine. Calls FUN_12dc (session teardown), FUN_1090 (notify), FUN_50e"
+  },
+  {
+   "address": "0x000030b8",
+   "name": "spi_notify_host",
+   "class": "vanmoof",
+   "note": "Sends a SPI notification to the i.MX8 Linux host. In task context reads queue handle (*DAT_3104), sends cmd=2 via spi_queue_send. In ISR context uses cmd=7 FromISR variant; if yield needed pends PendSV by writing 0x10000000 to SCB ICSR (0xe000ed04)."
+  },
+  {
+   "address": "0x00003108",
+   "name": "can_tx_send_frame",
+   "class": "vanmoof",
+   "note": "Sends a short (3-byte header) CAN-FD frame. Builds header [0x82,0x03,0x00] on stack, calls FUN_4ebc (get tx buffer), waits 100ms via FUN_15b8, stores 2-word payload at tx_buf[0..4], commits via FUN_55f0. Tail-calls FUN_584a."
+  },
+  {
+   "address": "0x00003174",
+   "name": "can_tx_send_frame_with_data",
+   "class": "vanmoof",
+   "note": "Sends a CAN-FD frame with 7-word data payload. Header [0x87,0x88,0x00]. Copies 7 words + 2 bytes from r4+4 into tx buffer via post-increment loop. Commits via FUN_55f0. Tail-calls FUN_584a."
+  },
+  {
+   "address": "0x000031fc",
+   "name": "can_session_clear_filters",
+   "class": "vanmoof",
+   "note": "Clears the CAN RX filter table for a session. Reads session ptr via *DAT_3240, waits 100ms on current connection (FUN_15b8), calls FUN_5964 (clear hw filter), clears BIC mask pair r3[0x10..0x18], zeroes r3[0x18..0x1c]. Tail-calls FUN_584a."
+  },
+  {
+   "address": "0x00003244",
+   "name": "can_session_rx_complete",
+   "class": "vanmoof",
+   "note": "RX completion callback for CAN-TP session. Acquires critical section (FUN_50a2), marks state [r4+0x68]=2. Updates rx-count high watermark in *DAT_32c4. Copies received data into 0x14-stride slot table (DAT_32c8 base) via FUN_504a. If new count beats best-peer count sets wake flag *DAT_32d0=1. Restores via FUN_50d6."
+  },
+  {
+   "address": "0x000032d8",
+   "name": "can_session_tx_complete",
+   "class": "vanmoof",
+   "note": "TX completion callback. Enters critical (FUN_de8), marks state [r4+0x68]=2. Copies data via FUN_5156+FUN_504a into tx slot table (0x14-stride, *DAT_333c watermark, DAT_3340 base). If peer count exceeds ours calls FUN_50e4 (signal). Exits via FUN_e04 (FromISR notify)."
+  },
+  {
+   "address": "0x000033ec",
+   "name": "can_session_write",
+   "class": "vanmoof",
+   "note": "Writes data to a CAN-TP session. If notify_handle!=0: enters critical, checks free space via FUN_5090, handles CAN-TP leading fragment via FUN_52f2, arms retransmit timer FUN_14b4, exits critical. Second FUN_52f2 call for payload body. Wakes consumer (FUN_ce8), calls can_session_tx_complete, notifies (FUN_1090). Traps "
+  },
+  {
+   "address": "0x000034d0",
+   "name": "can_session_accept_and_deliver",
+   "class": "vanmoof",
+   "note": "Processes an accepted CAN session: checks DMA-active flag [r3+0xd0] and calls spi_notify_host if set. Clears SPI flag [r3+0x35]. Iterates CAN-FD frame ring (stride 0xd, base r4[0x14]+0x89) \u2014 filters frames where top-3 bits of flags==0xe0 (accepted), strips mask, dispatches to rx callback. Clears two 0x41-byte regions v"
+  },
+  {
+   "address": "0x00003580",
+   "name": "can_session_timer_init",
+   "class": "vanmoof",
+   "note": "Creates the CAN session periodic FreeRTOS timer (period=10, auto-reload=0x10) via FUN_5cc0 (xTimerCreate). Stores baud parameters from DAT_35c0/35c4 into *DAT_35c8/*DAT_35cc. Registers timer callback DAT_35d0 via FUN_cc4 (xTimerStart). Protected by FUN_de8/e04 critical section."
+  },
+  {
+   "address": "0x000035d4",
+   "name": "can_session_open",
+   "class": "vanmoof",
+   "note": "Opens a CAN session handle: closes existing (spi_queue_send cmd=5), allocates 0x28-byte object (FUN_1f28), initialises timeout [+0x18], callback [+0x1c], seq=0, flags. Calls can_session_timer_init. In ISR context sends cmd=6 FromISR; in task context sends cmd=1. Sets PendSV if ISR yield needed. Returns false if alloc o"
+  },
+  {
+   "address": "0x000036b4",
+   "name": "spi_watchdog_start",
+   "class": "vanmoof",
+   "note": "Starts the SPI watchdog: calls can_session_open(*DAT_36ec, 5000ms timeout, auto=1, cb=*DAT_36f0). If start succeeds and DAT_36f4 pair matches, performs WDOG refresh unlock sequence 0xAA then 0x55 to WDOG[+0x8] with primask disabled. 54-byte body."
+  },
+  {
+   "address": "0x000036fc",
+   "name": "spi_connection_init",
+   "class": "vanmoof",
+   "note": "Initialises the SPI connection to the i.MX8. Clears peripheral enable [r3+0xd4]=0, sets SPI flag [r3+0x35]=1. If DMA active calls spi_notify_host. Writes 0 to SYSCON 0x40000000+0x38c. Opens CAN session (can_session_open). Calls FUN_f70 (SPI slave peripheral init) and FUN_2778 (CAN-FD init). Configures interrupt routing"
+  },
+  {
+   "address": "0x0000377c",
+   "name": "can_tx_send_msg",
+   "class": "vanmoof",
+   "note": "Sends a CAN diagnostic message. Checks *DAT_37dc (CAN context). Zeros 0x1e-byte frame on stack. Packs variadic args (up to r6 count). Stores r0 (CAN-ID) and r1 (u16 cmd) into frame header. Calls FUN_5ad4(ctx->obj[0x590], DAT_37e0, 0, &frame, 0x1e) \u2014 CAN-FD frame write."
+  },
+  {
+   "address": "0x000037e4",
+   "name": "can_rx_frame_handler",
+   "class": "vanmoof",
+   "note": "Processes a received CAN-FD frame (644 bytes). Decodes 3-byte CAN-ID r1[0..2] (little-endian, orr-shifted). Looks up session via FUN_4ebc. State dispatch: 0=no session (-1), 1=connecting (filter match via FUN_5d76 + open via FUN_2c5c), 2=connected (buffer into 0x4c-stride slot table at ctx+0x5ac, max 3 slots of 0x40 by"
+  },
+  {
+   "address": "0x00003a6c",
+   "name": "can_session_table_advance",
+   "class": "vanmoof",
+   "note": "Round-robin advance of the active CAN session slot in a 0x14-stride table at DAT_3ad0. If table is busy (*DAT_3ac4 != 0): sets *DAT_3ac8=1 (pending) and returns. Otherwise walks table backwards from *DAT_3acc, finds first occupied slot, performs circular linked-list node rotation on slot[+4], extracts peer-handle from "
+  },
+  {
+   "address": "0x00003ad8",
+   "name": "vm_can_init",
+   "class": "vanmoof",
+   "note": "Full VanMoof CAN-FD system initializer for the vm task. Phases: (1) SYSCON 0x40000220 clock enables (bits 11,13,14,15,18 = CAN/SPI/DMA clocks); (2) 3x calls to periph_clock_enable (0x4d94) with IDs 0xe/0xf/0x12; (3) IOCON 0x40001000 pin-mux for PIO0_2/3/4/6/9 (CAN bus pins, func=1 DIGIMODE) and PIO0_33/34/35/53 (SPI/ot"
+  },
+  {
+   "address": "0x00004d94",
+   "name": "clock_enable_peripheral",
+   "class": "vendor-hal",
+   "note": "Writes enable bit to NXP LPC55 SYSCON clock-gate register (0x40000000 + 0x220 + (id>>8)*4). Called by peripheral init sweep at 0x3ad8."
+  },
+  {
+   "address": "0x00004e78",
+   "name": "table_scan_predicate",
+   "class": "vanmoof",
+   "note": "Linear scan of a fixed 0x2c-stride table; calls predicate fn on each entry; returns entry index of first match or -1."
+  },
+  {
+   "address": "0x00004ea4",
+   "name": "table_find_entry_ptr",
+   "class": "vanmoof",
+   "note": "Wraps table_scan_predicate; converts index to pointer (index*0x2c + table.entries base). Returns NULL on no match."
+  },
+  {
+   "address": "0x00004ebc",
+   "name": "table_lookup",
+   "class": "vanmoof",
+   "note": "Null-safe wrapper for table_find_entry_ptr; if param_1==0 returns 0, else pushes key on stack and calls 4ea4."
+  },
+  {
+   "address": "0x00004f10",
+   "name": "nvic_enable_irq_bit",
+   "class": "vendor-hal",
+   "note": "Sets bit in NVIC ISER register at base+0x20+(irq>>5)*4 to enable the given IRQ number."
+  },
+  {
+   "address": "0x00004fa0",
+   "name": "mcan_irq_enable",
+   "class": "vendor-hal",
+   "note": "Enables MCAN CAN-FD interrupt: calls nvic_enable_irq_bit, then sets CCCR.IE (offset 0x408) if hardware is in init mode (checks bit 0x20000000 of MCAN_TXESC register)."
+  },
+  {
+   "address": "0x00004fdc",
+   "name": "mcan_irq_pending_set",
+   "class": "vendor-hal",
+   "note": "Records pending MCAN interrupt bit in driver state: if bit not already set in obj[0], ORs bit into obj[9] (pending mask)."
+  },
+  {
+   "address": "0x00004ff2",
+   "name": "gpio_clock_pulse",
+   "class": "vendor-hal",
+   "note": "Generates a GPIO direction clock pulse: sets pin in GPIO DIRSET (0x40000120+bank*4), polls DIR until set, clears via DIRCLR (0x40000140+bank*4), polls until clear. param_1 = (bank<<16)|pin."
+  },
+  {
+   "address": "0x0000501c",
+   "name": "mcan_config_or_bits",
+   "class": "vendor-hal",
+   "note": "ORs MCAN config bits 0x200000 (TX pause) and 0x100000 (EDGE filtering) from param_1+8 into config register word pointed to by param_2."
+  },
+  {
+   "address": "0x00005034",
+   "name": "vListInitialise",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS list.c vListInitialise: zeroes count, sets sentinel next/prev/head to &self, sets end=0xffffffff."
+  },
+  {
+   "address": "0x0000504a",
+   "name": "vListInsertEnd",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS list.c vListInsertEnd: inserts ListItem_t before tail sentinel, splices prev/next links, sets owner back-pointer, increments list count."
+  },
+  {
+   "address": "0x00005062",
+   "name": "vListInsertSorted",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS list.c vListInsert: inserts ListItem_t in ascending xItemValue order (walks list to find insertion point); if xItemValue==0xffffffff inserts at end."
+  },
+  {
+   "address": "0x00005090",
+   "name": "ring_buf_bytes_used",
+   "class": "vanmoof",
+   "note": "Returns bytes currently occupied in ring buffer: (write_ptr + capacity - read_ptr) mod capacity. obj fields: [0]=read_ptr, [1]=write_ptr, [2]=capacity."
+  },
+  {
+   "address": "0x000050a2",
+   "name": "port_set_interrupt_mask",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS portSET_INTERRUPT_MASK_FROM_ISR: reads BASEPRI, sets to 0x20 (masks all ISRs at priority>=1), returns old BASEPRI. DSB+ISB barriers."
+  },
+  {
+   "address": "0x000050b8",
+   "name": "ring_buf_bytes_free",
+   "class": "vanmoof",
+   "note": "Returns free space in ring buffer: (capacity + read_ptr - 1 - write_ptr) mod capacity. Panics via port_set_interrupt_mask infinite-loop if buf is NULL."
+  },
+  {
+   "address": "0x000050d6",
+   "name": "port_clear_interrupt_mask",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS portCLEAR_INTERRUPT_MASK_FROM_ISR: restores BASEPRI to saved value. DSB+ISB barriers."
+  },
+  {
+   "address": "0x000050e4",
+   "name": "port_yield_pend_sv",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS portYIELD equivalent: triggers PendSV by writing 0x10000000 to ICSR (0xe000ed04). Forces context switch."
+  },
+  {
+   "address": "0x000050fa",
+   "name": "timer_callback_dispatch",
+   "class": "vanmoof",
+   "note": "Loads timer object from param_1+0x1c under vTaskEnterCritical/vTaskExitCritical; dispatches callback fn at obj+4 with arg from obj+8 if callback is non-null."
+  },
+  {
+   "address": "0x0000511e",
+   "name": "flexcomm_clock_select_pll",
+   "class": "vendor-hal",
+   "note": "Probes PLL0 then PLL1 via flexcomm_clock_attach (0xecc); stores the better (higher) PLL frequency in obj+0x20 and index (1 or 2) in obj+0x24."
+  },
+  {
+   "address": "0x00005156",
+   "name": "uxListRemove",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS list.c uxListRemove: unlinks ListItem_t from its list, clears owner back-pointer, decrements count, returns new count."
+  },
+  {
+   "address": "0x00005176",
+   "name": "heap_free",
+   "class": "vendor-freertos",
+   "note": "Null-safe wrapper for FreeRTOS prvFreeBlock (heap_4.c vPortFree). Does nothing if param_1==0."
+  },
+  {
+   "address": "0x0000517e",
+   "name": "port_tick_handler",
+   "class": "vendor-freertos",
+   "note": "FreeRTOS xPortSysTickHandler body: masks interrupts (port_set_interrupt_mask), calls xTaskIncrementTick (0xf98); if non-zero result writes PendSV via ICSR; restores BASEPRI."
+  },
+  {
+   "address": "0x0000520c",
+   "name": "mcan_filter_set_bits",
+   "class": "vendor-hal",
+   "note": "Writes MCAN extended filter entry word: packs priority nibble (param_1[3:0]) into bits[27:24] and clears EFTYPE bit (param_2+16) in bits[19:16] of *param_3."
+  },
+  {
+   "address": "0x00005228",
+   "name": "mcan_filter_match",
+   "class": "vendor-hal",
+   "note": "Decodes MCAN Rx buffer descriptor (extracts 29-bit CAN ID, 3 header bytes), builds match key, calls predicate via vtable (*param_3). Returns true if predicate returns 0."
+  },
+  {
+   "address": "0x0000526a",
+   "name": "spi_frame_write_chunked",
+   "class": "vanmoof",
+   "note": "Writes payload to SPI TX frame in chunks of up to 8 bytes; memcpy into frame+5, dispatches each chunk via vtable at obj+0x10; increments frame sequence counter in frame[3] mod 8 or 16 per mode byte."
+  },
+  {
+   "address": "0x000052c6",
+   "name": "ring_buf_advance_write_ptr",
+   "class": "vanmoof",
+   "note": "If pending-advance count (obj+0x40) is non-zero, advances ring buffer write pointer (obj+0xc) by that amount with wrap at capacity (obj+8); then memcpy data to destination."
+  },
+  {
+   "address": "0x000052f2",
+   "name": "ring_buf_read",
+   "class": "vanmoof",
+   "note": "Reads up to min(param_3, param_4) bytes from ring buffer into param_2; handles wrap with two memcpy calls. Advances read pointer. Panics if not enough data available. Returns bytes consumed."
+  },
+  {
+   "address": "0x00005360",
+   "name": "ring_buf_write",
+   "class": "vanmoof",
+   "note": "Writes param_3 bytes from param_2 into ring buffer at write pointer (obj+4); handles wrap with two memcpy calls. Advances write pointer. Panics if insufficient space. Returns bytes written."
+  },
+  {
+   "address": "0x000053ba",
+   "name": "table_entry_add",
+   "class": "vanmoof",
+   "note": "Adds a 0x2c-byte entry to the stride table if no existing entry matches (via table_scan_predicate); memcpy's 0x2c bytes into new slot at table.entries[count], increments count. Returns 0 or -1."
+  },
+  {
+   "address": "0x000053f2",
+   "name": "mcan_tx_buf_setup",
+   "class": "vendor-hal",
+   "note": "Sets up MCAN TX buffer descriptor: reads TXBC/TXESC register fields to determine element count and size, computes buffer element address, copies 8-byte header via memcpy, stores end pointer. param_2 selects nominal(0) or data(1) bitrate path."
+  },
+  {
+   "address": "0x00005478",
+   "name": "flash_write_sector",
+   "class": "vanmoof",
+   "note": "Looks up flash session channel via table_lookup; zeros 4 bytes at slot; calls flash_write_pages to program the sector. param_3=sector index (0xffff=all). Returns 0/-1."
+  },
+  {
+   "address": "0x000054d4",
+   "name": "flash_verify_and_commit",
+   "class": "vanmoof",
+   "note": "Erases flash page, reads back sector header via prvGetTasksWaitingToSendOrReceive, writes data via flash_write_pages, compares expected CRC; sends pass/fail byte back via SPI channel. Used in firmware update verification flow."
+  },
+  {
+   "address": "0x0000555e",
+   "name": "flash_session_open",
+   "class": "vanmoof",
+   "note": "Opens flash update session: validates flash target (checks +0x3c flag), calls flash_page_erase, allocates up to 58 pages via flexcomm_clock_attach2 loop, initialises page buffer (memset 0xff, 512 bytes), stores start sector and count in flash descriptor."
+  },
+  {
+   "address": "0x000055f0",
+   "name": "spi_tx_frame_send",
+   "class": "vanmoof",
+   "note": "Builds 13-byte SPI TX frame (session ID, flags, mode byte) via memset+field fills; dispatches via vtable (mode 0: single via obj+0x5a4 fn, mode 1/2: fragmented via spi_frame_write_chunked). Returns 0/-1/-2."
+  },
+  {
+   "address": "0x000056dc",
+   "name": "ring_buf_write_capped",
+   "class": "vanmoof",
+   "note": "Writes to ring buffer capping at available free space. If buf has length-prefix mode (flag bit 0 at obj+0x1c), prepends 4-byte little-endian length; calls ring_buf_write. Panics if zero capacity. Returns bytes written or 0."
+  },
+  {
+   "address": "0x0000577a",
+   "name": "spi_rx_buf_consume",
+   "class": "vanmoof",
+   "note": "Under port_set_interrupt_mask lock: if RX write_ptr>read_ptr, calls spi_rx_buf_advance to consume entry; if sequence counter exhausted (-1), pops via prvCopyDataToQueue and sets output flag. Returns 1 if consumed entry, 0 if empty."
+  },
+  {
+   "address": "0x0000584a",
+   "name": "spi_tx_enqueue",
+   "class": "vanmoof",
+   "note": "Thread-safe SPI TX enqueue. Thread context (IPSR==0): delegates to spi_tx_send_loop. ISR context: validates obj not NULL/not busy, under port_set_interrupt_mask enqueues data, increments TX seq counter (byte at +0x45, wraps 0xff->handled), triggers PendSV if needed."
+  },
+  {
+   "address": "0x00005964",
+   "name": "spi_session_rx_frame",
+   "class": "vanmoof",
+   "note": "Receives incoming SPI frame: allocates slot via table_lookup(key=0x000808), copies CAN message fields from param_2, looks up or creates SPI channel via table_lookup, calls spi_tx_frame_send then spi_tx_enqueue. Returns 0/-1."
+  },
+  {
+   "address": "0x000059d8",
+   "name": "ring_buf_write_notify",
+   "class": "vanmoof",
+   "note": "Writes data to session ring buffer via ring_buf_write_capped; if bytes_used crosses threshold (obj+0xc), notifies consumer. Thread path: can_session_tx_complete or xTimerGenericCommand. ISR path: can_session_rx_complete + PendSV. Returns bool (bytes written != 0)."
+  },
+  {
+   "address": "0x00005ad4",
+   "name": "spi_session_send",
+   "class": "vanmoof",
+   "note": "Sends data on SPI session: validates non-null session and that data/length pair is consistent (XOR check); optionally memcpy's extra payload; calls ring_buf_write_notify. Returns 0/-1/-2."
+  },
+  {
+   "address": "0x00005b8e",
+   "name": "spi_session_read",
+   "class": "vanmoof",
+   "note": "Reads data from SPI session ring buffer. Thread path (IPSR==0): enters critical section, calls can_session_write directly. ISR path: under port_set_interrupt_mask, reads via ring_buf_read (with optional 4-byte length prefix strip for framed mode), notifies via can_session_rx_complete, triggers PendSV. Returns bytes rea"
+  },
+  {
+   "address": "0x00005cc0",
+   "name": "spi_channel_alloc",
+   "class": "vanmoof",
+   "note": "Allocates SPI channel object from heap (size = param_1*param_2 + 0x48). Validates overflow. Initialises data pointer, element/count fields, ring buffer bounds, sequence bytes 0xff/-1; calls vListInitialise twice for TX and RX queues. Returns channel pointer or NULL."
+  },
+  {
+   "address": "0x00005d30",
+   "name": "spi_channel_create",
+   "class": "vanmoof",
+   "note": "Creates minimal SPI channel (1 element, 0 count) via spi_channel_alloc; zeros ring buffer fields; starts TX loop via spi_tx_send_loop(ch, 0). Returns channel pointer or NULL."
+  },
+  {
+   "address": "0x00005d96",
+   "name": "memcpy",
+   "class": "vendor-libgcc",
+   "note": "Byte-by-byte memcpy: dst=r0, src=r1, len=r2. Early-out if len==0."
+  },
+  {
+   "address": "0x00005db0",
+   "name": "memset",
+   "class": "vendor-libgcc",
+   "note": "Byte-by-byte memset: ptr=r0, val=r1, len=r2. Early-out if len==0."
+  }
+ ]
+}
