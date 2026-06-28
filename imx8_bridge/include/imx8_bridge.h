@@ -251,7 +251,7 @@ uint32_t spi_tx_send_loop(void *ring_buf, int blocking, int p3, uint32_t p4);   
 void  can_rx_dispatch_loop(uint32_t a, uint32_t b, int c, void *d);                /* 0x2eb8 (can task) */
 int   can_tx_queue_send(void *q, void *out, int timeout_ms);                       /* 0x188c */
 int   spi_rx_buf_advance(void *ch, int blocking);                                  /* 0x2ad0 */
-int   spi_rx_buf_consume(void *ch, int *woken);                                    /* 0x577a */
+int   spi_rx_buf_consume(void *ch, void *msg, int *woken);                          /* 0x577a */
 void  func_0x4ed4(uint32_t *task_ctx);                                             /* 0x4ed4 (SPI frame submit) */
 
 /* init + task-create (main.c) */

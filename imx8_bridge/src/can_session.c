@@ -47,6 +47,9 @@ bool can_session_open(void **handle, int timeout_ms, int bidirectional, int call
     uint32_t ticks;
     int rc;
 
+    if (handle == NULL)                        /* OEM: NULL handle = no-op, returns true */
+        return true;
+
     if (*handle != NULL) {                     /* close the previous session */
         spi_queue_send(*handle, SPI_CMD_CLOSE, 0, NULL, 0, 0, 0);
         *handle = NULL;
@@ -55,11 +58,18 @@ bool can_session_open(void **handle, int timeout_ms, int bidirectional, int call
     /* ms -> ticks (1000-tick/s passthrough); INT32_MAX -> infinite */
     ticks = (timeout_ms == 0x7fffffff) ? 0xffffffffu
                                        : (uint32_t)(((uint32_t)timeout_ms * 1000u) / 1000u);
+    if (ticks == 0) {                          /* configASSERT: non-zero timeout */
+        port_set_interrupt_mask();
+        for (;;) { }
+    }
 
     obj = (can_session_t *)heap_malloc(0x28);
-    if (obj == NULL)
-        return false;
+    if (obj == NULL) {                         /* OEM: alloc failure returns true */
+        *handle = NULL;
+        return true;
+    }
 
+    obj->flags         = 0;                    /* +0x24 zeroed before timer_init */
     obj->seq           = 0;                    /* +0x00 */
     obj->flags2        = 0;                    /* +0x14 */
     obj->timeout_ticks = ticks;                /* +0x18 */
@@ -104,12 +114,19 @@ int can_session_write(ring_buf_t *session, uint8_t *buf, uint32_t len, int cooki
     }
 
     if (cookie != 0) {
-        vTaskEnterCritical();
+        vTaskEnterCritical();                              /* outer critical */
         if (ring_buf_bytes_used(session) <= hdr) {
             void *chan = *g_active_spi_chan;
-            *(uint8_t *)((uint8_t *)chan + 0x68) = 0;        /* chan state idle (was 2) */
-            *(void **)(sbytes + 0x10) = chan;                /* park channel in wait slot */
-            vTaskExitCritical();
+            vTaskEnterCritical();                          /* inner critical */
+            if (*(uint8_t *)((uint8_t *)chan + 0x68) == 2) /* clear only if busy */
+                *(uint8_t *)((uint8_t *)chan + 0x68) = 0;
+            if (*(void **)(sbytes + 0x10) != NULL) {       /* assert wait-slot empty */
+                port_set_interrupt_mask();
+                for (;;) { }
+            }
+            *(void **)(sbytes + 0x10) = chan;              /* park channel in wait slot */
+            vTaskExitCritical();                           /* exit inner */
+            vTaskExitCritical();                           /* exit outer */
             spi_transfer_complete_handler(cookie);
             *(void **)(sbytes + 0x10) = NULL;
         } else {
@@ -135,8 +152,10 @@ int can_session_write(ring_buf_t *session, uint8_t *buf, uint32_t len, int cooki
     got = ring_buf_read(session, buf, len, ring_buf_bytes_used(session));
     if (got != 0) {
         prvIncrementSuspendedCounter();
-        if (*(void **)(sbytes + 0x14) != NULL)               /* +0x14 chained tx */
+        if (*(void **)(sbytes + 0x14) != NULL) {             /* +0x14 chained tx */
             can_session_tx_complete(*(can_session_node_t **)(sbytes + 0x14));
+            *(void **)(sbytes + 0x14) = NULL;                /* OEM clears it after */
+        }
         xTimerGenericCommand(session);
     }
     return (int)got;
@@ -173,9 +192,8 @@ void can_session_rx_complete(can_session_node_t *s, uint32_t *wake_out)
         } else {                               /* overflow mode */
             vListInsertEnd(g_sess_rx_overflow, &s->alt_list_node);  /* +0x18 */
         }
-        if (s->count > (*g_sess_rx_best)->count) {
-            if (wake_out)
-                *wake_out = 1;
+        if (s->count > (*g_sess_rx_best)->count) {   /* OEM writes *wake_out unconditionally */
+            *wake_out = 1;
             g_sess_rx_wake = 1;
         }
     }
@@ -235,11 +253,11 @@ void can_session_table_advance(void)
         uint8_t *slot = base + idx * SESS_STRIDE;
         if (*(uint32_t *)slot != 0) {          /* slot occupied */
             uint8_t **fwd  = (uint8_t **)(slot + 4);          /* +0x04 list head */
-            uint8_t  *next = *(uint8_t **)(*fwd + 4);         /* node->next->next */
-            if (next == slot + 8)                              /* sentinel of this slot */
-                next = *(uint8_t **)(*fwd + 4);
-            *fwd = next;
-            g_sched_peer = *(uint32_t *)(next + 0x0c);         /* peer handle */
+            uint8_t  *next = *(uint8_t **)(*fwd + 4);         /* head->next */
+            if (next == slot + 8)                              /* skip this slot's sentinel */
+                next = *(uint8_t **)(next + 4);                /* sentinel->next */
+            *fwd = next;                                       /* update head */
+            g_sched_peer = *(uint32_t *)(*fwd + 0x0c);         /* peer handle via updated head */
             g_sched_index = idx;
             return;
         }

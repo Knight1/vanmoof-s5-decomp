@@ -20,6 +20,11 @@ extern void    *g_can_tx_error;     /* DAT_23a0 — tx-error callback ptr */
 extern void   **g_can_msg_root;     /* DAT_37dc — ptr-to-ptr CAN context root */
 extern void    *g_can_msg_chan;     /* DAT_37e0 — SPI channel selector */
 
+/* Per-clock-index bit-rate tables (vendor SDK data, indexed by clock index). */
+extern const uint8_t can_dlc_table[];      /* DAT_2768 — nominal DLC bytes (stride 2) */
+extern const uint8_t can_fd_dlc_table[];   /* DAT_2770 — FD data DLC bytes (stride 1) */
+extern const uint8_t can_bittiming_cfg[];  /* DAT_276c — bit-timing structs (stride 0x10) */
+
 /* M_CAN byte-offset MMIO helper (base is the controller's MMIO base). */
 #define MCAN_REG(base, off) MMIO32((uintptr_t)(base) + (off))
 
@@ -33,8 +38,9 @@ extern void    *g_can_msg_chan;     /* DAT_37e0 — SPI channel selector */
 uint32_t can_fd_transmit(can_ctx_t *ctx, int classical_mode, uint32_t desc)
 {
     volatile uint32_t *base;
-    uint8_t tx_elem[0x1c];
-    uint8_t dlc_stride;
+    uint8_t  tx_elem[0x1c];
+    uint32_t clk;
+    uint8_t  dlc_stride;
 
     if (ctx == NULL)
         return 1;
@@ -45,7 +51,7 @@ uint32_t can_fd_transmit(can_ctx_t *ctx, int classical_mode, uint32_t desc)
     if (ctx->tx_in_progress == 1)                /* [7] busy */
         return 2;
 
-    prvGetClockIndexByBase((void *)base);
+    clk = prvGetClockIndexByBase((void *)base);  /* per-instance clock index */
 
     MCAN_REG(base, MCAN_CCCR_OFF)     |= MCAN_CCCR_INIT_CCE;   /* +0xe00 INIT|CCE */
     MCAN_REG(base, MCAN_CCCR_EXT_OFF) |= 0x3u;                 /* +0xe04 */
@@ -57,9 +63,9 @@ uint32_t can_fd_transmit(can_ctx_t *ctx, int classical_mode, uint32_t desc)
     ctx->prescaler      = 0x41;                               /* [8] */
     MCAN_REG(base, MCAN_CCCR_OFF) |= MCAN_CCCR_BRSE;          /* +0xe00 BRSE */
 
-    /* Tx element descriptor: HW Tx FIFO addr, DLC stride (1 if DLC<8 else 2),
-     * prescaler = 0x41/stride, FD/BRS/ESI flags. */
-    dlc_stride = 1;                                           /* set per DLC<8 vs >=8 */
+    /* nominal Tx element: HW Tx FIFO addr, DLC stride from the per-clock table
+     * (1 if DLC<8 else 2), prescaler = 0x41/stride, FD/BRS/ESI flags. */
+    dlc_stride = (can_dlc_table[clk * 2] < 8) ? 1 : 2;
     *(void **)(tx_elem + 0x00) = (void *)((uintptr_t)base + MCAN_TXFIFO_OFF);
     *(uint16_t *)(tx_elem + 0x08) = dlc_stride;
     *(uint16_t *)(tx_elem + 0x0a) = (uint16_t)(0x41u / dlc_stride);
@@ -67,21 +73,27 @@ uint32_t can_fd_transmit(can_ctx_t *ctx, int classical_mode, uint32_t desc)
 
     if (can_configure_tx_element(ctx->nom_handle, tx_elem) != 0)  /* [3] nominal */
         return 2;
+    ctx->nom_ready = 1;                                       /* [5] strb r7,[r6,#0x5] */
 
     if (classical_mode == 0) {
-        /* CAN-FD: program the data-phase element + acceptance filters + BRS */
+        /* CAN-FD: data-phase element + acceptance filters + BRS bit-timing */
         uint8_t data_elem[0x1c];
+        uint8_t fd_stride = (can_fd_dlc_table[clk] < 8) ? 1 : 2;
         mem_set(data_elem, 0, sizeof data_elem);
         mcan_config_or_bits((void *)base, MCAN_CCCR_FDOE);
         mcan_filter_set_bits((void *)base, 0);
-        MCAN_CalculateBitTimingParam(data_elem, data_elem);  /* BRS timing */
+        MCAN_CalculateBitTimingParam((void *)&can_bittiming_cfg[clk * 0x10], data_elem);
+        *(uint16_t *)(data_elem + 0x08) = fd_stride;
         *(void **)(data_elem + 0x14) = (void *)(uintptr_t)desc;
         if (can_configure_tx_element(ctx->data_handle, data_elem) != 0)  /* [2] data */
             return 2;
+    } else {
+        *(uint8_t *)((uint8_t *)ctx + 0x04) = 1;             /* classical: byte @ctx+0x4 */
     }
 
-    MCAN_REG(base, MCAN_DATA_PRESC) = ctx->prescaler;        /* +0xe22 high-word */
-    mcan_irq_enable(classical_mode == 0 ? ctx->data_handle : ctx->nom_handle);
+    /* 16-bit store of the bit-timing high word at base+0xe22 (NOT 32-bit). */
+    *(volatile uint16_t *)((uintptr_t)base + MCAN_DATA_PRESC) = (uint16_t)ctx->prescaler;
+    mcan_irq_enable(ctx->data_handle);                       /* always data_handle */
     return 0;
 }
 
@@ -99,15 +111,17 @@ void *can_tx_slot_alloc(void)
     if (count >= 3 || ctx[0x04] != 0)                  /* full or busy */
         return NULL;
 
-    uint8_t *slot = ctx + 8 + (size_t)count * 0x1c;    /* slot base */
+    uint8_t *slot = ctx + 8 + (size_t)count * 0x1c;    /* slot body (returned) */
     mem_set(slot, 0, 0x1c);
-    *(uint32_t *)(slot + 0x20) = 0;                    /* status dword */
+    /* OEM stores all fields through the raw element base (slot-8), so the field
+     * offsets relative to the returned slot body are 8 lower than the raw +0x8.. */
+    *(uint32_t *)(slot + 0x18) = 0;                    /* status dword  (raw +0x20) */
     ctx[0x5c] = (uint8_t)(count + 1);
 
-    *(void **)(slot + 0x08) = g_can_tx_complete;       /* DAT_239c */
-    *(void **)(slot + 0x0c) = g_can_tx_error;          /* DAT_23a0 */
-    *(void **)(slot + 0x10) = *(void **)(g_can_ctx + 0x59c);  /* handle value */
-    *(void **)(slot + 0x14) = g_can_ctx + 0x594;       /* ctx back-pointer */
+    *(void **)(slot + 0x00) = g_can_tx_complete;       /* DAT_239c     (raw +0x08) */
+    *(void **)(slot + 0x04) = g_can_tx_error;          /* DAT_23a0     (raw +0x0c) */
+    *(void **)(slot + 0x08) = *(void **)(g_can_ctx + 0x59c);  /* handle (raw +0x10) */
+    *(void **)(slot + 0x0c) = g_can_ctx + 0x594;       /* ctx back-ptr (raw +0x14) */
     return slot;
 }
 

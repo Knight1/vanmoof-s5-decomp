@@ -117,14 +117,20 @@ void spi_tx_enqueue(spi_channel_t *ch)
         port_set_interrupt_mask();
         for (;;) { }
     }
+    if (ch->data_ptr == NULL && ch->end_ptr != NULL) {   /* 3rd configASSERT */
+        port_set_interrupt_mask();
+        for (;;) { }
+    }
 
     mask = port_set_interrupt_mask();
-    ch->current_count++;                    /* +0x38 */
-    if (ch->tx_seq == 0xff) {               /* +0x45: queue path */
-        queue_notified = prvCopyDataToQueue(&ch->rx_list);   /* &(ch+0x24) */
-    } else {
-        ch->tx_seq++;                       /* simple increment (0x7f traps) */
-        enqueue_ok = 1;
+    if (ch->current_count < ch->capacity) { /* only enqueue when there is room */
+        ch->current_count++;                /* +0x38 */
+        if (ch->tx_seq == 0xff) {           /* +0x45: queue path */
+            queue_notified = prvCopyDataToQueue(&ch->rx_list);   /* &(ch+0x24) */
+        } else {
+            ch->tx_seq++;                   /* simple increment (0x7f traps) */
+            enqueue_ok = 1;
+        }
     }
     port_clear_interrupt_mask(mask);
 
@@ -142,9 +148,11 @@ spi_channel_t *spi_channel_alloc(uint32_t capacity, uint32_t elem_size)
     size_t total = (size_t)capacity * elem_size + 0x48u;
     spi_channel_t *ch;
 
-    /* multiplication-overflow guard (OEM udiv verify) */
-    if (elem_size != 0 && (total - 0x48u) / elem_size != capacity)
-        return NULL;
+    /* multiplication-overflow guard (OEM udiv verify) — traps, not returns */
+    if (elem_size != 0 && (total - 0x48u) / elem_size != capacity) {
+        port_set_interrupt_mask();
+        for (;;) { }
+    }
 
     ch = (spi_channel_t *)heap_malloc(total);
     if (ch == NULL)
@@ -215,7 +223,8 @@ uint32_t spi_queue_send(void *obj, int cmd, uint32_t pa, void *pb, uint32_t pc,
                         uint32_t a5, uint32_t a6)
 {
     void *queue;
-    (void)a5; (void)a6;
+    struct { int cmd; uint32_t pa; void *obj; } msg;   /* on-stack {cmd, pa, obj} */
+    (void)pb; (void)a5; (void)a6;
 
     if (obj == NULL) {                      /* configASSERT: obj != NULL */
         port_set_interrupt_mask();
@@ -225,15 +234,16 @@ uint32_t spi_queue_send(void *obj, int cmd, uint32_t pa, void *pb, uint32_t pc,
     if (queue == NULL)
         return 0;
 
+    /* the callee receives a POINTER to this {cmd,pa,obj} triplet, not cmd in r1 */
+    msg.cmd = cmd; msg.pa = pa; msg.obj = obj;
+
     if (cmd <= 5) {                         /* cmp #5 / bgt: task path */
         uint32_t timeout = pc;
         if (xTaskGetSchedulerState2() != 2) /* scheduler not running */
             timeout = 0;
-        /* on-stack msg {cmd, pa, obj}; consumed by the TX loop */
-        return spi_tx_send_loop(queue, cmd, (int)timeout, pa);
+        return spi_tx_send_loop(queue, (int)(intptr_t)&msg, (int)timeout, 0);
     } else {                                /* ISR path */
         int woken = 0;
-        (void)pb;
-        return (uint32_t)spi_rx_buf_consume(queue, &woken);
+        return (uint32_t)spi_rx_buf_consume(queue, &msg, &woken);
     }
 }

@@ -27,6 +27,8 @@
 extern volatile uint32_t  g_can_deadline;   /* *DAT_30a0 */
 extern void             **g_can_session_list;/* DAT_30b0 -> list head */
 extern volatile uint32_t  g_can_tick;       /* *DAT_30b4 */
+extern void             **g_cur_tcb;        /* DAT_2ac4 -> pxCurrentTCB */
+extern void *can_session_list_pop_head(void *list);   /* 0x2e48 */
 
 /* ------------------------------------------------------------------- 0x2938 */
 
@@ -54,8 +56,8 @@ void spi_rx_send_loop(uint32_t *task_ctx)
         /* strip the top 3 bits of the CAN-ID and force the extended-ID flag */
         canid = (*(uint32_t *)&rx_buf[4] & 0x1fffffffu) | 0x40000000u;
         *(uint32_t *)&out[0] = canid;
-        out[8]  = (uint8_t)(rx_buf[0] & 0x0fu);      /* session nibble */
-        out[9]  = 8;                                  /* data length */
+        out[6]  = (uint8_t)(rx_buf[0] & 0x0fu);      /* session nibble (sp+0x16) */
+        out[12] = 8;                                  /* data length    (sp+0x1c) */
 
         if (cb[0x115] != 0) {                         /* DMA path already primed */
             func_0x4ed4(task_ctx);
@@ -72,10 +74,11 @@ void spi_rx_send_loop(uint32_t *task_ctx)
             continue;
         }
 
-        /* copy the 8-byte CAN-ID header + 8-byte payload into the DMA window */
+        /* copy the 8-byte CAN-ID header + 8-byte payload into the DMA window.
+         * dest = (FIFO data-addr & 0xfffc) + the *value* at flex+0x200 (not its addr). */
         {
             uint8_t *dest = (uint8_t *)((MMIO32((uintptr_t)flex + FC_DATAADDR) & 0xfffcu)
-                                        + (uintptr_t)flex + FC_DMABUF);
+                                        + MMIO32((uintptr_t)flex + FC_DMABUF));
             mem_cpy(dest, out, 8);
             mem_cpy(dest + 8, &out[8], 8);
         }
@@ -95,14 +98,23 @@ void spi_rx_send_loop(uint32_t *task_ctx)
             for (;;) { }
         }
         prvIncrementSuspendedCounter();
-        if ((*(uint32_t *)task_ctx[1] & 7u) == 0) {   /* TCB notify bits clear */
-            vListInsertEnd((void *)task_ctx[1], (void *)task_ctx[1]);
-            prvWriteMessageToBuffer(0x32, 1);         /* block 50 ticks */
-        } else {
-            *(uint32_t *)task_ctx[1] &= ~7u;
+        {
+            uint8_t *tcb = (uint8_t *)task_ctx[1];
+            if ((*(uint32_t *)tcb & 7u) == 0) {       /* notify bits clear -> block */
+                vListInsertEnd(tcb + 4, (uint8_t *)(*g_cur_tcb) + 0x18);
+                *(uint32_t *)(tcb + 0x18) = 5u - *(uint32_t *)(tcb + 0x2c);  /* 5 - prio */
+                prvWriteMessageToBuffer(0x32, 1);     /* block 50 ticks */
+            } else {
+                *(uint32_t *)tcb &= ~7u;
+            }
+            xTimerGenericCommand(tcb);
+            /* submit the SPI frame only if not notified, or the data-ready bit set */
+            {
+                uint32_t notify = *(uint32_t *)tcb & 0xffffffu;
+                if (notify == 0 || (notify & 2u))
+                    func_0x4ed4(task_ctx);
+            }
         }
-        xTimerGenericCommand((void *)task_ctx[1]);
-        func_0x4ed4(task_ctx);                        /* submit the SPI frame */
     }
 }
 
@@ -125,7 +137,7 @@ uint32_t spi_tx_send_loop(void *ring_buf, int blocking, int p3, uint32_t p4)
         port_set_interrupt_mask();
         for (;;) { }
     }
-    if (xTaskGetSchedulerState2() != 2 && p3 != 0) {
+    if (xTaskGetSchedulerState2() == 0 && p3 != 0) {   /* trap iff scheduler not running */
         port_set_interrupt_mask();
         for (;;) { }
     }
@@ -133,9 +145,11 @@ uint32_t spi_tx_send_loop(void *ring_buf, int blocking, int p3, uint32_t p4)
     for (;;) {
         vTaskEnterCritical();
         if (*(uint32_t *)(r + 0x38) < *(uint32_t *)(r + 0x3c)) {    /* data available */
-            spi_rx_buf_advance(ring_buf, blocking);
+            int adv = spi_rx_buf_advance(ring_buf, blocking);
             if (*(void **)(r + 0x24) != NULL)
                 prvCopyDataToQueue(r + 0x24);
+            if (adv != 0)
+                port_yield_pend_sv();
             vTaskExitCritical();
             return 1;
         }
@@ -161,11 +175,11 @@ uint32_t spi_tx_send_loop(void *ring_buf, int blocking, int p3, uint32_t p4)
         vTaskEnterCritical();
         if (*(uint32_t *)(r + 0x38) == *(uint32_t *)(r + 0x3c)) {   /* now empty */
             vTaskExitCritical();
-            spi_notify_and_kick(r + 0x10, blocking);
+            spi_notify_and_kick(r + 0x10, p3);         /* arg is p3, not blocking */
         } else {
             vTaskExitCritical();
         }
-        xQueueGenericSendFromISR(ring_buf);
+        xQueueGenericSendFromISR(ring_buf);            /* both branches notify + kick */
         xTimerGenericCommand(ring_buf);
     }
 }
@@ -178,21 +192,20 @@ uint32_t spi_tx_send_loop(void *ring_buf, int blocking, int p3, uint32_t p4)
  * the OEM TBB jump table at 0x2ffe. */
 void can_rx_dispatch_loop(uint32_t a, uint32_t b, int c, void *d)
 {
-    (void)a; (void)b; (void)c; (void)d;
+    (void)a; (void)b; (void)c;
 
     for (;;) {                                         /* LAB_2ec2 */
         void *list = *g_can_session_list;
 
         prvIncrementSuspendedCounter();
-        if (g_can_tick >= g_can_deadline && list != NULL) {
-            extern void *can_session_list_pop_head(void *list);   /* 0x2e48 */
+        if (g_can_deadline > g_can_tick && list != NULL) {  /* deadline in the future */
             can_session_list_pop_head(list);
             g_can_deadline = g_can_tick;
             xTimerGenericCommand(list);
-        } else if (list == NULL) {
-            xQueueGenericSendFromISR(list);
-            xTimerGenericCommand(list);
         }
+        /* empty-list case: OEM sets an empty flag and re-loops — no queue/timer call.
+         * The per-session deadline-expiry sub-block (uxListRemove + re-insert +
+         * dispatch) is modelled by the state machine below. */
 
         for (;;) {                                     /* LAB_2fc8: poll frames */
             uint8_t frame[0x80];                        /* dequeued session object */
@@ -221,7 +234,7 @@ void can_rx_dispatch_loop(uint32_t a, uint32_t b, int c, void *d)
                 frame[0x24] &= ~1u;
                 break;
             case 4: case 9:                             /* (re)arm timeout fn */
-                *(void **)(frame + 0x18) = (void *)frame;
+                *(void **)(frame + 0x18) = d;           /* the 4th fn arg, not frame */
                 vListInsert(frame, g_can_tick, g_can_tick);
                 break;
             case 5:                                     /* free if not in-use */
