@@ -44,6 +44,7 @@ repo); extract it yourself from a FOTA bundle or eMMC dump.
 | [`kernel-modules.md`](docs/kernel-modules.md) | the two out-of-tree `.ko`s — cryptodev + Jailhouse (both vendor) |
 | [`update.md`](docs/update.md) | the two OTA paths — i.MX8 A/B self-update + the peripheral (CAN/SMP) updater |
 | [`fota-image.md`](docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
+| [`secure-boot.md`](docs/secure-boot.md) | the **HAB chain of trust** — `imx-boot_signed.bin` layout, both CSFs, the SRK/CSF/IMG PKI, and the custom U-Boot commands that extend it to kernel + rootfs |
 | [`progress.md`](docs/progress.md) | analysis tracker |
 
 ## At a glance
