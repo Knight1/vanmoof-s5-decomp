@@ -36,10 +36,11 @@ build:
 
 So the three payloads are: a **rootfs** SquashFS, a **kernel** packaged as its
 own SquashFS (`boot.sqfs`, mounted to provide Image + dtb), and a **signed
-i.MX bootloader** (`imx-boot_signed.bin` = SPL + U-Boot + ATF; "signed" ⇒
-HAB/secure-boot). Everything is integrity-checked by **MD5** (not a
-cryptographic signature at the FOTA layer — the *bootloader* is separately
-signed for HAB).
+i.MX bootloader** (`imx-boot_signed.bin` = SPL + U-Boot + ATF + OP-TEE; "signed"
+⇒ HAB/secure-boot). Everything is integrity-checked by **MD5** (not a
+cryptographic signature at the FOTA layer) — but the bootloader **and both
+squashfs payloads** each carry a real HABv4 signature; the full chain is decoded
+in [`secure-boot.md`](secure-boot.md).
 
 ### Rootfs SquashFS superblock
 
@@ -74,7 +75,7 @@ All three carved payloads MD5-match the PEGA header (`ef2bdfbf…`, `dfe3c2cc…
 | --- | --- | --- |
 | `root.sqfs` | SquashFS 4.0 (gzip) | the Linux rootfs (5129 files) |
 | `boot.sqfs` | SquashFS 4.0 (gzip) | the **kernel** — `Image` (22.5 MB, ARM64 **Linux 5.4.70+**) + `vm_mainecu-imx8mn-lpddr4.dtb` (the device tree; model *"NXP VanMoof mainECU i.MX8MNano board"*) |
-| `imxboot.tgz` | gzip tar | `imx-boot_signed.bin` (3.4 MB; SPL + U-Boot + ATF, HAB-signed; inner md5 `eb60fb8e…`) |
+| `imxboot.tgz` | gzip tar | `imx-boot_signed.bin` (3.4 MB; SPL + U-Boot + ATF + OP-TEE, HAB-signed; inner md5 `eb60fb8e…`) — decoded in [`secure-boot.md`](secure-boot.md) |
 
 So a slot is `[bootloader → boot.sqfs(kernel+dtb) → root.sqfs(rootfs)]`. The
 device tree is the authoritative hardware map — see [`hardware.md`](hardware.md).
@@ -118,6 +119,12 @@ Flow: `install` writes the new slot + sets `installed`; on next boot `verify`
 confirms the bike came up on the candidate (→ `try-new`/commit) or `rollback`
 flips back to the previous boot partition. This is what makes a bad OTA
 self-heal instead of bricking.
+
+**U-Boot owns the other half of this state machine.** Its non-stock `bootpp`
+command reads the same `su_state` var, HAB-authenticates the slot's kernel and
+rootfs partitions, promotes `installed → try-new` on a good boot, and on
+authentication failure writes `failed`, flips the eMMC boot partition and
+resets. Decoded in [`secure-boot.md`](secure-boot.md#chain-stages-3--4--kernel-and-rootfs).
 
 ### Delta updates
 
