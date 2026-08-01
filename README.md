@@ -90,6 +90,7 @@ nRF9160 modem, and the CAN fleet. Full analysis under [`main/docs/`](main/docs/)
 | [`kernel-modules.md`](main/docs/kernel-modules.md) | the two out-of-tree `.ko`s — cryptodev + Jailhouse (both vendor) |
 | [`update.md`](main/docs/update.md) | the two OTA paths — i.MX8 A/B self-update + peripheral (CAN/SMP) updater |
 | [`fota-image.md`](main/docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
+| [`secure-boot.md`](main/docs/secure-boot.md) | the **HAB chain of trust** — signed bootloader layout, CSFs, SRK/CSF/IMG PKI, kernel + rootfs authentication |
 
 ### Wireless SoCs (Zephyr + MCUboot, magic `0x96f3b83d`)
 
