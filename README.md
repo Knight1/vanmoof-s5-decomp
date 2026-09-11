@@ -87,6 +87,7 @@ nRF9160 modem, and the CAN fleet. Full analysis under [`main/docs/`](main/docs/)
 | [`power/`](main/power/) | **reconstruction** of `power` — battery/charger state machine + OD/CAN telemetry + MQTT wiring |
 | [`mqtt-bus.md`](main/docs/mqtt-bus.md) | the internal MQTT bus + the BLE role-based ACL |
 | [`can-bus.md`](main/docs/can-bus.md) | the **CAN** wire protocol (`vm` library) — frame format, 29-bit ID encoding, the OD address map (verified) |
+| [`ble-topic-ids.md`](main/docs/ble-topic-ids.md) | the phone-facing view — GATT transport, fragmenting, certificate auth + the complete 300-entry topic id ⇄ MQTT topic registry |
 | [`kernel-modules.md`](main/docs/kernel-modules.md) | the two out-of-tree `.ko`s — cryptodev + Jailhouse (both vendor) |
 | [`update.md`](main/docs/update.md) | the two OTA paths — i.MX8 A/B self-update + peripheral (CAN/SMP) updater |
 | [`fota-image.md`](main/docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |

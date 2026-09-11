@@ -12,6 +12,10 @@ the bus to/from **AWS IoT** (Device Shadow + Jobs + telemetry).
 > [`can-bus.md`](can-bus.md). Several services expose CAN/OD signals *onto* MQTT
 > (e.g. `power` re-publishes the Panasonic pack); those appear here as the MQTT
 > topic, with a note.
+>
+> The phone-facing view of this same bus is the **16-bit topic id** registry the
+> BLE link speaks — id ↔ topic string, recovered from `spi-mqtt-bridge`:
+> [`ble-topic-ids.md`](ble-topic-ids.md).
 
 Ground-truthed from the service binaries in Ghidra (`/S5-v1.5/OS/*`, string +
 publish/subscribe xref analysis) and the per-service decode docs. Entries marked
@@ -311,6 +315,15 @@ per-component identity/health; aliveness from CAN heartbeats + modem ping.
 | `modem/info/network` | pub | no | JSON | modem network info |
 | `modem/config/lte` | pub | no | JSON | LTE config snapshot |
 | `modem/vars/update` | pub | no | JSON | modem reported variables |
+
+> The `<name>` set is **exactly 15 devices**, pinned from the bridge's topic-id
+> registry ([`ble-topic-ids.md`](ble-topic-ids.md), ids `0x0030`–`0x003e` for
+> `/status`, `0x5130`/`0x5230`/`0x5330` for the three version kinds, `0x6000`+
+> for `/serial`): `ble`, `battery_primary`, `battery_secondary`, `charger`,
+> `elock`, `eshifter`, `frontlight`, **`imx8_bridge`**, `modem`, `motor_control`,
+> `motor_sensor`, `power_control`, `power_pedal`, `rearlight`, `user_ecu`.
+> `imx8_bridge` (the LPC55S69 CAN bridge MCU) is supervised and OTA-updated like
+> any other sub-ECU.
 
 > The supervisor runs **parallel `ble/*` and `modem/*` component topic sets** —
 > it watches the BLE SoC and the Nordic modem the same way. `<name>` carries

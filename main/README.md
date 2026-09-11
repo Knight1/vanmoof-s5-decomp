@@ -41,6 +41,7 @@ repo); extract it yourself from a FOTA bundle or eMMC dump.
 | [`power/`](power/) | **Ghidra reconstruction** of `power` — the battery/charger state machine, OD/CAN telemetry table, MQTT wiring |
 | [`mqtt-bus.md`](docs/mqtt-bus.md) | the internal **MQTT** IPC bus — topic namespace + the BLE role-based ACL |
 | [`can-bus.md`](docs/can-bus.md) | the **CAN** wire protocol (VanMoof `vm` library) — frame format, 29-bit ID encoding, the OD address map (verified) |
+| [`ble-topic-ids.md`](docs/ble-topic-ids.md) | the **phone-facing** view of the bus — GATT transport, fragmenting, certificate auth, and the complete 300-entry 16-bit topic id ⇄ MQTT topic registry |
 | [`kernel-modules.md`](docs/kernel-modules.md) | the two out-of-tree `.ko`s — cryptodev + Jailhouse (both vendor) |
 | [`update.md`](docs/update.md) | the two OTA paths — i.MX8 A/B self-update + the peripheral (CAN/SMP) updater |
 | [`fota-image.md`](docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
