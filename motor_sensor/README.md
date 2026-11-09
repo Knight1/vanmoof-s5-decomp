@@ -89,11 +89,18 @@ motor_sensor/
   ghidra/exports/motor_sensor_classification.json — 218-function app/vendor split
 ```
 
+## Reconstruction
+
+The VanMoof app is reconstructed to behaviour-oriented C in `src/` (7 TUs,
+`make` clean), backed by a deep-decode + adversarial-verify pass on the 30 core
+functions. See `docs/progress.md` for the per-TU map and the verified constants.
+
 ## Open / next
 
-- [ ] Reconstruct the VanMoof app to C (sensor sampling + CAN reporting + tasks),
-      like the `imx8_bridge` pass.
+- [x] MCU class identified, 218 fns carved + classified, deep-decoded + verified,
+      core app reconstructed to C (`src/`, `make` clean).
 - [ ] Confirm the exact MCU part + peripheral bases (the `0x40006000` CAN /
-      `0x400A0000` ADC bases need pinning against the LPC546xx memory map).
+      `0x400A0000` timing bases need pinning against the LPC546xx memory map).
 - [ ] Resolve the BLE-GATT/`VMKYS` link — on-board nRF link vs shared comms lib.
-- [ ] Cross-ref the CAN report frames against `vanmoof/canbus` `CANBUS.md`.
+- [ ] Cross-ref the CAN report frames (`0x1A1`/`0x2A1`/`0x382`/`0x4A1`/`0x8887`)
+      against `vanmoof/canbus` `CANBUS.md`.
