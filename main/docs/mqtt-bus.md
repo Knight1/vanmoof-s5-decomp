@@ -132,11 +132,15 @@ two Amazon roots (`iot/ca.CertPool`).
 - The broker has **no passwords/auth** — anonymous + ACL-by-claimed-username.
   Combined with the loopback bind and an **empty** `iptables.rules`, the only
   thing stopping a process from claiming `factory` (full bus) is that it must
-  already be running on the box. Off-box reach is only via `gateway` (cloud,
-  mTLS) and the BLE/modem bridges.
+  already be running on the box. Off-box reach is via `gateway` (cloud,
+  mTLS), the BLE/modem bridges, and an SSH login (which *is* on the box — see
+  below).
 - The privileged BLE roles (Bike Hunter/QA/R&D/doctor) get full `readwrite #`;
   possession of the corresponding BLE auth certificate grants total bus
   control. The trust boundary is the **BLE certificate check on the nRF52**, not
   the broker (which only maps the post-auth role→ACL).
-- `root` in `/etc/shadow` has a real `$6$` sha512crypt hash (not blank).
-- `sshd` is installed but not enabled in this production image.
+- `root` in `/etc/shadow` has a real `$6$` sha512crypt hash (not blank) —
+  unusable over SSH, where password auth is off.
+- `sshd` **is** enabled (socket-activated, TCP 22 on every interface) but
+  certificate-only: a VanMoof-CA user certificate gives a root shell, and with
+  it the whole bus. See [`ssh.md`](ssh.md).

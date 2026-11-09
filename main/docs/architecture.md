@@ -70,7 +70,8 @@ A loopback-only `mosquitto 1.6.7` instance (`listener 1883`, `bind_interface
 lo`) is the inter-process bus. Design points:
 
 - **Internal-only:** bound to `lo`, never exposed off-box. Reachability off the
-  bike is exclusively through `gateway` (cloud) and the BLE proxy.
+  bike is through `gateway` (cloud), the BLE proxy, or an SSH login on the box
+  (certificate-only; see [`ssh.md`](ssh.md)).
 - **ACL'd, but not authenticated:** there is no password file — the broker is
   anonymous and enforces `/etc/mosquitto/acl` by the *claimed* username. Service
   users (`power-service`, `ux-service`, `gateway`, …) and **BLE rider roles**

@@ -63,6 +63,12 @@ openssl, kernel modules, wifi firmware, …).
 - **Persistence:** `/var/log` and `/var/lib/systemd/timesync` are bind-mounted
   from the ext4 config partition `mmcblk2p6/config/…`; mosquitto persistence
   lives there too. Everything else is read-only squashfs root (A/B).
+- **SSH:** VanMoof content in the stock OpenSSH packages — a certificate-only
+  `sshd_config` (`PasswordAuthentication no`, `PermitRootLogin yes`, one user CA
+  in `/etc/ssh/trusted`, principals from `/etc/ssh/authorized-principals-cmd`,
+  host key + pre-auth serial banner on `mmcblk2p6`); and `systemd-conf`'s
+  `02-wired.network` gives every wired interface a static `192.168.137.230/24`
+  alongside DHCP. Details + the "sshole" assessment in [`ssh.md`](ssh.md).
 
 ## What was *not* changed
 
@@ -73,10 +79,13 @@ openssl, kernel modules, wifi firmware, …).
   only out-of-tree loadable modules.
 - The firewall is effectively open: `/etc/iptables/iptables.rules` is **empty**
   (the `iptables.service` loads nothing). Network isolation relies on the
-  mosquitto listener being bound to `lo` only, not on netfilter.
-- `sshd` (OpenSSH) is installed but **not** in `multi-user.target.wants` — i.e.
-  not auto-started in this production image. A serial getty (115200 8N1) is the
-  enabled console.
+  mosquitto listener being bound to `lo` only, and on `sshd` (all interfaces)
+  accepting certificates only — not on netfilter.
+- `sshd` startup is the stock Yocto **socket activation**: `sshd.socket` sits in
+  `sockets.target.wants` (not `multi-user.target.wants`), so sshd **is**
+  enabled — systemd listens on TCP 22 on every interface and spawns `sshd -i`
+  per connection. (Its *config* is VanMoof's — see above.) A serial getty
+  (115200 8N1) is the enabled console.
 
 ## One-line summary
 
