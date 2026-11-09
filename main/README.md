@@ -46,6 +46,7 @@ repo); extract it yourself from a FOTA bundle or eMMC dump.
 | [`update.md`](docs/update.md) | the two OTA paths — i.MX8 A/B self-update + the peripheral (CAN/SMP) updater |
 | [`fota-image.md`](docs/fota-image.md) | Pegatron FOTA container format, unpack recipe, eMMC A/B layout |
 | [`secure-boot.md`](docs/secure-boot.md) | the **HAB chain of trust** — `imx-boot_signed.bin` layout, both CSFs, the SRK/CSF/IMG PKI, and the custom U-Boot commands that extend it to kernel + rootfs |
+| [`ssh.md`](docs/ssh.md) | **SSH access** — socket-activated, certificate-only `sshd` (one VanMoof user CA + principals), reachability (static `192.168.137.230` on wired) |
 | [`progress.md`](docs/progress.md) | analysis tracker |
 
 ## At a glance
